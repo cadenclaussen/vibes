@@ -10,6 +10,7 @@
 		DC90CC5C2ED252ED00A956CD /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = DC90CC5B2ED252ED00A956CD /* FirebaseAuth */; };
 		DC90CC5E2ED252ED00A956CD /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = DC90CC5D2ED252ED00A956CD /* FirebaseFirestore */; };
 		DC90CC602ED252ED00A956CD /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = DC90CC5F2ED252ED00A956CD /* FirebaseStorage */; };
+		DC90CC622ED252ED00A956CD /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = DC90CC612ED252ED00A956CD /* FirebaseMessaging */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +33,7 @@
 				DC90CC5C2ED252ED00A956CD /* FirebaseAuth in Frameworks */,
 				DC90CC5E2ED252ED00A956CD /* FirebaseFirestore in Frameworks */,
 				DC90CC602ED252ED00A956CD /* FirebaseStorage in Frameworks */,
+				DC90CC622ED252ED00A956CD /* FirebaseMessaging in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -77,6 +79,7 @@
 				DC90CC5B2ED252ED00A956CD /* FirebaseAuth */,
 				DC90CC5D2ED252ED00A956CD /* FirebaseFirestore */,
 				DC90CC5F2ED252ED00A956CD /* FirebaseStorage */,
+				DC90CC612ED252ED00A956CD /* FirebaseMessaging */,
 			);
 			productName = vibes;
 			productReference = DCEF8FE52ED220D3006CF6B6 /* vibes.app */;
@@ -374,6 +377,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = DC90CC5A2ED252ED00A956CD /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseStorage;
+		};
+		DC90CC612ED252ED00A956CD /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = DC90CC5A2ED252ED00A956CD /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

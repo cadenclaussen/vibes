@@ -6,56 +6,54 @@
 //
 
 import SwiftUI
-import SwiftData
+import FirebaseAuth
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @EnvironmentObject var authManager: AuthManager
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
-                }
-                .onDelete(perform: deleteItems)
+        Group {
+            if authManager.isAuthenticated {
+                homeView
+            } else {
+                AuthView()
             }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
-            }
-        } detail: {
-            Text("Select an item")
         }
     }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
+    private var homeView: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                Text("Welcome to vibes")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
 
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+                Text("You're signed in!")
+                    .font(.body)
+
+                if let email = authManager.user?.email {
+                    Text("Email: \(email)")
+                        .font(.subheadline)
+                        .foregroundColor(Color(.secondaryLabel))
+                }
+
+                Button("Sign Out") {
+                    do {
+                        try authManager.signOut()
+                    } catch {
+                        print("Error signing out: \(error.localizedDescription)")
+                    }
+                }
+                .font(.headline)
+                .foregroundColor(.red)
             }
+            .padding()
+            .navigationTitle("Home")
         }
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+        .environmentObject(AuthManager.shared)
 }

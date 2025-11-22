@@ -8,9 +8,12 @@
 import SwiftUI
 import SwiftData
 import Firebase
+import FirebaseMessaging
 
 @main
 struct vibesApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Item.self,
@@ -26,12 +29,41 @@ struct vibesApp: App {
 
     init() {
         FirebaseApp.configure()
+        print("✅ Firebase configured successfully")
+        print("✅ Firebase app name: \(FirebaseApp.app()?.name ?? "unknown")")
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(AuthManager.shared)
         }
         .modelContainer(sharedModelContainer)
+    }
+}
+
+class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+        print("✅ AppDelegate: didFinishLaunching called")
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
+            print("✅ Notification permission granted: \(granted)")
+            if granted {
+                DispatchQueue.main.async {
+                    application.registerForRemoteNotifications()
+                }
+            }
+        }
+        return true
+    }
+
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        print("✅ Device registered for remote notifications")
+        Messaging.messaging().apnsToken = deviceToken
+        print("✅ APNS token set for Firebase Messaging")
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        print("❌ Failed to register for remote notifications: \(error.localizedDescription)")
     }
 }
