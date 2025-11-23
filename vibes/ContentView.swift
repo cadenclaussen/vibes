@@ -23,33 +23,44 @@ struct ContentView: View {
 }
 
 struct MainTabView: View {
+    @State private var selectedTab = 0
+    @State private var shouldEditProfile = false
+
     var body: some View {
-        TabView {
-            SearchTab()
+        TabView(selection: $selectedTab) {
+            SearchTab(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
                 .tabItem {
                     Label("Search", systemImage: "magnifyingglass")
                 }
+                .tag(0)
 
-            FriendsTab()
+            FriendsView(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
                 .tabItem {
                     Label("Friends", systemImage: "person.2.fill")
                 }
+                .tag(1)
 
-            StatsTab()
+            StatsTab(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
                 .tabItem {
                     Label("Stats", systemImage: "chart.bar.fill")
                 }
+                .tag(2)
 
-            ProfileView()
+            ProfileView(shouldEditProfile: $shouldEditProfile)
                 .tabItem {
                     Label("Profile", systemImage: "person.fill")
                 }
+                .tag(3)
         }
     }
 }
 
 // Placeholder views for tabs we haven't built yet
 struct SearchTab: View {
+    @EnvironmentObject var authManager: AuthManager
+    @Binding var selectedTab: Int
+    @Binding var shouldEditProfile: Bool
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 16) {
@@ -66,32 +77,20 @@ struct SearchTab: View {
                     .foregroundColor(Color(.secondaryLabel))
             }
             .navigationTitle("Search")
-        }
-    }
-}
-
-struct FriendsTab: View {
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 16) {
-                Image(systemName: "hammer.fill")
-                    .font(.system(size: 60))
-                    .foregroundColor(Color(.tertiaryLabel))
-
-                Text("Under Construction")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-
-                Text("This feature is coming soon")
-                    .font(.body)
-                    .foregroundColor(Color(.secondaryLabel))
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    SettingsMenu(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
+                }
             }
-            .navigationTitle("Friends")
         }
     }
 }
 
 struct StatsTab: View {
+    @EnvironmentObject var authManager: AuthManager
+    @Binding var selectedTab: Int
+    @Binding var shouldEditProfile: Bool
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 16) {
@@ -108,6 +107,11 @@ struct StatsTab: View {
                     .foregroundColor(Color(.secondaryLabel))
             }
             .navigationTitle("Stats")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    SettingsMenu(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
+                }
+            }
         }
     }
 }

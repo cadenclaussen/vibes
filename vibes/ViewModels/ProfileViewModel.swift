@@ -19,6 +19,7 @@ class ProfileViewModel: ObservableObject {
     @Published var displayName = ""
     @Published var bio = ""
     @Published var profileTheme = ""
+    @Published var musicTasteTags: [String] = []
 
     private let firestoreService = FirestoreService.shared
     private let authManager = AuthManager.shared
@@ -48,6 +49,7 @@ class ProfileViewModel: ObservableObject {
         updatedProfile.displayName = displayName
         updatedProfile.bio = bio
         updatedProfile.profileTheme = profileTheme
+        updatedProfile.musicTasteTags = musicTasteTags
 
         isLoading = true
         errorMessage = nil
@@ -99,5 +101,6 @@ class ProfileViewModel: ObservableObject {
         displayName = profile.displayName
         bio = profile.bio ?? ""
         profileTheme = profile.profileTheme ?? ""
+        musicTasteTags = profile.musicTasteTags
     }
 }

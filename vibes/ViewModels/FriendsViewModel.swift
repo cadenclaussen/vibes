@@ -7,31 +7,23 @@
 
 import Foundation
 import Combine
-import FirebaseAuth
 
 @MainActor
 class FriendsViewModel: ObservableObject {
-    @Published var friends: [Friendship] = []
-    @Published var searchResults: [UserProfile] = []
-    @Published var searchQuery = ""
+    @Published var friends: [FriendProfile] = []
+    @Published var pendingRequests: [(friendship: Friendship, profile: FriendProfile)] = []
+    @Published var notifications: [FriendNotification] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
 
-    private let firestoreService = FirestoreService.shared
-    private let authManager = AuthManager.shared
-    private var searchTask: Task<Void, Never>?
+    private let friendService = FriendService.shared
 
     func loadFriends() async {
-        guard let userId = authManager.user?.uid else {
-            errorMessage = "Not authenticated"
-            return
-        }
-
         isLoading = true
         errorMessage = nil
 
         do {
-            friends = try await firestoreService.getFriends(userId: userId)
+            friends = try await friendService.fetchFriends()
         } catch {
             errorMessage = "Failed to load friends: \(error.localizedDescription)"
         }
@@ -39,66 +31,71 @@ class FriendsViewModel: ObservableObject {
         isLoading = false
     }
 
-    func searchUsers() {
-        searchTask?.cancel()
-
-        guard !searchQuery.isEmpty else {
-            searchResults = []
-            return
-        }
-
-        guard let userId = authManager.user?.uid else { return }
-
-        searchTask = Task {
-            do {
-                try await Task.sleep(nanoseconds: 300_000_000)
-                guard !Task.isCancelled else { return }
-
-                let results = try await firestoreService.searchUsers(query: searchQuery, excludeUserId: userId)
-                if !Task.isCancelled {
-                    searchResults = results
-                }
-            } catch {
-                if !Task.isCancelled {
-                    errorMessage = "Search failed: \(error.localizedDescription)"
-                }
-            }
+    func loadPendingRequests() async {
+        do {
+            pendingRequests = try await friendService.fetchPendingRequests()
+        } catch {
+            errorMessage = "Failed to load requests: \(error.localizedDescription)"
         }
     }
 
-    func sendFriendRequest(to friendId: String) async {
-        guard let userId = authManager.user?.uid else { return }
+    func loadNotifications() async {
+        do {
+            notifications = try await friendService.fetchNotifications()
+        } catch {
+            errorMessage = "Failed to load notifications: \(error.localizedDescription)"
+        }
+    }
 
+    func sendFriendRequest(username: String) async {
         isLoading = true
         errorMessage = nil
 
         do {
-            try await firestoreService.sendFriendRequest(from: userId, to: friendId)
-            searchResults.removeAll { $0.uid == friendId }
+            try await friendService.sendFriendRequest(toUsername: username)
         } catch {
-            errorMessage = "Failed to send friend request: \(error.localizedDescription)"
+            errorMessage = error.localizedDescription
         }
 
         isLoading = false
     }
 
     func acceptFriendRequest(friendshipId: String) async {
-        isLoading = true
-        errorMessage = nil
-
         do {
-            try await firestoreService.acceptFriendRequest(friendshipId: friendshipId)
+            try await friendService.acceptFriendRequest(friendshipId: friendshipId)
             await loadFriends()
+            await loadPendingRequests()
+            await loadNotifications()
         } catch {
-            errorMessage = "Failed to accept friend request: \(error.localizedDescription)"
+            errorMessage = "Failed to accept request: \(error.localizedDescription)"
         }
-
-        isLoading = false
     }
 
-    func clearSearch() {
-        searchQuery = ""
-        searchResults = []
-        searchTask?.cancel()
+    func declineFriendRequest(friendshipId: String) async {
+        do {
+            try await friendService.declineFriendRequest(friendshipId: friendshipId)
+            await loadPendingRequests()
+            await loadNotifications()
+        } catch {
+            errorMessage = "Failed to decline request: \(error.localizedDescription)"
+        }
+    }
+
+    func removeFriend(friendshipId: String) async {
+        do {
+            try await friendService.removeFriend(friendshipId: friendshipId)
+            await loadFriends()
+        } catch {
+            errorMessage = "Failed to remove friend: \(error.localizedDescription)"
+        }
+    }
+
+    func markNotificationAsRead(notificationId: String) async {
+        do {
+            try await friendService.markNotificationAsRead(notificationId: notificationId)
+            await loadNotifications()
+        } catch {
+            print("Failed to mark notification as read: \(error.localizedDescription)")
+        }
     }
 }
