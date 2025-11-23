@@ -77,23 +77,9 @@ class AuthManager: ObservableObject {
 
         let result = try await Auth.auth().createUser(withEmail: email, password: password)
 
-        let userData: [String: Any] = [
-            "uid": result.user.uid,
-            "email": email,
-            "username": username,
-            "displayName": username,
-            "createdAt": Timestamp(),
-            "spotifyId": "",
-            "spotifyLinked": false,
-            "privacySettings": [
-                "profileVisibility": "friends",
-                "showNowPlaying": true,
-                "showListeningStats": true,
-                "allowFriendRequests": "everyone"
-            ]
-        ]
+        let userProfile = UserProfile(uid: result.user.uid, email: email, username: username)
 
-        try await db.collection("users").document(result.user.uid).setData(userData)
+        try db.collection("users").document(result.user.uid).setData(from: userProfile)
         self.user = result.user
         print("✅ User created successfully: \(username)")
     }

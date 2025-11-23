@@ -5,9 +5,9 @@
 ### 1. ✅ Real-time listening activity (Airbuds-style)
 **Status:** COMPLETE
 **Location in PRD:**
-- Friends tab wireframe (line 277-281)
-- "Now Playing" section at top of Friends tab
-- Real-time display of what friends are currently listening to
+- Friends tab wireframe (line 296-305)
+- Notifications section at top of Friends tab includes activity
+- Real-time "Now Playing" section showing what friends are listening to
 
 **Features:**
 - ✅ Show what friends are currently listening to
@@ -107,7 +107,7 @@
 5. ✅ **Statistics Dashboard** - Personal listening stats
 6. ✅ **Friendly Competition** - Leaderboards and challenges
 7. ✅ **Badges & Achievements** - Gamification beyond streaks
-8. ✅ **5-Tab Navigation** - Including dedicated Stats tab
+8. ✅ **4-Tab Navigation** - Streamlined navigation with notifications integrated into Friends tab
 
 ---
 

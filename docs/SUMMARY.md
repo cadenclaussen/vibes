@@ -57,7 +57,7 @@ vibes is a social music sharing app that combines AI-powered recommendations, ga
 - AI-powered personalized new music recommendations
 - Analyzes listening habits and taste
 - Notifications for new releases matching user's style
-- Appears in Notifications tab
+- Appears in notifications section at top of Friends tab
 
 ### 5. Spotify Integration
 - Full Spotify Web API integration
@@ -169,7 +169,7 @@ vibes is a social music sharing app that combines AI-powered recommendations, ga
 1. **Onboarding:** Download → Create account → Choose username → Connect Spotify → Add friends → Tutorial
 2. **Sending Song:** Search → Preview → Share → Choose friend → Add caption/rating → Send
 3. **Messaging:** Friends tab → Tap friend → Message thread → Send text or song
-4. **Notifications:** Check Notifications tab → See messages/recommendations → Tap to open
+4. **Notifications:** Check notifications section at top of Friends tab → See messages/recommendations → Tap to open
 5. **Stats:** Stats tab → View personal stats → Compare with friends → Share recap
 6. **Profile:** Profile tab → Edit Space → Add favorites/bio/theme → Save
 7. **Widgets:** Profile → Widgets → Choose type/size → Customize → Add to home screen

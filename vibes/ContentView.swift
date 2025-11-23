@@ -14,41 +14,100 @@ struct ContentView: View {
     var body: some View {
         Group {
             if authManager.isAuthenticated {
-                homeView
+                MainTabView()
             } else {
                 AuthView()
             }
         }
     }
+}
 
-    private var homeView: some View {
+struct MainTabView: View {
+    var body: some View {
+        TabView {
+            SearchTab()
+                .tabItem {
+                    Label("Search", systemImage: "magnifyingglass")
+                }
+
+            FriendsTab()
+                .tabItem {
+                    Label("Friends", systemImage: "person.2.fill")
+                }
+
+            StatsTab()
+                .tabItem {
+                    Label("Stats", systemImage: "chart.bar.fill")
+                }
+
+            ProfileView()
+                .tabItem {
+                    Label("Profile", systemImage: "person.fill")
+                }
+        }
+    }
+}
+
+// Placeholder views for tabs we haven't built yet
+struct SearchTab: View {
+    var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                Text("Welcome to vibes")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
+            VStack(spacing: 16) {
+                Image(systemName: "hammer.fill")
+                    .font(.system(size: 60))
+                    .foregroundColor(Color(.tertiaryLabel))
 
-                Text("You're signed in!")
+                Text("Under Construction")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+
+                Text("This feature is coming soon")
                     .font(.body)
-
-                if let email = authManager.user?.email {
-                    Text("Email: \(email)")
-                        .font(.subheadline)
-                        .foregroundColor(Color(.secondaryLabel))
-                }
-
-                Button("Sign Out") {
-                    do {
-                        try authManager.signOut()
-                    } catch {
-                        print("Error signing out: \(error.localizedDescription)")
-                    }
-                }
-                .font(.headline)
-                .foregroundColor(.red)
+                    .foregroundColor(Color(.secondaryLabel))
             }
-            .padding()
-            .navigationTitle("Home")
+            .navigationTitle("Search")
+        }
+    }
+}
+
+struct FriendsTab: View {
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 16) {
+                Image(systemName: "hammer.fill")
+                    .font(.system(size: 60))
+                    .foregroundColor(Color(.tertiaryLabel))
+
+                Text("Under Construction")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+
+                Text("This feature is coming soon")
+                    .font(.body)
+                    .foregroundColor(Color(.secondaryLabel))
+            }
+            .navigationTitle("Friends")
+        }
+    }
+}
+
+struct StatsTab: View {
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 16) {
+                Image(systemName: "hammer.fill")
+                    .font(.system(size: 60))
+                    .foregroundColor(Color(.tertiaryLabel))
+
+                Text("Under Construction")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+
+                Text("This feature is coming soon")
+                    .font(.body)
+                    .foregroundColor(Color(.secondaryLabel))
+            }
+            .navigationTitle("Stats")
         }
     }
 }

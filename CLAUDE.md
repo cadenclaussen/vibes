@@ -1,8 +1,40 @@
-## Development Environment
+# Task Tracking - MANDATORY
 
-- Docker runtime: Rancher Desktop
-- Use `nerdctl` or `docker` commands (Rancher Desktop provides Docker compatibility)
-- Dev containers are managed through Rancher Desktop's container runtime
+**Every user request MUST be tracked in `docs/task.md` FIRST.**
+
+## Workflow
+1. User requests task → EITHER IMMEDIATELY add to `docs/task.md` OR if the user asks for the task to be done in the future, IMMEDIATELY add to `docs/backlog.md`
+2. Check archiving: `wc -l docs/task.md` and `wc -l docs/backlog.md` - if > 300 lines, archive old
+   completed tasks to docs/.archive/tasks.md
+3. Set status: TASK → IN_PROGRESS → COMPLETED
+4. On failure: Increment failure count, document what went wrong
+
+## Task Format
+```markdown
+### N. Brief task description
+- **Status**: TASK | IN_PROGRESS | COMPLETED
+- **Type**: Bug | Feature
+- **Location**: File:line
+- **Requested**: Full detailed user request
+- **Context**: Why it matters, related features
+- **Acceptance Criteria**: Checkboxes for verification
+- **Failure Count**: N
+- **Failures**: Attempt N: What went wrong and why
+- **Solution**: Exact changes made and verification
+```
+
+**Type Field**:
+- **Bug**: Fixes for broken functionality (incorrect behavior, crashes,
+  performance issues)
+- **Feature**: New functionality, improvements, or refactoring (requires
+  documentation updates)
+
+## Critical Requirements
+1. **No exceptions** - User request = immediate task.md entry
+2. **Be verbose in Requested** - Capture full context for verification
+3. **Document acceptance criteria** - Specific checks to verify completion
+4. **Update status in real-time** - Move through states as you work
+5. **Always verify** - Re-read request and check criteria before COMPLETED
 
 ## Xcode Project Configuration
 
@@ -286,17 +318,3 @@ do_something()
 - Include context when helpful
 - Suggest fixes when possible
 - Use consistent formatting
-
-### Logging
-
-- Log at appropriate levels
-- Include relevant context
-- Don't log sensitive data
-- Keep logs actionable
-
-### Testing
-
-- Write tests for new features
-- Test edge cases
-- Keep tests simple and focused
-- Use descriptive test names

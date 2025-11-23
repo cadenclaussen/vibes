@@ -132,7 +132,7 @@ Music lovers struggle to share their favorite discoveries with friends in a mean
 - AI discovers new song releases that match user's music taste
   - Analyzes user's listening habits, playlists, and shared songs
   - Notifies users of new releases that fit their style
-  - Shows these recommendations in the Notifications tab
+  - Shows these recommendations in the notifications section at the top of the Friends tab
   - Users can listen, share, or add to playlists
 - Users can accept or reject AI suggestions
 - AI learns from user feedback to improve recommendations
@@ -259,7 +259,7 @@ Music lovers struggle to share their favorite discoveries with friends in a mean
 - Go to Friends tab → Tap friend from friends list → Opens message thread → View conversation history (text + songs) → Type text message OR tap + to search/send song → Message appears in thread → Vibestreak increments if both users engaged today
 
 #### 4. Notifications Flow
-- Open Notifications tab → See recent messages, new song recommendations, friend requests, and milestones
+- Open Friends tab → See notifications section at top showing recent messages, new song recommendations, friend requests, and milestones
   - Tap message notification → Opens message thread with that friend
   - Tap song recommendation → Preview song → Share with friends or add to playlist
 
@@ -285,13 +285,7 @@ Music lovers struggle to share their favorite discoveries with friends in a mean
 - Open Profile tab → Tap "Edit Space" → Add favorite artists (auto-sync or manual) → Add bio and lyrics → Choose background theme → Add music taste tags → Save → Profile updates for friends to see
 
 ### Wireframes/Mockups
-- Tab-based navigation with 5 main tabs: Notifications, Search, Friends, Stats, Profile
-
-- **Notifications tab** shows:
-  - Recent messages from friends
-  - New song releases that might fit your style (AI-powered)
-  - Friend requests and vibestreak milestones
-  - Achievement unlocks
+- Tab-based navigation with 4 main tabs: Search, Friends, Stats, Profile
 
 - **Search tab**:
   - Song search with Spotify catalog
@@ -300,8 +294,13 @@ Music lovers struggle to share their favorite discoveries with friends in a mean
   - Recently searched songs
 
 - **Friends tab**:
+  - **Notifications section at top**:
+    - Recent messages from friends
+    - New song releases that might fit your style (AI-powered)
+    - Friend requests and vibestreak milestones
+    - Achievement unlocks
   - Friend list with vibestreak counts and profile pictures
-  - Real-time "Now Playing" section at top (see what friends are listening to)
+  - Real-time "Now Playing" section showing what friends are listening to
   - Tapping a friend opens message thread with text + songs
   - Quick add friend button
 
