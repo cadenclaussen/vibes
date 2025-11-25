@@ -11,7 +11,7 @@ import FirebaseAuth
 
 class FriendService {
     static let shared = FriendService()
-    private let db = Firestore.firestore()
+    private lazy var db = Firestore.firestore()
 
     private init() {}
 

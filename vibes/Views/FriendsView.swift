@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import FirebaseAuth
 
 struct FriendsView: View {
     @EnvironmentObject var authManager: AuthManager
@@ -214,7 +215,7 @@ struct FriendsView: View {
             } else {
                 VStack(spacing: 8) {
                     ForEach(viewModel.friends) { friend in
-                        NavigationLink(destination: FriendDetailView(friend: friend)) {
+                        NavigationLink(destination: messageThreadDestination(for: friend)) {
                             friendRow(friend)
                         }
                     }
@@ -276,6 +277,20 @@ struct FriendsView: View {
         await viewModel.loadFriends()
         await viewModel.loadPendingRequests()
         await viewModel.loadNotifications()
+    }
+
+    @ViewBuilder
+    private func messageThreadDestination(for friend: FriendProfile) -> some View {
+        if let currentUserId = authManager.user?.uid {
+            MessageThreadContainer(
+                friendId: friend.id,
+                friendUsername: friend.username,
+                currentUserId: currentUserId
+            )
+        } else {
+            Text("Unable to load conversation")
+                .foregroundColor(.secondary)
+        }
     }
 
     private func iconForNotificationType(_ type: FriendNotification.NotificationType) -> String {

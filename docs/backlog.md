@@ -75,7 +75,19 @@ This file tracks tasks and features to be implemented in the future.
   - Tap to view song details or share
   - Empty state when no friends are listening
 
-### 6. Music taste compatibility scores
+### 6. Swipe-to-reveal message timestamps
+- **Type**: Feature
+- **Description**: Add swipe gesture to reveal timestamps for all messages in the conversation
+- **Context**: Keep message view clean by hiding timestamps by default, show them when user swipes left
+- **Requirements**:
+  - Add left swipe gesture on message list view
+  - Show timestamps for all messages when swiping left
+  - Messages should stay in place, only timestamps appear/disappear
+  - Timestamps should disappear when user releases swipe
+  - Format timestamps with short time style (e.g., "3:45 PM")
+  - Position timestamps next to messages (right-aligned for sent messages, left-aligned for received)
+
+### 7. Music taste compatibility scores
 - **Type**: Feature
 - **Description**: Calculate and display music compatibility percentage between users
 - **Context**: Helps users discover friends with similar music taste and provides conversation starters
@@ -89,7 +101,7 @@ This file tracks tasks and features to be implemented in the future.
   - Update scores periodically based on listening habits
   - Include compatibility in friend discovery/suggestions
 
-### 7. AI-powered new music recommendations
+### 8. AI-powered new music recommendations
 - **Type**: Feature
 - **Description**: Personalized new music suggestions in notifications section based on listening habits
 - **Context**: AI feature that analyzes user taste to recommend new releases they might enjoy
@@ -108,7 +120,7 @@ This file tracks tasks and features to be implemented in the future.
 
 ## Authentication Enhancements
 
-### 8. Forgot password functionality
+### 9. Forgot password functionality
 - **Type**: Feature
 - **Description**: Add forgot password/password reset flow for users who can't access their account
 - **Context**: Essential authentication feature to help users regain access to their accounts
@@ -122,7 +134,7 @@ This file tracks tasks and features to be implemented in the future.
   - Consider adding password reset link expiration notice
   - Return to login screen after successful reset
 
-### 9. Delete account functionality
+### 10. Delete account functionality
 - **Type**: Feature
 - **Description**: Allow users to permanently delete their account and all associated data
 - **Context**: Required for privacy compliance (GDPR, CCPA) and user autonomy
@@ -142,7 +154,7 @@ This file tracks tasks and features to be implemented in the future.
 ---
 
 ## Backlog Statistics
-- Total Future Tasks: 9
+- Total Future Tasks: 10
 - Profile Enhancements: 2
-- Friends Tab Enhancements: 5
+- Friends Tab Enhancements: 6
 - Authentication Enhancements: 2

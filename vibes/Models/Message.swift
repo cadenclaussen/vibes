@@ -14,10 +14,24 @@ struct Message: Codable, Identifiable {
     var senderId: String
     var recipientId: String
     var messageType: MessageType
-    var content: String
+
+    // Text message fields
+    var textContent: String?
+
+    // Song message fields
+    var spotifyTrackId: String?
+    var songTitle: String?
+    var songArtist: String?
+    var albumArtUrl: String?
+    var previewUrl: String?
+    var duration: Int?  // Duration in seconds
     var caption: String?
     var rating: Int?
-    var reactions: [String: String]
+
+    // Reactions - stored as dictionary in Firestore with userId as key
+    var reactions: [String: String]?
+
+    // Metadata
     var timestamp: Date
     var read: Bool
 

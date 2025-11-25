@@ -19,7 +19,7 @@ class AuthManager: ObservableObject {
     @Published var isSpotifyLinked = false
 
     private var authStateHandler: AuthStateDidChangeListenerHandle?
-    private let db = Firestore.firestore()
+    private lazy var db = Firestore.firestore()
 
     private init() {
         registerAuthStateHandler()

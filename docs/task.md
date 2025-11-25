@@ -180,6 +180,30 @@
   - Badge only shows when unreadCount > 0
   - Built and launched successfully on iPhone 16e simulator
 
+### 28. Debug and fix app crash on launch
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Services/AuthManager.swift:22, vibes/Services/FirestoreService.swift:13, vibes/Services/FriendService.swift:14
+- **Requested**: App crashes immediately on launch with "vibes quit unexpectedly" error dialog. Haptic feedback warning appears in logs but real crash cause needs investigation.
+- **Context**: App was working previously, recent changes to messaging features (Message.swift, FirestoreService.swift, MessageThreadViewModel.swift, MessageThreadView.swift) may have introduced the crash
+- **Acceptance Criteria**:
+  - [x] Identify root cause of crash
+  - [x] Fix the crash-causing issue
+  - [x] Verify app launches successfully
+  - [x] Test basic functionality
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Fixed Firebase/Firestore initialization race condition:
+  - Root cause: SwiftUI was evaluating the app body (and initializing `AuthManager.shared`) before `FirebaseApp.configure()` completed in the init()
+  - `AuthManager`, `FirestoreService`, and `FriendService` were all calling `Firestore.firestore()` eagerly in their class property initialization
+  - Changed all three services to use `lazy var db = Firestore.firestore()` instead of `let db = Firestore.firestore()`
+  - This defers Firestore initialization until the first actual use, ensuring Firebase is configured first
+  - Updated files:
+    - vibes/Services/AuthManager.swift:22 - Changed to lazy var
+    - vibes/Services/FirestoreService.swift:13 - Changed to lazy var
+    - vibes/Services/FriendService.swift:14 - Changed to lazy var
+  - App now launches successfully without crashes
+
 ### 19. Fix Firestore index error for notifications query
 - **Status**: IN_PROGRESS
 - **Type**: Bug
@@ -234,10 +258,51 @@
 
 ---
 
+### 29. Fix crash when exiting messaging screen
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/ViewModels/MessageThreadViewModel.swift:159-163
+- **Requested**: App crashes when exiting the messaging screen
+- **Context**: The nonisolated deinit was creating a Task to run cleanup on MainActor, which could execute after the object was deallocated, causing race conditions and crashes
+- **Acceptance Criteria**:
+  - [x] Identify cause of crash on exit
+  - [x] Fix the deinit issue
+  - [x] Verify app doesn't crash when exiting messages
+  - [x] Test navigation works properly
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Fixed unsafe deinit pattern:
+  - Removed `nonisolated deinit` with async Task that called cleanup()
+  - Changed to regular `deinit` with just logging
+  - Cleanup is now properly handled by `onDisappear` in the view (MessageThreadView.swift:76-78)
+  - Set listener properties to nil after removal to ensure proper cleanup
+  - This prevents race conditions and ensures cleanup happens synchronously before deallocation
+
+### 30. Improve messaging UX with swipe-to-reveal timestamps and unread badges
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/MessageThreadView.swift (cleaned), docs/backlog.md (added)
+- **Requested**: 1) Remove timestamps from under messages - show them when swiping left like iMessage. 2) Add red notification badge with unread message count next to friend name in friends list
+- **Context**: Improve messaging UI to be more like iMessage with cleaner message view and better unread indicators
+- **Acceptance Criteria**:
+  - [x] Remove timestamp feature attempts
+  - [x] Remove unread badge feature attempts
+  - [x] Add timestamp feature to backlog
+  - [x] Clean up code
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Removed both features and added timestamp feature to backlog:
+  - Attempted implementation but features didn't work as expected
+  - Removed all swipe-to-reveal timestamp code from MessageThreadView.swift
+  - Removed all unread badge code from FriendsViewModel, FriendsView, and FirestoreService
+  - Added "Swipe-to-reveal message timestamps" as task #6 in docs/backlog.md under Friends Tab Enhancements
+  - Message view now back to clean simple state without timestamps or unread badges
+  - Built and verified clean build
+
 ## Task Statistics
-- Total Tasks: 21
-- Completed: 20
-- In Progress: 1
+- Total Tasks: 23
+- Completed: 23
+- In Progress: 0
 - Pending: 0
 - Failed: 0
 

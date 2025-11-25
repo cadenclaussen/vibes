@@ -10,22 +10,28 @@ import FirebaseFirestore
 
 class FirestoreService {
     static let shared = FirestoreService()
-    private let db = Firestore.firestore()
+    private lazy var db = Firestore.firestore()
 
     private init() {}
 
     // MARK: - Message Threads
 
     func getOrCreateThread(userId1: String, userId2: String) async throws -> String {
+        print("🔍 Looking for thread between \(userId1) and \(userId2)")
+
         let threadQuery = try await db.collection("messageThreads")
             .whereField("userId1", in: [userId1, userId2])
             .whereField("userId2", in: [userId1, userId2])
             .getDocuments()
 
+        print("🔍 Found \(threadQuery.documents.count) potential threads")
+
         if let existingThread = threadQuery.documents.first {
+            print("✅ Using existing thread: \(existingThread.documentID)")
             return existingThread.documentID
         }
 
+        print("➕ Creating new thread")
         let threadData: [String: Any] = [
             "userId1": userId1,
             "userId2": userId2,
@@ -38,7 +44,31 @@ class FirestoreService {
         ]
 
         let docRef = try await db.collection("messageThreads").addDocument(data: threadData)
+        print("✅ Created new thread: \(docRef.documentID)")
         return docRef.documentID
+    }
+
+    // MARK: - Message Threads Listening
+
+    func listenToThreads(userId: String, completion: @escaping ([MessageThread]) -> Void) -> ListenerRegistration {
+        return db.collection("messageThreads")
+            .whereFilter(Filter.orFilter([
+                Filter.whereField("userId1", isEqualTo: userId),
+                Filter.whereField("userId2", isEqualTo: userId)
+            ]))
+            .order(by: "lastMessageTimestamp", descending: true)
+            .addSnapshotListener { snapshot, error in
+                guard let documents = snapshot?.documents else {
+                    DispatchQueue.main.async {
+                        completion([])
+                    }
+                    return
+                }
+                let threads = documents.compactMap { try? $0.data(as: MessageThread.self) }
+                DispatchQueue.main.async {
+                    completion(threads)
+                }
+            }
     }
 
     // MARK: - Messages
@@ -57,25 +87,66 @@ class FirestoreService {
     }
 
     private func updateThread(threadId: String, message: Message) async throws {
+        let messagePreview: String
+        if message.messageType == .song {
+            messagePreview = "🎵 \(message.songTitle ?? "Shared a song")"
+        } else {
+            messagePreview = message.textContent ?? ""
+        }
+
         let updateData: [String: Any] = [
             "lastMessageTimestamp": message.timestamp,
-            "lastMessageContent": message.messageType == .song ? "🎵 Song" : message.content,
-            "lastMessageType": message.messageType.rawValue,
-            "unreadCountUser2": FieldValue.increment(Int64(1))
+            "lastMessageContent": messagePreview,
+            "lastMessageType": message.messageType.rawValue
         ]
 
         try await db.collection("messageThreads").document(threadId).updateData(updateData)
     }
 
     func listenToMessages(threadId: String, completion: @escaping ([Message]) -> Void) -> ListenerRegistration {
-        return db.collection("messages")
+        print("🎧 Setting up listener for thread: \(threadId)")
+        let listener = db.collection("messages")
             .whereField("threadId", isEqualTo: threadId)
             .order(by: "timestamp", descending: false)
             .addSnapshotListener { snapshot, error in
-                guard let documents = snapshot?.documents else { return }
-                let messages = documents.compactMap { try? $0.data(as: Message.self) }
-                completion(messages)
+                print("🔔 LISTENER CALLBACK FIRED for thread: \(threadId)")
+
+                if let error = error {
+                    print("❌ Firestore listener error: \(error)")
+                    DispatchQueue.main.async {
+                        completion([])
+                    }
+                    return
+                }
+
+                guard let documents = snapshot?.documents else {
+                    print("⚠️ No documents in snapshot")
+                    DispatchQueue.main.async {
+                        completion([])
+                    }
+                    return
+                }
+
+                print("📦 Firestore snapshot received: \(documents.count) documents")
+                let messages = documents.compactMap { doc -> Message? in
+                    do {
+                        let message = try doc.data(as: Message.self)
+                        print("✅ Decoded message: id=\(message.id ?? "nil"), text=\(message.textContent ?? "no-text")")
+                        return message
+                    } catch {
+                        print("❌ Failed to decode message: \(error)")
+                        return nil
+                    }
+                }
+
+                print("📨 Dispatching \(messages.count) messages to main thread")
+                DispatchQueue.main.async {
+                    completion(messages)
+                }
             }
+
+        print("✅ Listener registered for thread: \(threadId)")
+        return listener
     }
 
     func markMessagesAsRead(threadId: String, userId: String) async throws {
@@ -206,7 +277,9 @@ class FirestoreService {
             .addSnapshotListener { snapshot, error in
                 guard let data = snapshot?.data(),
                       let streak = data["vibestreak"] as? Int else { return }
-                completion(streak)
+                DispatchQueue.main.async {
+                    completion(streak)
+                }
             }
     }
 
