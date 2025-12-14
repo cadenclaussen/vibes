@@ -17,9 +17,22 @@
 		DCEF8FE52ED220D3006CF6B6 /* vibes.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = vibes.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		DCFF8FC62EEF4AD900F0641F /* Exceptions for "vibes" folder in "vibes" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = DCEF8FE42ED220D3006CF6B6 /* vibes */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		DCEF8FE72ED220D3006CF6B6 /* vibes */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				DCFF8FC62EEF4AD900F0641F /* Exceptions for "vibes" folder in "vibes" target */,
+			);
 			path = vibes;
 			sourceTree = "<group>";
 		};
@@ -274,6 +287,7 @@
 				DEVELOPMENT_TEAM = QATUG526J8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = vibes/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -306,6 +320,7 @@
 				DEVELOPMENT_TEAM = QATUG526J8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = vibes/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

@@ -10,9 +10,11 @@ import FirebaseAuth
 
 struct ProfileView: View {
     @StateObject private var viewModel = ProfileViewModel()
+    @StateObject private var spotifyService = SpotifyService.shared
     @EnvironmentObject var authManager: AuthManager
     @Binding var shouldEditProfile: Bool
     @State private var genreInput = ""
+    @State private var showingSpotifyAuth = false
 
     var body: some View {
         NavigationStack {
@@ -91,6 +93,7 @@ struct ProfileView: View {
             VStack(spacing: 24) {
                 profileHeader(profile)
                 infoSection(profile)
+                spotifySection
                 genresSection(profile)
 
                 if let error = viewModel.errorMessage {
@@ -100,6 +103,9 @@ struct ProfileView: View {
             .padding()
         }
         .background(Color(.systemBackground))
+        .sheet(isPresented: $showingSpotifyAuth) {
+            SpotifyAuthView()
+        }
     }
 
     private func profileHeader(_ profile: UserProfile) -> some View {
@@ -168,6 +174,66 @@ struct ProfileView: View {
                 .font(.body)
                 .foregroundColor(Color(.label))
         }
+    }
+
+    private var spotifySection: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Image(systemName: "music.note")
+                    .foregroundColor(.green)
+                Text("Spotify")
+                    .font(.headline)
+
+                Spacer()
+
+                if spotifyService.isAuthenticated {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                }
+            }
+
+            if spotifyService.isAuthenticated {
+                if let profile = spotifyService.userProfile {
+                    HStack {
+                        Text("Connected as")
+                            .font(.caption)
+                            .foregroundColor(Color(.secondaryLabel))
+                        Text(profile.displayName ?? profile.id)
+                            .font(.caption)
+                            .foregroundColor(Color(.label))
+                        Spacer()
+                    }
+                }
+
+                Button {
+                    showingSpotifyAuth = true
+                } label: {
+                    Text("Manage Connection")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Button {
+                    showingSpotifyAuth = true
+                } label: {
+                    HStack {
+                        Image(systemName: "music.note")
+                        Text("Connect Spotify")
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(Color.green)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(12)
     }
 
     private func genresSection(_ profile: UserProfile) -> some View {

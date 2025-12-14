@@ -37,8 +37,24 @@ struct vibesApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(AuthManager.shared)
+                .onOpenURL { url in
+                    handleIncomingURL(url)
+                }
         }
         .modelContainer(sharedModelContainer)
+    }
+
+    private func handleIncomingURL(_ url: URL) {
+        guard url.scheme == "vibes" else { return }
+
+        Task {
+            do {
+                try await SpotifyService.shared.handleAuthorizationCallback(url: url)
+                print("✅ Spotify authentication successful")
+            } catch {
+                print("❌ Spotify authentication failed: \(error)")
+            }
+        }
     }
 }
 
