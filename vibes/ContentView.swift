@@ -25,16 +25,17 @@ struct ContentView: View {
 struct MainTabView: View {
     @State private var selectedTab = 0
     @State private var shouldEditProfile = false
+    @State private var navigateToFriend: FriendProfile?
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            SearchTab(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
+            SearchView(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile, navigateToFriend: $navigateToFriend)
                 .tabItem {
                     Label("Search", systemImage: "magnifyingglass")
                 }
                 .tag(0)
 
-            FriendsView(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
+            FriendsView(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile, navigateToFriend: $navigateToFriend)
                 .tabItem {
                     Label("Friends", systemImage: "person.2.fill")
                 }
@@ -56,35 +57,6 @@ struct MainTabView: View {
 }
 
 // Placeholder views for tabs we haven't built yet
-struct SearchTab: View {
-    @EnvironmentObject var authManager: AuthManager
-    @Binding var selectedTab: Int
-    @Binding var shouldEditProfile: Bool
-
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 16) {
-                Image(systemName: "hammer.fill")
-                    .font(.system(size: 60))
-                    .foregroundColor(Color(.tertiaryLabel))
-
-                Text("Under Construction")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-
-                Text("This feature is coming soon")
-                    .font(.body)
-                    .foregroundColor(Color(.secondaryLabel))
-            }
-            .navigationTitle("Search")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    SettingsMenu(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
-                }
-            }
-        }
-    }
-}
 
 struct StatsTab: View {
     @EnvironmentObject var authManager: AuthManager

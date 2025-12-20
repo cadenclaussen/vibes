@@ -4,6 +4,23 @@ This file tracks tasks and features to be implemented in the future.
 
 ---
 
+## Search Tab Enhancements
+
+### 17. Tap-to-play song previews
+- **Type**: Feature
+- **Description**: Play 30-second song previews when tapping on search results
+- **Context**: Spotify provides previewUrl on tracks for 30-second audio snippets
+- **Documentation**: See docs/song-preview-implementation.md for full implementation guide
+- **Requirements**:
+  - Create AudioPlayerService singleton using AVPlayer
+  - Update TrackRow to handle tap and show play/pause state
+  - Show visual indicator for currently playing track
+  - Handle tracks with no preview available
+  - Add progress bar and sound wave animation
+  - Optional: Add mini now-playing bar at bottom of search view
+
+---
+
 ## Profile Enhancements
 
 ### 1. Add profile picture upload capability
@@ -31,6 +48,18 @@ This file tracks tasks and features to be implemented in the future.
 ---
 
 ## Friends Tab Enhancements
+
+### 18. Search/filter friends list
+- **Type**: Feature
+- **Description**: Add a search bar to filter friends by name or username
+- **Context**: As friend lists grow, users need a quick way to find specific friends
+- **Requirements**:
+  - Add search bar at top of friends list
+  - Filter friends in real-time as user types
+  - Search by display name and username
+  - Show "No results" state when no matches
+  - Clear button to reset search
+  - Keep search bar visible while scrolling (sticky header)
 
 ### 3. Messaging functionality
 - **Type**: Feature
@@ -87,7 +116,19 @@ This file tracks tasks and features to be implemented in the future.
   - Format timestamps with short time style (e.g., "3:45 PM")
   - Position timestamps next to messages (right-aligned for sent messages, left-aligned for received)
 
-### 7. Music taste compatibility scores
+### 7. Send messages with Return/Enter key
+- **Type**: Feature
+- **Description**: Allow users to send messages by pressing Return/Enter instead of clicking the send button
+- **Context**: Improves messaging UX by enabling faster message sending with keyboard
+- **Requirements**:
+  - Add onSubmit handler to TextField in message input
+  - Trigger send action when Return/Enter is pressed
+  - Keep send button as alternative method
+  - Prevent sending empty messages
+  - Consider shift+Enter for new line (if multiline support added)
+  - Maintain consistent behavior across iOS versions
+
+### 8. Music taste compatibility scores
 - **Type**: Feature
 - **Description**: Calculate and display music compatibility percentage between users
 - **Context**: Helps users discover friends with similar music taste and provides conversation starters
@@ -101,7 +142,7 @@ This file tracks tasks and features to be implemented in the future.
   - Update scores periodically based on listening habits
   - Include compatibility in friend discovery/suggestions
 
-### 8. AI-powered new music recommendations
+### 9. AI-powered new music recommendations
 - **Type**: Feature
 - **Description**: Personalized new music suggestions in notifications section based on listening habits
 - **Context**: AI feature that analyzes user taste to recommend new releases they might enjoy
@@ -118,9 +159,87 @@ This file tracks tasks and features to be implemented in the future.
 
 ---
 
+## UI/UX Polish
+
+### 10. Add haptic feedback throughout the app
+- **Type**: Feature
+- **Description**: Implement haptic feedback for key user interactions to improve tactile experience
+- **Context**: Subtle haptics make the app feel more responsive and polished
+- **Requirements**:
+  - Add light haptic on button taps (send message, friend request, edit profile)
+  - Add notification haptic for success actions (message sent, friend added)
+  - Add warning haptic for error states
+  - Add selection haptic for tab switches
+  - Add impact haptic for pull-to-refresh completion
+  - Add success haptic for streak milestones
+  - Use UIImpactFeedbackGenerator with appropriate styles (.light, .medium, .heavy)
+  - Ensure haptics don't fire too frequently (debounce if needed)
+
+### 11. Add smooth animations and transitions
+- **Type**: Feature
+- **Description**: Implement fluid animations for UI state changes and transitions
+- **Context**: Animations make the app feel modern and help users understand state changes
+- **Requirements**:
+  - Add .animation(.spring()) to state-driven UI changes
+  - Implement slide-in animation for new messages
+  - Add fade transitions between views
+  - Animate profile picture updates with scale effect
+  - Add bounce animation for reactions
+  - Implement smooth keyboard dismiss animations
+  - Add tab switch animations with scale effect
+  - Animate button states (pressed, disabled) with opacity/scale
+  - Use .transition() for view appearance/disappearance
+  - Keep animations subtle and quick (0.2-0.4s duration)
+
+### 12. Add visual depth with shadows and elevation
+- **Type**: Feature
+- **Description**: Apply consistent shadows to cards and components for visual hierarchy
+- **Context**: Subtle shadows create depth and help separate UI elements
+- **Requirements**:
+  - Add shadow to all card components (.shadow(radius: 2, y: 1))
+  - Apply consistent corner radius (12pt) across all cards
+  - Add shadows to floating buttons (send, add friend)
+  - Increase shadow on interactive elements during press state
+  - Use semantic colors for backgrounds to work in dark mode
+  - Add elevation to navigation bar/tab bar with subtle shadow
+  - Ensure shadows are subtle and don't overwhelm the design
+  - Test shadow appearance in both light and dark mode
+
+### 13. Add pull-to-refresh on friends list
+- **Type**: Feature
+- **Description**: Implement pull-to-refresh gesture to reload friends list and message threads
+- **Context**: Allows users to manually refresh content and see latest updates
+- **Requirements**:
+  - Add .refreshable modifier to friends list ScrollView
+  - Fetch latest message threads on pull-to-refresh
+  - Update friend online status on refresh
+  - Add haptic feedback when refresh completes
+  - Show activity indicator during refresh
+  - Handle errors gracefully if refresh fails
+  - Debounce refresh to prevent excessive API calls
+  - Auto-refresh should still work in background
+
+### 14. Show last seen and online status for friends
+- **Type**: Feature
+- **Description**: Display real-time online status and last active timestamp for friends
+- **Context**: Helps users know when friends are available to chat
+- **Requirements**:
+  - Track user online/offline status in Firestore
+  - Update status when app enters foreground/background
+  - Display green dot indicator for online friends
+  - Show "Active now" for online users
+  - Show "Active 5m ago", "Active 1h ago" for recent activity
+  - Show "Last seen [date]" for longer absence
+  - Update status in real-time with Firestore listeners
+  - Add privacy setting to hide online status
+  - Show typing indicator when friend is typing (future)
+  - Handle offline gracefully (don't show stale data)
+
+---
+
 ## Authentication Enhancements
 
-### 9. Forgot password functionality
+### 15. Forgot password functionality
 - **Type**: Feature
 - **Description**: Add forgot password/password reset flow for users who can't access their account
 - **Context**: Essential authentication feature to help users regain access to their accounts
@@ -134,7 +253,7 @@ This file tracks tasks and features to be implemented in the future.
   - Consider adding password reset link expiration notice
   - Return to login screen after successful reset
 
-### 10. Delete account functionality
+### 16. Delete account functionality
 - **Type**: Feature
 - **Description**: Allow users to permanently delete their account and all associated data
 - **Context**: Required for privacy compliance (GDPR, CCPA) and user autonomy
@@ -154,7 +273,9 @@ This file tracks tasks and features to be implemented in the future.
 ---
 
 ## Backlog Statistics
-- Total Future Tasks: 10
+- Total Future Tasks: 18
+- Search Tab Enhancements: 1
 - Profile Enhancements: 2
-- Friends Tab Enhancements: 6
+- Friends Tab Enhancements: 8
+- UI/UX Polish: 5
 - Authentication Enhancements: 2

@@ -332,9 +332,75 @@
   5. Add URL scheme to Info.plist for vibes:// callback handling
   6. Test OAuth flow with real Spotify account on simulator
 
+### 32. Implement Spotify song search in Search tab
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/SearchView.swift, vibes/ViewModels/SearchViewModel.swift, vibes/ContentView.swift
+- **Requested**: Implement the search tab to search for songs and music from Spotify
+- **Context**: SearchTab currently shows placeholder "Under Construction". SpotifyService already has searchTracks() method. Need to build UI with search bar, results display, and handle Spotify auth state.
+- **Acceptance Criteria**:
+  - [x] Create SearchView with search bar
+  - [x] Display search results with album art, track name, artist
+  - [x] Handle loading and error states
+  - [x] Handle case when Spotify not connected
+  - [x] Replace placeholder SearchTab with actual implementation
+  - [x] Build and test on simulator
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Successfully implemented Spotify song search:
+  - Created SearchViewModel.swift with search state management, debounced search, and Spotify connection check
+  - Created SearchView.swift with search bar, results list showing album art/track name/artist/duration, loading state, error state, empty results state, and Spotify not connected state
+  - Updated ContentView.swift to use SearchView instead of placeholder SearchTab
+  - TrackRow component displays album art via AsyncImage, track name with explicit badge, artist names, and formatted duration
+  - When Spotify is not connected, shows prompt to go to Profile to connect
+  - Build succeeded and app launched on iPhone 16e simulator
+
+### 33. Implement AVPlayer song preview in search results
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Services/AudioPlayerService.swift, vibes/Views/SearchView.swift
+- **Requested**: Implement tap-to-play 30-second song previews using AVPlayer when users tap on search results
+- **Context**: Spotify provides previewUrl on Track objects. Need AudioPlayerService singleton to manage playback and update TrackRow to show play/pause state.
+- **Acceptance Criteria**:
+  - [x] Create AudioPlayerService singleton with AVPlayer
+  - [x] Handle play/pause/stop and track switching
+  - [x] Update TrackRow to show play/pause overlay on album art
+  - [x] Add sound wave animation for playing tracks
+  - [x] Show indicator for tracks without preview
+  - [x] Build and test on simulator
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Successfully implemented song preview playback with iTunes fallback:
+  - Created AudioPlayerService.swift (vibes/Services/AudioPlayerService.swift): MainActor singleton with AVPlayer, tracks isPlaying/currentTrackId/playbackProgress, handles audio session setup, play/playUrl/togglePlayPause/stop methods, time observer for progress updates
+  - Created iTunesService.swift (vibes/Services/iTunesService.swift): Service to search iTunes API for preview URLs when Spotify doesn't provide them, matches tracks by name and artist
+  - Updated SearchViewModel.swift: Added iTunesPreviews dictionary and fetchItunesPreviews() to look up iTunes previews for tracks without Spotify previews
+  - Updated TrackRow in SearchView.swift: Uses viewModel.getPreviewUrl() which checks Spotify first then falls back to iTunes, shows alert for tracks with no preview from either source, dimmed opacity for unavailable tracks
+  - Added SoundWaveBar component: Animated sound wave bars (3 bars with staggered animation) shown next to playing track
+  - Build succeeded on iPhone 16e simulator
+
+### 34. Send songs from search to friends with playable previews in DMs
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/SearchView.swift, vibes/Views/MessageThreadView.swift, vibes/Views/FriendPickerView.swift
+- **Requested**: User wants to send songs from search results to friends, have the song appear in DMs on the friends list, and allow friends to play the song preview directly from that list
+- **Context**: SearchView has song search with preview playback. Message model already supports song messages. MessageThreadView has SongMessageBubbleView but play button was non-functional. Needed to connect these features.
+- **Acceptance Criteria**:
+  - [x] Add "Send to Friend" action on search result tracks
+  - [x] Show friend picker sheet when sending a song
+  - [x] Send song as message to selected friend's DM thread
+  - [x] Make play button functional in SongMessageBubbleView
+  - [x] Build and test on simulator
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Successfully implemented song sharing feature:
+  - **SearchView.swift**: Added send button (paperplane icon) to TrackRow, added state for trackToSend and showingFriendPicker, added sheet presentation for FriendPickerView
+  - **FriendPickerView.swift (NEW)**: Created friend picker sheet that shows the track being sent, lists all friends, and sends song message when friend is tapped. Includes loading states and error handling.
+  - **MessageThreadView.swift**: Made SongMessageBubbleView play button functional by connecting to AudioPlayerService. Added play/pause toggle, progress bar on album art, and proper state handling for isPlaying/isCurrentTrack.
+  - Build succeeded on iPhone 16e simulator
+
 ## Task Statistics
-- Total Tasks: 31
-- Completed: 31
+- Total Tasks: 34
+- Completed: 34
 - In Progress: 0
 - Pending: 0
 - Failed: 0

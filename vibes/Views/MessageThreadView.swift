@@ -129,28 +129,28 @@ struct MessageBubbleView: View {
 struct SongMessageBubbleView: View {
     let message: Message
     let isFromCurrentUser: Bool
+    @ObservedObject var audioPlayer = AudioPlayerService.shared
+
+    private var trackId: String {
+        message.spotifyTrackId ?? message.id ?? UUID().uuidString
+    }
+
+    private var isCurrentTrack: Bool {
+        audioPlayer.currentTrackId == trackId
+    }
+
+    private var isPlaying: Bool {
+        isCurrentTrack && audioPlayer.isPlaying
+    }
+
+    private var hasPreview: Bool {
+        message.previewUrl != nil
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
-                // Album art placeholder
-                if let albumArtUrl = message.albumArtUrl, let url = URL(string: albumArtUrl) {
-                    AsyncImage(url: url) { image in
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    } placeholder: {
-                        Color.gray
-                    }
-                    .frame(width: 60, height: 60)
-                    .cornerRadius(8)
-                } else {
-                    Image(systemName: "music.note")
-                        .font(.title)
-                        .frame(width: 60, height: 60)
-                        .background(Color.gray.opacity(0.2))
-                        .cornerRadius(8)
-                }
+                albumArtView
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(message.songTitle ?? "Unknown Song")
@@ -171,10 +171,7 @@ struct SongMessageBubbleView: View {
 
                 Spacer()
 
-                // Play button placeholder
-                Image(systemName: "play.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(.blue)
+                playButton
             }
 
             if let caption = message.caption, !caption.isEmpty {
@@ -187,6 +184,64 @@ struct SongMessageBubbleView: View {
         .background(isFromCurrentUser ? Color.blue.opacity(0.1) : Color(.systemGray6))
         .cornerRadius(16)
         .frame(maxWidth: 280)
+    }
+
+    private var albumArtView: some View {
+        ZStack(alignment: .bottom) {
+            Group {
+                if let albumArtUrl = message.albumArtUrl, let url = URL(string: albumArtUrl) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        case .failure, .empty:
+                            albumPlaceholder
+                        @unknown default:
+                            albumPlaceholder
+                        }
+                    }
+                } else {
+                    albumPlaceholder
+                }
+            }
+            .frame(width: 60, height: 60)
+
+            // Progress bar at bottom when playing
+            if isCurrentTrack {
+                GeometryReader { geometry in
+                    Rectangle()
+                        .fill(Color.green)
+                        .frame(width: geometry.size.width * audioPlayer.playbackProgress, height: 3)
+                }
+                .frame(height: 3)
+                .frame(maxHeight: .infinity, alignment: .bottom)
+            }
+        }
+        .frame(width: 60, height: 60)
+        .cornerRadius(8)
+        .clipped()
+    }
+
+    private var albumPlaceholder: some View {
+        Image(systemName: "music.note")
+            .font(.title)
+            .frame(width: 60, height: 60)
+            .background(Color.gray.opacity(0.2))
+    }
+
+    private var playButton: some View {
+        Button {
+            if let previewUrl = message.previewUrl {
+                audioPlayer.playUrl(previewUrl, trackId: trackId)
+            }
+        } label: {
+            Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                .font(.system(size: 36))
+                .foregroundColor(hasPreview ? .blue : .gray)
+        }
+        .disabled(!hasPreview)
     }
 
     private func formatDuration(_ seconds: Int) -> String {

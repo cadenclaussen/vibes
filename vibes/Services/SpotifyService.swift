@@ -220,10 +220,19 @@ class SpotifyService: ObservableObject {
     // MARK: - Currently Playing
 
     func getCurrentlyPlaying() async throws -> CurrentlyPlaying? {
+        try await getCurrentlyPlayingInternal(isRetry: false)
+    }
+
+    private func getCurrentlyPlayingInternal(isRetry: Bool) async throws -> CurrentlyPlaying? {
         let urlString = "https://api.spotify.com/v1/me/player/currently-playing"
 
         guard let url = URL(string: urlString) else {
             throw SpotifyError.invalidURL
+        }
+
+        // Check if token is expired before making request
+        if keychainManager.isTokenExpired() && !isRetry {
+            try await refreshAccessToken()
         }
 
         var request = try createAuthenticatedRequest(url: url)
@@ -237,6 +246,17 @@ class SpotifyService: ObservableObject {
 
         if httpResponse.statusCode == 204 {
             return nil
+        }
+
+        // If unauthorized and not already a retry, refresh token and try again
+        if httpResponse.statusCode == 401 && !isRetry {
+            do {
+                try await refreshAccessToken()
+                return try await getCurrentlyPlayingInternal(isRetry: true)
+            } catch {
+                signOut()
+                throw SpotifyError.unauthorized
+            }
         }
 
         try handleHTTPError(response: httpResponse, data: data)
@@ -259,13 +279,30 @@ class SpotifyService: ObservableObject {
 
     // MARK: - Helper Methods
 
-    private func makeRequest<T: Decodable>(url: URL) async throws -> T {
+    private func makeRequest<T: Decodable>(url: URL, isRetry: Bool = false) async throws -> T {
+        // Check if token is expired before making request
+        if keychainManager.isTokenExpired() && !isRetry {
+            try await refreshAccessToken()
+        }
+
         let request = try createAuthenticatedRequest(url: url)
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw SpotifyError.unknown(statusCode: 0, message: "Invalid response")
+        }
+
+        // If unauthorized and not already a retry, refresh token and try again
+        if httpResponse.statusCode == 401 && !isRetry {
+            do {
+                try await refreshAccessToken()
+                return try await makeRequest(url: url, isRetry: true)
+            } catch {
+                // Refresh failed, clear auth state
+                signOut()
+                throw SpotifyError.unauthorized
+            }
         }
 
         try handleHTTPError(response: httpResponse, data: data)

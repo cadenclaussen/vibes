@@ -12,13 +12,24 @@ struct FriendsView: View {
     @EnvironmentObject var authManager: AuthManager
     @StateObject private var viewModel = FriendsViewModel()
     @State private var showingAddFriend = false
+    @State private var navigationPath = NavigationPath()
     @Binding var selectedTab: Int
     @Binding var shouldEditProfile: Bool
+    @Binding var navigateToFriend: FriendProfile?
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             contentView
                 .navigationTitle("Friends")
+                .navigationDestination(for: FriendProfile.self) { friend in
+                    if let currentUserId = authManager.user?.uid {
+                        MessageThreadContainer(
+                            friendId: friend.id,
+                            friendUsername: friend.username,
+                            currentUserId: currentUserId
+                        )
+                    }
+                }
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
                         SettingsMenu(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
@@ -33,6 +44,12 @@ struct FriendsView: View {
         }
         .refreshable {
             await loadData()
+        }
+        .onChange(of: navigateToFriend) { _, friend in
+            if let friend = friend {
+                navigationPath.append(friend)
+                navigateToFriend = nil
+            }
         }
     }
 
@@ -215,7 +232,7 @@ struct FriendsView: View {
             } else {
                 VStack(spacing: 8) {
                     ForEach(viewModel.friends) { friend in
-                        NavigationLink(destination: messageThreadDestination(for: friend)) {
+                        NavigationLink(value: friend) {
                             friendRow(friend)
                         }
                     }
@@ -279,20 +296,6 @@ struct FriendsView: View {
         await viewModel.loadNotifications()
     }
 
-    @ViewBuilder
-    private func messageThreadDestination(for friend: FriendProfile) -> some View {
-        if let currentUserId = authManager.user?.uid {
-            MessageThreadContainer(
-                friendId: friend.id,
-                friendUsername: friend.username,
-                currentUserId: currentUserId
-            )
-        } else {
-            Text("Unable to load conversation")
-                .foregroundColor(.secondary)
-        }
-    }
-
     private func iconForNotificationType(_ type: FriendNotification.NotificationType) -> String {
         switch type {
         case .friendRequest:
@@ -325,6 +328,6 @@ struct FriendsView: View {
 }
 
 #Preview {
-    FriendsView(selectedTab: .constant(1), shouldEditProfile: .constant(false))
+    FriendsView(selectedTab: .constant(1), shouldEditProfile: .constant(false), navigateToFriend: .constant(nil))
         .environmentObject(AuthManager.shared)
 }

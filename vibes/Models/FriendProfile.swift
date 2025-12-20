@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct FriendProfile: Codable, Identifiable {
+struct FriendProfile: Codable, Identifiable, Hashable {
     let id: String
     let username: String
     let displayName: String
