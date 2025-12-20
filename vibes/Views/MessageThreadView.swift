@@ -62,8 +62,8 @@ struct MessageThreadView: View {
                 VStack(spacing: 2) {
                     Text("@\(friendUsername)")
                         .font(.headline)
-                    if viewModel.vibestreak > 0 {
-                        Text("🔥 \(viewModel.vibestreak)")
+                    if viewModel.activeVibestreak > 0 {
+                        Text("🔥 \(viewModel.activeVibestreak)")
                             .font(.caption)
                             .foregroundColor(.orange)
                     }
@@ -269,9 +269,14 @@ struct MessageInputBar: View {
             }
 
             // Text input
-            TextField("Type a message...", text: $text, axis: .vertical)
+            TextField("Type a message...", text: $text)
                 .textFieldStyle(.roundedBorder)
-                .lineLimit(1...4)
+                .submitLabel(.send)
+                .onSubmit {
+                    if canSend && !isSending {
+                        onSend()
+                    }
+                }
                 .disabled(isSending)
 
             // Send button

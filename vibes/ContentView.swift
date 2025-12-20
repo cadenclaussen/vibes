@@ -35,9 +35,9 @@ struct MainTabView: View {
                 }
                 .tag(0)
 
-            FriendsView(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile, navigateToFriend: $navigateToFriend)
+            ChatsView(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
                 .tabItem {
-                    Label("Friends", systemImage: "person.2.fill")
+                    Label("Chats", systemImage: "bubble.left.and.bubble.right.fill")
                 }
                 .tag(1)
 

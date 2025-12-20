@@ -12,7 +12,7 @@ struct Message: Codable, Identifiable {
     @DocumentID var id: String?
     var threadId: String
     var senderId: String
-    var recipientId: String
+    var recipientId: String?  // Optional for group messages
     var messageType: MessageType
 
     // Text message fields
@@ -33,11 +33,19 @@ struct Message: Codable, Identifiable {
 
     // Metadata
     var timestamp: Date
-    var read: Bool
+    var read: Bool  // For 1-on-1 messages
+    var readBy: [String]?  // For group messages - list of userIds who have read
+    var isGroupMessage: Bool?  // Flag to distinguish group vs 1-on-1
+    var senderName: String?  // Cached sender display name for group messages
 
     enum MessageType: String, Codable {
         case text
         case song
+    }
+
+    // Check if a user has read this group message
+    func isReadBy(_ userId: String) -> Bool {
+        return readBy?.contains(userId) ?? false
     }
 }
 

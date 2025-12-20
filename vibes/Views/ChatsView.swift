@@ -1,26 +1,25 @@
 //
-//  FriendsView.swift
+//  ChatsView.swift
 //  vibes
 //
-//  Created by Claude Code on 11/23/25.
+//  Created by Claude Code on 12/19/25.
 //
 
 import SwiftUI
 import FirebaseAuth
 
-struct FriendsView: View {
+struct ChatsView: View {
     @EnvironmentObject var authManager: AuthManager
-    @StateObject private var viewModel = FriendsViewModel()
+    @StateObject private var viewModel = ChatsViewModel()
     @State private var showingAddFriend = false
     @State private var navigationPath = NavigationPath()
     @Binding var selectedTab: Int
     @Binding var shouldEditProfile: Bool
-    @Binding var navigateToFriend: FriendProfile?
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
             contentView
-                .navigationTitle("Friends")
+                .navigationTitle("Chats")
                 .navigationDestination(for: FriendProfile.self) { friend in
                     if let currentUserId = authManager.user?.uid {
                         MessageThreadContainer(
@@ -34,58 +33,39 @@ struct FriendsView: View {
                     ToolbarItem(placement: .primaryAction) {
                         SettingsMenu(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
                     }
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            showingAddFriend = true
+                        } label: {
+                            Image(systemName: "person.badge.plus")
+                                .imageScale(.large)
+                        }
+                    }
                 }
                 .sheet(isPresented: $showingAddFriend) {
-                    AddFriendView(viewModel: viewModel)
+                    AddFriendView(viewModel: viewModel.friendsViewModel)
                 }
         }
         .task {
-            await loadData()
+            await viewModel.loadData()
         }
         .refreshable {
-            await loadData()
-        }
-        .onChange(of: navigateToFriend) { _, friend in
-            if let friend = friend {
-                navigationPath.append(friend)
-                navigateToFriend = nil
-            }
+            await viewModel.loadData()
         }
     }
 
     @ViewBuilder
     private var contentView: some View {
-        if viewModel.isLoading && viewModel.friends.isEmpty {
+        if viewModel.isLoading && viewModel.allChats.isEmpty {
             ProgressView()
         } else {
             ScrollView {
                 VStack(spacing: 16) {
-                    headerSection
                     notificationsSection
                     pendingRequestsSection
-                    friendsSection
+                    chatsSection
                 }
                 .padding()
-            }
-        }
-    }
-
-    private var headerSection: some View {
-        HStack {
-            Spacer()
-            Button {
-                showingAddFriend = true
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "person.badge.plus")
-                    Text("Add Friend")
-                        .font(.headline)
-                }
-                .foregroundColor(.white)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(Color.blue)
-                .cornerRadius(20)
             }
         }
     }
@@ -96,8 +76,8 @@ struct FriendsView: View {
                 Text("Notifications")
                     .font(.headline)
 
-                if unreadCount > 0 {
-                    Text(unreadCountText)
+                if unreadNotificationCount > 0 {
+                    Text(unreadNotificationCountText)
                         .font(.caption)
                         .fontWeight(.semibold)
                         .foregroundColor(.white)
@@ -221,19 +201,27 @@ struct FriendsView: View {
         .padding(.horizontal)
     }
 
-    private var friendsSection: some View {
+    private var chatsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Friends")
+            Text("Conversations")
                 .font(.headline)
                 .padding(.horizontal)
 
-            if viewModel.friends.isEmpty {
-                emptyStateView(text: "No friends yet. Tap + to add friends!")
+            if viewModel.allChats.isEmpty {
+                emptyStateView(text: "No conversations yet. Add friends to start chatting!")
             } else {
-                VStack(spacing: 8) {
-                    ForEach(viewModel.friends) { friend in
-                        NavigationLink(value: friend) {
-                            friendRow(friend)
+                VStack(spacing: 0) {
+                    ForEach(viewModel.allChats) { chat in
+                        Button {
+                            navigationPath.append(chat.friend)
+                        } label: {
+                            ChatRowView(chat: chat)
+                        }
+                        .buttonStyle(.plain)
+
+                        if chat.id != viewModel.allChats.last?.id {
+                            Divider()
+                                .padding(.leading, 64)
                         }
                     }
                 }
@@ -245,43 +233,6 @@ struct FriendsView: View {
         .cornerRadius(12)
     }
 
-    private func friendRow(_ friend: FriendProfile) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: "person.circle.fill")
-                .resizable()
-                .frame(width: 40, height: 40)
-                .foregroundColor(Color(.tertiaryLabel))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(friend.displayName)
-                    .font(.headline)
-                    .foregroundColor(Color(.label))
-                Text("@\(friend.username)")
-                    .font(.caption)
-                    .foregroundColor(Color(.secondaryLabel))
-            }
-
-            Spacer()
-
-            if friend.activeVibestreak > 0 {
-                HStack(spacing: 2) {
-                    Text("\(friend.activeVibestreak)")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.orange)
-                    Text("🔥")
-                        .font(.subheadline)
-                }
-            }
-
-            Image(systemName: "chevron.right")
-                .foregroundColor(Color(.tertiaryLabel))
-                .imageScale(.small)
-        }
-        .padding(.horizontal)
-        .contentShape(Rectangle())
-    }
-
     private func emptyStateView(text: String) -> some View {
         Text(text)
             .font(.body)
@@ -290,21 +241,15 @@ struct FriendsView: View {
             .padding(.vertical, 24)
     }
 
-    private var unreadCount: Int {
+    private var unreadNotificationCount: Int {
         viewModel.notifications.filter { !$0.isRead }.count
     }
 
-    private var unreadCountText: String {
-        if unreadCount > 99 {
+    private var unreadNotificationCountText: String {
+        if unreadNotificationCount > 99 {
             return "99+"
         }
-        return "\(unreadCount)"
-    }
-
-    private func loadData() async {
-        await viewModel.loadFriends()
-        await viewModel.loadPendingRequests()
-        await viewModel.loadNotifications()
+        return "\(unreadNotificationCount)"
     }
 
     private func iconForNotificationType(_ type: FriendNotification.NotificationType) -> String {
@@ -338,7 +283,34 @@ struct FriendsView: View {
     }
 }
 
+// MARK: - Chat Item (for DM display)
+
+struct ChatItem: Identifiable {
+    let id: String
+    let name: String
+    let lastMessage: String
+    let timestamp: Date
+    let unreadCount: Int
+    let friend: FriendProfile
+    let vibestreak: Int
+
+    var displayTime: String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(timestamp) {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "h:mm a"
+            return formatter.string(from: timestamp)
+        } else if calendar.isDateInYesterday(timestamp) {
+            return "Yesterday"
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MM/dd"
+            return formatter.string(from: timestamp)
+        }
+    }
+}
+
 #Preview {
-    FriendsView(selectedTab: .constant(1), shouldEditProfile: .constant(false), navigateToFriend: .constant(nil))
+    ChatsView(selectedTab: .constant(1), shouldEditProfile: .constant(false))
         .environmentObject(AuthManager.shared)
 }

@@ -79,11 +79,14 @@ class FirestoreService {
 
         try await updateThread(threadId: message.threadId, message: message)
 
-        try await recordInteraction(
-            senderId: message.senderId,
-            recipientId: message.recipientId,
-            type: message.messageType == .song ? "song" : "message"
-        )
+        // Record interaction for vibestreak (only for 1-on-1 messages)
+        if let recipientId = message.recipientId {
+            try await recordInteraction(
+                senderId: message.senderId,
+                recipientId: recipientId,
+                type: message.messageType == .song ? "song" : "message"
+            )
+        }
     }
 
     private func updateThread(threadId: String, message: Message) async throws {
@@ -256,7 +259,8 @@ class FirestoreService {
             ]))
             .getDocuments()
 
-        guard let friendshipDoc = friendships.documents.first else { return }
+        guard let friendshipDoc = friendships.documents.first,
+              let friendship = try? friendshipDoc.data(as: Friendship.self) else { return }
 
         let interactionData: [String: Any] = [
             "friendshipId": friendshipDoc.documentID,
@@ -267,20 +271,133 @@ class FirestoreService {
 
         try await db.collection("interactions").addDocument(data: interactionData)
 
-        try await friendshipDoc.reference.updateData([
-            "lastInteractionDate": Timestamp()
-        ])
+        // Update vibestreak
+        try await updateVibestreak(friendshipDoc: friendshipDoc, friendship: friendship, senderId: senderId)
     }
 
-    func listenToVibestreak(friendshipId: String, completion: @escaping (Int) -> Void) -> ListenerRegistration {
+    private func updateVibestreak(friendshipDoc: QueryDocumentSnapshot, friendship: Friendship, senderId: String) async throws {
+        let now = Date()
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: now)
+
+        // Determine if sender is user1 (userId) or user2 (friendId)
+        let isUser1 = senderId == friendship.userId
+
+        // Get the other user's last interaction
+        let otherUserLastInteraction = isUser1 ? friendship.user2LastInteraction : friendship.user1LastInteraction
+        let senderFieldName = isUser1 ? "user1LastInteraction" : "user2LastInteraction"
+
+        var updateData: [String: Any] = [
+            senderFieldName: Timestamp(date: now),
+            "lastInteractionDate": Timestamp(date: now)
+        ]
+
+        // Check if both users have interacted today
+        if let otherDate = otherUserLastInteraction {
+            let otherDay = calendar.startOfDay(for: otherDate)
+
+            if otherDay == today {
+                // Both users have interacted today
+                // Check if we already updated the streak today
+                let streakAlreadyUpdatedToday: Bool
+                if let lastUpdate = friendship.streakLastUpdated {
+                    streakAlreadyUpdatedToday = calendar.startOfDay(for: lastUpdate) == today
+                } else {
+                    streakAlreadyUpdatedToday = false
+                }
+
+                if !streakAlreadyUpdatedToday {
+                    // Check if streak should continue or reset
+                    let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
+                    var newStreak = 1
+
+                    if let lastStreakUpdate = friendship.streakLastUpdated {
+                        let lastUpdateDay = calendar.startOfDay(for: lastStreakUpdate)
+                        if lastUpdateDay == yesterday {
+                            // Streak continues from yesterday
+                            newStreak = friendship.vibestreak + 1
+                        } else if lastUpdateDay == today {
+                            // Already updated today, keep current streak
+                            newStreak = friendship.vibestreak
+                        }
+                        // Otherwise streak resets to 1
+                    }
+
+                    updateData["vibestreak"] = newStreak
+                    updateData["streakLastUpdated"] = Timestamp(date: now)
+
+                    // Check for milestones
+                    if [7, 30, 100, 365].contains(newStreak) {
+                        try await createStreakMilestoneNotification(
+                            friendship: friendship,
+                            streak: newStreak
+                        )
+                    }
+                }
+            }
+        }
+
+        try await friendshipDoc.reference.updateData(updateData)
+    }
+
+    private func createStreakMilestoneNotification(friendship: Friendship, streak: Int) async throws {
+        let milestoneMessage: String
+        switch streak {
+        case 7:
+            milestoneMessage = "1 week vibestreak!"
+        case 30:
+            milestoneMessage = "1 month vibestreak!"
+        case 100:
+            milestoneMessage = "100 day vibestreak!"
+        case 365:
+            milestoneMessage = "1 year vibestreak!"
+        default:
+            milestoneMessage = "\(streak) day vibestreak!"
+        }
+
+        // Notify both users
+        for userId in [friendship.userId, friendship.friendId] {
+            try await createNotification(
+                userId: userId,
+                type: "vibestreakMilestone",
+                relatedId: friendship.id ?? "",
+                content: milestoneMessage,
+                title: "🔥 Streak Milestone!"
+            )
+        }
+    }
+
+    func listenToVibestreak(friendshipId: String, completion: @escaping (Int, Date?) -> Void) -> ListenerRegistration {
         return db.collection("friendships").document(friendshipId)
             .addSnapshotListener { snapshot, error in
                 guard let data = snapshot?.data(),
                       let streak = data["vibestreak"] as? Int else { return }
+                let lastUpdated = (data["streakLastUpdated"] as? Timestamp)?.dateValue()
                 DispatchQueue.main.async {
-                    completion(streak)
+                    completion(streak, lastUpdated)
                 }
             }
+    }
+
+    func getFriendship(userId1: String, userId2: String) async throws -> (id: String, vibestreak: Int, streakLastUpdated: Date?)? {
+        let friendships = try await db.collection("friendships")
+            .whereField("status", isEqualTo: "accepted")
+            .whereFilter(Filter.orFilter([
+                Filter.andFilter([
+                    Filter.whereField("userId", isEqualTo: userId1),
+                    Filter.whereField("friendId", isEqualTo: userId2)
+                ]),
+                Filter.andFilter([
+                    Filter.whereField("userId", isEqualTo: userId2),
+                    Filter.whereField("friendId", isEqualTo: userId1)
+                ])
+            ]))
+            .getDocuments()
+
+        guard let doc = friendships.documents.first,
+              let friendship = try? doc.data(as: Friendship.self) else { return nil }
+
+        return (doc.documentID, friendship.vibestreak, friendship.streakLastUpdated)
     }
 
     // MARK: - User Profiles

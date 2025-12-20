@@ -132,20 +132,28 @@ class FriendService {
             .whereField("status", isEqualTo: Friendship.FriendshipStatus.accepted.rawValue)
             .getDocuments()
 
-        var friendIds: [String] = []
-        friendIds.append(contentsOf: sentRequests.documents.compactMap { doc in
-            guard let friendship = try? doc.data(as: Friendship.self) else { return nil }
-            return friendship.friendId
-        })
-        friendIds.append(contentsOf: receivedRequests.documents.compactMap { doc in
-            guard let friendship = try? doc.data(as: Friendship.self) else { return nil }
-            return friendship.userId
-        })
+        var friendshipData: [(friendId: String, vibestreak: Int, streakLastUpdated: Date?, friendshipId: String)] = []
+
+        for doc in sentRequests.documents {
+            if let friendship = try? doc.data(as: Friendship.self) {
+                friendshipData.append((friendship.friendId, friendship.vibestreak, friendship.streakLastUpdated, doc.documentID))
+            }
+        }
+        for doc in receivedRequests.documents {
+            if let friendship = try? doc.data(as: Friendship.self) {
+                friendshipData.append((friendship.userId, friendship.vibestreak, friendship.streakLastUpdated, doc.documentID))
+            }
+        }
 
         var friendProfiles: [FriendProfile] = []
-        for friendId in friendIds {
-            if let profile = try? await fetchUserProfile(userId: friendId) {
-                friendProfiles.append(FriendProfile(from: profile))
+        for data in friendshipData {
+            if let profile = try? await fetchUserProfile(userId: data.friendId) {
+                friendProfiles.append(FriendProfile(
+                    from: profile,
+                    vibestreak: data.vibestreak,
+                    streakLastUpdated: data.streakLastUpdated,
+                    friendshipId: data.friendshipId
+                ))
             }
         }
 

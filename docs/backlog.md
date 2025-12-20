@@ -4,23 +4,6 @@ This file tracks tasks and features to be implemented in the future.
 
 ---
 
-## Search Tab Enhancements
-
-### 17. Tap-to-play song previews
-- **Type**: Feature
-- **Description**: Play 30-second song previews when tapping on search results
-- **Context**: Spotify provides previewUrl on tracks for 30-second audio snippets
-- **Documentation**: See docs/song-preview-implementation.md for full implementation guide
-- **Requirements**:
-  - Create AudioPlayerService singleton using AVPlayer
-  - Update TrackRow to handle tap and show play/pause state
-  - Show visual indicator for currently playing track
-  - Handle tracks with no preview available
-  - Add progress bar and sound wave animation
-  - Optional: Add mini now-playing bar at bottom of search view
-
----
-
 ## Profile Enhancements
 
 ### 1. Add profile picture upload capability
@@ -61,36 +44,7 @@ This file tracks tasks and features to be implemented in the future.
   - Clear button to reset search
   - Keep search bar visible while scrolling (sticky header)
 
-### 3. Messaging functionality
-- **Type**: Feature
-- **Description**: Add one-on-one messaging with friends where users can send text and songs
-- **Context**: Core social feature for communication and song sharing between friends
-- **Requirements**:
-  - Create MessageThread and Message data models
-  - Implement messaging service (send text/songs, fetch conversations)
-  - Create MessageThreadView with chronological message history
-  - Support text messages and song shares in same thread
-  - Real-time message updates (Firebase listeners or polling)
-  - Message input field with send button
-  - Song attachment button to search and share songs
-  - Unread message indicators
-  - Tap friend in FriendsView to open message thread
-
-### 4. Vibestreaks tracking
-- **Type**: Feature
-- **Description**: Daily engagement tracking between friends with streak counters and milestones
-- **Context**: Gamification feature to encourage daily music sharing between friends
-- **Requirements**:
-  - Track daily interactions between friend pairs
-  - Calculate streak count (consecutive days both users engaged)
-  - Display streak count next to friends in friend list
-  - Visual streak indicators (fire emoji, badges)
-  - Milestone celebrations (7, 30, 100 days)
-  - Push notifications to maintain streaks
-  - Leaderboard of longest streaks
-  - Reset streak logic when day is missed
-
-### 5. Real-time Now Playing
+### 3. Real-time Now Playing
 - **Type**: Feature
 - **Description**: Show what friends are currently listening to on Spotify in real-time
 - **Context**: Enables music discovery through seeing friends' current listening activity
@@ -116,19 +70,7 @@ This file tracks tasks and features to be implemented in the future.
   - Format timestamps with short time style (e.g., "3:45 PM")
   - Position timestamps next to messages (right-aligned for sent messages, left-aligned for received)
 
-### 7. Send messages with Return/Enter key
-- **Type**: Feature
-- **Description**: Allow users to send messages by pressing Return/Enter instead of clicking the send button
-- **Context**: Improves messaging UX by enabling faster message sending with keyboard
-- **Requirements**:
-  - Add onSubmit handler to TextField in message input
-  - Trigger send action when Return/Enter is pressed
-  - Keep send button as alternative method
-  - Prevent sending empty messages
-  - Consider shift+Enter for new line (if multiline support added)
-  - Maintain consistent behavior across iOS versions
-
-### 8. Music taste compatibility scores
+### 7. Music taste compatibility scores
 - **Type**: Feature
 - **Description**: Calculate and display music compatibility percentage between users
 - **Context**: Helps users discover friends with similar music taste and provides conversation starters
@@ -272,10 +214,31 @@ This file tracks tasks and features to be implemented in the future.
 
 ---
 
+## Messaging Enhancements
+
+### 19. Group chats
+- **Type**: Feature
+- **Description**: Add group messaging functionality to allow multiple friends to chat together
+- **Context**: Users want to create group conversations for sharing music with multiple friends at once
+- **Requirements**:
+  - Create GroupThread model with name, participants, and unread counts
+  - Add "New Group" button to create groups
+  - Multi-select friends to add to group (minimum 2)
+  - Name the group during creation
+  - Show group conversations in Chats tab alongside DMs
+  - Display sender names on messages in group chats
+  - Group settings: edit name, view members, leave group
+  - Creator can add/remove members
+  - Track read status per user in group
+  - Support both text and song messages in groups
+  - Requires Firestore composite index for participantIds + lastMessageTimestamp
+
+---
+
 ## Backlog Statistics
-- Total Future Tasks: 18
-- Search Tab Enhancements: 1
+- Total Future Tasks: 15
 - Profile Enhancements: 2
-- Friends Tab Enhancements: 8
+- Friends Tab Enhancements: 5
 - UI/UX Polish: 5
 - Authentication Enhancements: 2
+- Messaging Enhancements: 1

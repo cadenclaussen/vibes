@@ -16,6 +16,9 @@ struct Friendship: Codable, Identifiable {
     var initiatorId: String
     var vibestreak: Int
     var lastInteractionDate: Date?
+    var user1LastInteraction: Date? // userId's last interaction
+    var user2LastInteraction: Date? // friendId's last interaction
+    var streakLastUpdated: Date? // when streak was last incremented
     var compatibilityScore: Double
     var sharedArtists: [String]
     var createdAt: Date
