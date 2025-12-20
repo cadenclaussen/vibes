@@ -29,6 +29,8 @@ struct UserProfile: Codable, Identifiable {
     var updatedAt: Date
     var privacySettings: PrivacySettings
     var fcmToken: String?
+    var isOnline: Bool?
+    var lastSeen: Date?
 
     struct PrivacySettings: Codable {
         var profileVisibility: String

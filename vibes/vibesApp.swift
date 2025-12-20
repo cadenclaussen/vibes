@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import Firebase
+import FirebaseAuth
 import FirebaseMessaging
 
 @main
@@ -33,6 +34,8 @@ struct vibesApp: App {
         print("✅ Firebase app name: \(FirebaseApp.app()?.name ?? "unknown")")
     }
 
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -42,6 +45,28 @@ struct vibesApp: App {
                 }
         }
         .modelContainer(sharedModelContainer)
+        .onChange(of: scenePhase) { _, newPhase in
+            handleScenePhaseChange(newPhase)
+        }
+    }
+
+    private func handleScenePhaseChange(_ phase: ScenePhase) {
+        guard let userId = AuthManager.shared.user?.uid else { return }
+
+        Task {
+            do {
+                switch phase {
+                case .active:
+                    try await FirestoreService.shared.setUserOnline(userId: userId)
+                case .inactive, .background:
+                    try await FirestoreService.shared.setUserOffline(userId: userId)
+                @unknown default:
+                    break
+                }
+            } catch {
+                print("Failed to update presence: \(error)")
+            }
+        }
     }
 
     private func handleIncomingURL(_ url: URL) {

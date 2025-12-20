@@ -113,11 +113,34 @@ class AuthManager: ObservableObject {
             throw AuthError.notAuthenticated
         }
 
-        try await db.collection("users").document(user.uid).delete()
+        let userId = user.uid
 
+        // Delete profile picture from storage
+        try? await StorageService.shared.deleteProfilePicture(userId: userId)
+
+        // Delete all user data from Firestore
+        try await FirestoreService.shared.deleteAllUserData(userId: userId)
+
+        // Delete Firebase Auth account
         try await user.delete()
+
+        // Clean up local state
         self.user = nil
-        print("✅ Account deleted")
+        self.isSpotifyLinked = false
+
+        // Clear Spotify tokens
+        SpotifyService.shared.signOut()
+
+        print("Account deleted successfully")
+    }
+
+    func reauthenticate(password: String) async throws {
+        guard let user = user, let email = user.email else {
+            throw AuthError.notAuthenticated
+        }
+
+        let credential = EmailAuthProvider.credential(withEmail: email, password: password)
+        try await user.reauthenticate(with: credential)
     }
 }
 

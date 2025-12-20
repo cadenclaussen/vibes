@@ -434,6 +434,107 @@ class FirestoreService {
         ])
     }
 
+    func updateProfilePictureURL(userId: String, url: String) async throws {
+        try await db.collection("users").document(userId).updateData([
+            "profilePictureURL": url,
+            "updatedAt": Date()
+        ])
+    }
+
+    // MARK: - Presence
+
+    func updatePresence(userId: String, isOnline: Bool) async throws {
+        var data: [String: Any] = [
+            "isOnline": isOnline,
+            "lastSeen": Date()
+        ]
+
+        if !isOnline {
+            data["lastSeen"] = Date()
+        }
+
+        try await db.collection("users").document(userId).updateData(data)
+    }
+
+    func setUserOnline(userId: String) async throws {
+        try await updatePresence(userId: userId, isOnline: true)
+    }
+
+    func setUserOffline(userId: String) async throws {
+        try await updatePresence(userId: userId, isOnline: false)
+    }
+
+    // MARK: - Account Deletion
+
+    func deleteAllUserData(userId: String) async throws {
+        // Delete user's messages
+        let messages = try await db.collection("messages")
+            .whereField("senderId", isEqualTo: userId)
+            .getDocuments()
+        for doc in messages.documents {
+            try await doc.reference.delete()
+        }
+
+        // Delete messages sent TO this user
+        let receivedMessages = try await db.collection("messages")
+            .whereField("recipientId", isEqualTo: userId)
+            .getDocuments()
+        for doc in receivedMessages.documents {
+            try await doc.reference.delete()
+        }
+
+        // Delete friendships where user is involved
+        let friendships1 = try await db.collection("friendships")
+            .whereField("userId", isEqualTo: userId)
+            .getDocuments()
+        for doc in friendships1.documents {
+            try await doc.reference.delete()
+        }
+
+        let friendships2 = try await db.collection("friendships")
+            .whereField("friendId", isEqualTo: userId)
+            .getDocuments()
+        for doc in friendships2.documents {
+            try await doc.reference.delete()
+        }
+
+        // Delete message threads involving user
+        let threads1 = try await db.collection("messageThreads")
+            .whereField("userId1", isEqualTo: userId)
+            .getDocuments()
+        for doc in threads1.documents {
+            try await doc.reference.delete()
+        }
+
+        let threads2 = try await db.collection("messageThreads")
+            .whereField("userId2", isEqualTo: userId)
+            .getDocuments()
+        for doc in threads2.documents {
+            try await doc.reference.delete()
+        }
+
+        // Delete user's notifications
+        let notifications = try await db.collection("notifications")
+            .whereField("userId", isEqualTo: userId)
+            .getDocuments()
+        for doc in notifications.documents {
+            try await doc.reference.delete()
+        }
+
+        // Delete user's interactions
+        let interactions = try await db.collection("interactions")
+            .whereField("userId", isEqualTo: userId)
+            .getDocuments()
+        for doc in interactions.documents {
+            try await doc.reference.delete()
+        }
+
+        // Delete user profile
+        try await db.collection("users").document(userId).delete()
+
+        print("All user data deleted for: \(userId)")
+    }
+
     // MARK: - Notifications
 
     func createNotification(userId: String, type: String, relatedId: String, content: String, title: String, imageURL: String? = nil) async throws {

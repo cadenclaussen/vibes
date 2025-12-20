@@ -442,9 +442,77 @@
     - Integrated into MainTabView in ContentView.swift
   - Build succeeded on iPhone 16e simulator
 
+### 46. Forgot Password Flow
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/AuthView.swift, vibes/Services/AuthManager.swift
+- **Requested**: Add forgot password functionality to help users regain access to their accounts
+- **Context**: Essential authentication feature required for good UX
+- **Acceptance Criteria**:
+  - [x] Add "Forgot Password?" link on login screen
+  - [x] Create password reset view with email input
+  - [x] Integrate Firebase Auth password reset email
+  - [x] Show confirmation/error messages
+  - [x] Build and test on simulator
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Added ForgotPasswordView as a sheet in AuthView with email input and Firebase sendPasswordReset integration
+
+### 47. Profile Picture Upload
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/ProfileView.swift, vibes/Services/StorageService.swift, vibes/Services/FirestoreService.swift
+- **Requested**: Add ability to upload and change profile picture
+- **Context**: Users need to personalize their profiles with custom photos
+- **Acceptance Criteria**:
+  - [x] Add PhotosPicker integration to ProfileView
+  - [x] Create StorageService for Firebase Storage uploads
+  - [x] Resize images before upload (max 500px)
+  - [x] Update profilePictureURL in Firestore
+  - [x] Display profile picture in ProfileView and ChatRowView
+  - [x] Build and test on simulator
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Created StorageService.swift for image uploads, added PhotosPicker to profile edit mode, updated profilePictureView to show AsyncImage
+
+### 48. Online Status Indicators
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Models/User.swift, vibes/Models/FriendProfile.swift, vibes/Views/ChatRowView.swift, vibes/vibesApp.swift, vibes/Services/FirestoreService.swift
+- **Requested**: Show real-time online status and last active timestamp for friends
+- **Context**: Helps users know when friends are available to chat
+- **Acceptance Criteria**:
+  - [x] Add isOnline and lastSeen fields to UserProfile
+  - [x] Add presence tracking on app lifecycle (foreground/background)
+  - [x] Display green dot indicator for online friends in ChatRowView
+  - [x] Show "Active X ago" for recent activity
+  - [x] Build and test on simulator
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Added presence fields to models, created updatePresence methods in FirestoreService, added scenePhase tracking in vibesApp, updated ChatRowView with online indicator and lastSeenText
+
+### 49. Delete Account
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/SettingsMenu.swift, vibes/Services/AuthManager.swift, vibes/Services/FirestoreService.swift, vibes/Services/StorageService.swift
+- **Requested**: Allow users to permanently delete their account and all associated data
+- **Context**: Required for privacy compliance (GDPR, CCPA) and App Store requirements
+- **Acceptance Criteria**:
+  - [x] Add "Delete Account" option in settings menu
+  - [x] Create confirmation dialog with warning
+  - [x] Require password re-authentication
+  - [x] Delete all user data from Firestore (messages, friendships, threads, etc.)
+  - [x] Delete profile picture from Firebase Storage
+  - [x] Delete Firebase Auth account
+  - [x] Sign out and return to login screen
+  - [x] Build and test on simulator
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Created DeleteAccountView with password confirmation, added deleteAllUserData to FirestoreService, updated AuthManager with reauthenticate and comprehensive deleteAccount methods
+
 ## Task Statistics
-- Total Tasks: 45
-- Completed: 44
+- Total Tasks: 49
+- Completed: 48
 - Deferred: 1
 - In Progress: 0
 - Pending: 0

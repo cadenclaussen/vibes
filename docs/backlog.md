@@ -6,17 +6,6 @@ This file tracks tasks and features to be implemented in the future.
 
 ## Profile Enhancements
 
-### 1. Add profile picture upload capability
-- **Type**: Feature
-- **Description**: Add the ability to change the profile picture in the profile section
-- **Context**: Currently shows placeholder person icon, need ability to upload/change photo
-- **Requirements**:
-  - Photo picker integration
-  - Image upload to Firebase Storage
-  - Update profile picture URL in Firestore
-  - Display uploaded image in ProfileView
-  - Handle image compression/sizing
-
 ### 2. Predefined genre selection
 - **Type**: Feature
 - **Description**: Instead of adding favorite genres with free text input, have a set list of music genres that you can pick from
@@ -161,57 +150,6 @@ This file tracks tasks and features to be implemented in the future.
   - Debounce refresh to prevent excessive API calls
   - Auto-refresh should still work in background
 
-### 14. Show last seen and online status for friends
-- **Type**: Feature
-- **Description**: Display real-time online status and last active timestamp for friends
-- **Context**: Helps users know when friends are available to chat
-- **Requirements**:
-  - Track user online/offline status in Firestore
-  - Update status when app enters foreground/background
-  - Display green dot indicator for online friends
-  - Show "Active now" for online users
-  - Show "Active 5m ago", "Active 1h ago" for recent activity
-  - Show "Last seen [date]" for longer absence
-  - Update status in real-time with Firestore listeners
-  - Add privacy setting to hide online status
-  - Show typing indicator when friend is typing (future)
-  - Handle offline gracefully (don't show stale data)
-
----
-
-## Authentication Enhancements
-
-### 15. Forgot password functionality
-- **Type**: Feature
-- **Description**: Add forgot password/password reset flow for users who can't access their account
-- **Context**: Essential authentication feature to help users regain access to their accounts
-- **Requirements**:
-  - Add "Forgot Password?" link on login screen
-  - Create password reset view with email input
-  - Integrate Firebase Auth password reset email
-  - Show confirmation message after email sent
-  - Handle error cases (user not found, invalid email)
-  - Add clear instructions for checking email
-  - Consider adding password reset link expiration notice
-  - Return to login screen after successful reset
-
-### 16. Delete account functionality
-- **Type**: Feature
-- **Description**: Allow users to permanently delete their account and all associated data
-- **Context**: Required for privacy compliance (GDPR, CCPA) and user autonomy
-- **Requirements**:
-  - Add "Delete Account" option in profile settings
-  - Create confirmation dialog with warning about permanent deletion
-  - Require password re-authentication before deletion
-  - Delete user data from Firestore (profile, friends, messages, etc.)
-  - Delete Firebase Auth account
-  - Delete uploaded media from Firebase Storage
-  - Remove user from friends' friend lists
-  - Show clear warning about data loss and irreversibility
-  - Provide grace period option (30 days before permanent deletion)
-  - Log user out and return to login screen after deletion
-  - Send confirmation email about account deletion
-
 ---
 
 ## Messaging Enhancements
@@ -236,9 +174,8 @@ This file tracks tasks and features to be implemented in the future.
 ---
 
 ## Backlog Statistics
-- Total Future Tasks: 15
-- Profile Enhancements: 2
+- Total Future Tasks: 11
+- Profile Enhancements: 1
 - Friends Tab Enhancements: 5
-- UI/UX Polish: 5
-- Authentication Enhancements: 2
+- UI/UX Polish: 4
 - Messaging Enhancements: 1

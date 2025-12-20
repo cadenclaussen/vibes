@@ -12,12 +12,22 @@ struct ChatRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Avatar
-            Image(systemName: "person.circle.fill")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 50, height: 50)
-                .foregroundColor(Color(.tertiaryLabel))
+            // Avatar with online indicator
+            ZStack(alignment: .bottomTrailing) {
+                avatarView
+                    .frame(width: 50, height: 50)
+
+                if chat.friend.isOnline {
+                    Circle()
+                        .fill(Color.green)
+                        .frame(width: 14, height: 14)
+                        .overlay(
+                            Circle()
+                                .stroke(Color(.systemBackground), lineWidth: 2)
+                        )
+                        .offset(x: 2, y: 2)
+                }
+            }
 
             // Content
             VStack(alignment: .leading, spacing: 4) {
@@ -35,10 +45,18 @@ struct ChatRowView: View {
                 }
 
                 HStack {
-                    Text(chat.lastMessage.isEmpty ? "No messages yet" : chat.lastMessage)
-                        .font(.subheadline)
-                        .foregroundColor(Color(.secondaryLabel))
-                        .lineLimit(1)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(chat.lastMessage.isEmpty ? "No messages yet" : chat.lastMessage)
+                            .font(.subheadline)
+                            .foregroundColor(Color(.secondaryLabel))
+                            .lineLimit(1)
+
+                        if let lastSeenText = chat.friend.lastSeenText, !chat.friend.isOnline {
+                            Text(lastSeenText)
+                                .font(.caption2)
+                                .foregroundColor(Color(.tertiaryLabel))
+                        }
+                    }
 
                     Spacer()
 
@@ -68,6 +86,35 @@ struct ChatRowView: View {
         .padding(.horizontal)
         .padding(.vertical, 10)
         .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private var avatarView: some View {
+        if let urlString = chat.friend.profilePictureURL,
+           let url = URL(string: urlString) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .clipShape(Circle())
+                case .failure, .empty:
+                    placeholderAvatar
+                @unknown default:
+                    placeholderAvatar
+                }
+            }
+        } else {
+            placeholderAvatar
+        }
+    }
+
+    private var placeholderAvatar: some View {
+        Image(systemName: "person.circle.fill")
+            .resizable()
+            .scaledToFit()
+            .foregroundColor(Color(.tertiaryLabel))
     }
 }
 

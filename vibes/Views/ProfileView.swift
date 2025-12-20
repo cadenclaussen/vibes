@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FirebaseAuth
+import PhotosUI
 
 enum TimeRange: String, CaseIterable {
     case shortTerm = "short_term"
@@ -37,6 +38,9 @@ struct ProfileView: View {
     @State private var statsError: String?
     @State private var achievements: [Achievement] = []
     @State private var showingAllAchievements = false
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var isUploadingPhoto = false
+    @State private var photoUploadError: String?
 
     var body: some View {
         NavigationStack {
@@ -175,10 +179,7 @@ struct ProfileView: View {
 
     private func profileHeader(_ profile: UserProfile) -> some View {
         VStack(spacing: 12) {
-            Image(systemName: "person.circle.fill")
-                .resizable()
-                .frame(width: 100, height: 100)
-                .foregroundColor(Color(.tertiaryLabel))
+            profilePictureView(profile)
 
             if viewModel.isEditing {
                 TextField("Display Name", text: $viewModel.displayName)
@@ -196,6 +197,12 @@ struct ProfileView: View {
             Text("@\(profile.username)")
                 .font(.subheadline)
                 .foregroundColor(Color(.secondaryLabel))
+
+            if let error = photoUploadError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.red)
+            }
 
             if !viewModel.isEditing {
                 Button {
@@ -215,6 +222,99 @@ struct ProfileView: View {
                 .padding(.top, 8)
             }
         }
+    }
+
+    @ViewBuilder
+    private func profilePictureView(_ profile: UserProfile) -> some View {
+        ZStack {
+            if let urlString = profile.profilePictureURL,
+               let url = URL(string: urlString) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    case .failure:
+                        placeholderImage
+                    case .empty:
+                        ProgressView()
+                    @unknown default:
+                        placeholderImage
+                    }
+                }
+                .frame(width: 100, height: 100)
+                .clipShape(Circle())
+            } else {
+                placeholderImage
+            }
+
+            if viewModel.isEditing {
+                Circle()
+                    .fill(Color.black.opacity(0.4))
+                    .frame(width: 100, height: 100)
+
+                if isUploadingPhoto {
+                    ProgressView()
+                        .tint(.white)
+                } else {
+                    PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                        VStack(spacing: 4) {
+                            Image(systemName: "camera.fill")
+                                .font(.title2)
+                            Text("Change")
+                                .font(.caption)
+                        }
+                        .foregroundColor(.white)
+                    }
+                    .onChange(of: selectedPhotoItem) { _, newItem in
+                        Task {
+                            await handlePhotoSelection(newItem)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var placeholderImage: some View {
+        Image(systemName: "person.circle.fill")
+            .resizable()
+            .frame(width: 100, height: 100)
+            .foregroundColor(Color(.tertiaryLabel))
+    }
+
+    private func handlePhotoSelection(_ item: PhotosPickerItem?) async {
+        guard let item = item,
+              let userId = authManager.user?.uid else { return }
+
+        isUploadingPhoto = true
+        photoUploadError = nil
+
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self) else {
+                photoUploadError = "Failed to load image"
+                isUploadingPhoto = false
+                return
+            }
+
+            let downloadURL = try await StorageService.shared.uploadProfilePicture(
+                userId: userId,
+                imageData: data
+            )
+
+            try await FirestoreService.shared.updateProfilePictureURL(
+                userId: userId,
+                url: downloadURL
+            )
+
+            await viewModel.loadProfile()
+        } catch {
+            photoUploadError = "Upload failed: \(error.localizedDescription)"
+        }
+
+        isUploadingPhoto = false
+        selectedPhotoItem = nil
     }
 
     private func infoSection(_ profile: UserProfile) -> some View {
