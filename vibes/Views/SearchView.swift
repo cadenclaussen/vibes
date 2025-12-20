@@ -7,6 +7,8 @@ struct SearchView: View {
     @Binding var shouldEditProfile: Bool
     @Binding var navigateToFriend: FriendProfile?
     @State private var trackToSend: Track?
+    @State private var trackToAddToPlaylist: Track?
+    @State private var playlistToSend: Playlist?
 
     var body: some View {
         NavigationStack {
@@ -23,12 +25,22 @@ struct SearchView: View {
                     SettingsMenu(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
                 }
             }
+            .navigationDestination(for: Artist.self) { artist in
+                ArtistDetailView(artist: artist)
+            }
+            .navigationDestination(for: Album.self) { album in
+                AlbumDetailView(album: album)
+            }
+            .navigationDestination(for: Playlist.self) { playlist in
+                PlaylistDetailView(playlist: playlist)
+            }
         }
     }
 
     private var searchContent: some View {
         VStack(spacing: 0) {
             searchBar
+            searchTypeSelector
             Divider()
             resultsView
         }
@@ -39,7 +51,7 @@ struct SearchView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.secondary)
 
-            TextField("Search songs, artists...", text: $viewModel.searchText)
+            TextField("Search \(viewModel.selectedSearchType.displayName.lowercased())...", text: $viewModel.searchText)
                 .textFieldStyle(.plain)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
@@ -62,20 +74,80 @@ struct SearchView: View {
         .background(Color(.secondarySystemBackground))
     }
 
+    private var searchTypeSelector: some View {
+        Picker("Search Type", selection: $viewModel.selectedSearchType) {
+            ForEach(SearchType.allCases, id: \.self) { type in
+                Text(type.displayName).tag(type)
+            }
+        }
+        .pickerStyle(.segmented)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .onChange(of: viewModel.selectedSearchType) { _, _ in
+            viewModel.onSearchTypeChanged()
+        }
+    }
+
     @ViewBuilder
     private var resultsView: some View {
         if viewModel.isLoading {
             loadingView
         } else if let error = viewModel.errorMessage {
             errorView(message: error)
-        } else if viewModel.searchResults.isEmpty && viewModel.hasSearched {
+        } else if !viewModel.hasResults && viewModel.hasSearched {
             emptyResultsView
-        } else if viewModel.searchResults.isEmpty {
+        } else if viewModel.searchText.isEmpty && !viewModel.recentSearches.isEmpty {
+            recentSearchesView
+        } else if !viewModel.hasResults {
             initialStateView
         } else {
             resultsList
         }
     }
+
+    // MARK: - Recent Searches
+
+    private var recentSearchesView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Text("Recent")
+                        .font(.headline)
+                    Spacer()
+                    Button("Clear") {
+                        viewModel.clearRecentSearches()
+                    }
+                    .font(.subheadline)
+                    .foregroundColor(.blue)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+
+                ForEach(viewModel.recentSearches, id: \.self) { query in
+                    Button {
+                        viewModel.selectRecentSearch(query)
+                    } label: {
+                        HStack {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .foregroundColor(.secondary)
+                            Text(query)
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Image(systemName: "arrow.up.left")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                    }
+                    Divider()
+                        .padding(.leading, 48)
+                }
+            }
+        }
+    }
+
+    // MARK: - State Views
 
     private var loadingView: some View {
         VStack(spacing: 16) {
@@ -133,22 +205,28 @@ struct SearchView: View {
                 .foregroundColor(.secondary)
             Text("Search for Music")
                 .font(.headline)
-            Text("Find songs and artists on Spotify")
+            Text("Find songs, artists, albums, and playlists")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             Spacer()
         }
     }
 
+    // MARK: - Results List
+
+    @ViewBuilder
     private var resultsList: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                ForEach(viewModel.searchResults) { track in
-                    TrackRow(track: track, viewModel: viewModel) { selectedTrack in
-                        trackToSend = selectedTrack
-                    }
-                    Divider()
-                        .padding(.leading, 72)
+                switch viewModel.selectedSearchType {
+                case .track:
+                    trackResultsList
+                case .artist:
+                    artistResultsList
+                case .album:
+                    albumResultsList
+                case .playlist:
+                    playlistResultsList
                 }
             }
         }
@@ -158,11 +236,83 @@ struct SearchView: View {
                 previewUrl: viewModel.getPreviewUrl(for: track),
                 onSongSent: { friend in
                     navigateToFriend = friend
-                    selectedTab = 1  // Switch to Friends tab
+                    selectedTab = 2  // Switch to Chats tab
+                }
+            )
+        }
+        .sheet(item: $trackToAddToPlaylist) { track in
+            PlaylistPickerView(
+                trackUri: track.uri,
+                trackName: track.name,
+                artistName: track.artists.map { $0.name }.joined(separator: ", "),
+                albumArtUrl: track.album.images.first?.url,
+                onAdded: {}
+            )
+        }
+        .sheet(item: $playlistToSend) { playlist in
+            FriendPickerView(
+                playlist: playlist,
+                onPlaylistSent: { friend in
+                    navigateToFriend = friend
+                    selectedTab = 2  // Switch to Chats tab
                 }
             )
         }
     }
+
+    private var trackResultsList: some View {
+        ForEach(viewModel.searchResults) { track in
+            TrackRow(
+                track: track,
+                viewModel: viewModel,
+                onSendTapped: { selectedTrack in
+                    trackToSend = selectedTrack
+                },
+                onAddToPlaylistTapped: { selectedTrack in
+                    trackToAddToPlaylist = selectedTrack
+                }
+            )
+            Divider()
+                .padding(.leading, 72)
+        }
+    }
+
+    private var artistResultsList: some View {
+        ForEach(viewModel.artistResults) { artist in
+            NavigationLink(value: artist) {
+                ArtistRow(artist: artist)
+            }
+            .buttonStyle(.plain)
+            Divider()
+                .padding(.leading, 72)
+        }
+    }
+
+    private var albumResultsList: some View {
+        ForEach(viewModel.albumResults) { album in
+            NavigationLink(value: album) {
+                AlbumRow(album: album)
+            }
+            .buttonStyle(.plain)
+            Divider()
+                .padding(.leading, 72)
+        }
+    }
+
+    private var playlistResultsList: some View {
+        ForEach(viewModel.playlistResults) { playlist in
+            NavigationLink(value: playlist) {
+                PlaylistRow(playlist: playlist, onSendTapped: { playlist in
+                    playlistToSend = playlist
+                })
+            }
+            .buttonStyle(.plain)
+            Divider()
+                .padding(.leading, 72)
+        }
+    }
+
+    // MARK: - Spotify Not Connected
 
     private var spotifyNotConnectedView: some View {
         VStack(spacing: 24) {
@@ -183,7 +333,7 @@ struct SearchView: View {
                 .padding(.horizontal, 32)
 
             Button {
-                selectedTab = 3 // Go to Profile tab to connect Spotify
+                selectedTab = 3
             } label: {
                 HStack {
                     Image(systemName: "link")
@@ -202,12 +352,15 @@ struct SearchView: View {
     }
 }
 
+// MARK: - Track Row
+
 struct TrackRow: View {
     let track: Track
     @ObservedObject var viewModel: SearchViewModel
     @ObservedObject var audioPlayer = AudioPlayerService.shared
     @State private var showNoPreviewAlert = false
     let onSendTapped: (Track) -> Void
+    let onAddToPlaylistTapped: (Track) -> Void
 
     private var isCurrentTrack: Bool {
         audioPlayer.currentTrackId == track.id
@@ -238,6 +391,7 @@ struct TrackRow: View {
                 trackInfo
                 Spacer()
                 playIndicator
+                addToPlaylistButton
                 sendButton
                 durationLabel
             }
@@ -279,7 +433,6 @@ struct TrackRow: View {
             }
             .frame(width: 48, height: 48)
 
-            // Play/pause overlay when this track is active
             if isCurrentTrack {
                 Rectangle()
                     .fill(.black.opacity(0.4))
@@ -291,7 +444,6 @@ struct TrackRow: View {
                     .frame(width: 48, height: 48)
             }
 
-            // Progress bar at bottom
             if isCurrentTrack {
                 GeometryReader { geometry in
                     Rectangle()
@@ -321,6 +473,17 @@ struct TrackRow: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
+    }
+
+    private var addToPlaylistButton: some View {
+        Button {
+            onAddToPlaylistTapped(track)
+        } label: {
+            Image(systemName: "plus.circle.fill")
+                .font(.body)
+                .foregroundColor(.green)
+        }
+        .buttonStyle(.plain)
     }
 
     private var sendButton: some View {
@@ -382,6 +545,225 @@ struct TrackRow: View {
     }
 }
 
+// MARK: - Artist Row
+
+struct ArtistRow: View {
+    let artist: Artist
+
+    var body: some View {
+        HStack(spacing: 12) {
+            artistImage
+            artistInfo
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    private var artistImage: some View {
+        Group {
+            if let imageUrl = artist.images?.first?.url,
+               let url = URL(string: imageUrl) {
+                AsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    artistPlaceholder
+                }
+            } else {
+                artistPlaceholder
+            }
+        }
+        .frame(width: 48, height: 48)
+        .clipShape(Circle())
+    }
+
+    private var artistPlaceholder: some View {
+        Circle()
+            .fill(Color(.tertiarySystemFill))
+            .overlay {
+                Image(systemName: "music.mic")
+                    .foregroundColor(.secondary)
+            }
+    }
+
+    private var artistInfo: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(artist.name)
+                .font(.body)
+                .fontWeight(.medium)
+                .lineLimit(1)
+
+            if let followers = artist.followers?.total {
+                Text(formatFollowers(followers))
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            } else {
+                Text("Artist")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    private func formatFollowers(_ count: Int) -> String {
+        if count >= 1_000_000 {
+            return String(format: "%.1fM followers", Double(count) / 1_000_000)
+        } else if count >= 1_000 {
+            return String(format: "%.1fK followers", Double(count) / 1_000)
+        } else {
+            return "\(count) followers"
+        }
+    }
+}
+
+// MARK: - Album Row
+
+struct AlbumRow: View {
+    let album: Album
+
+    var body: some View {
+        HStack(spacing: 12) {
+            albumImage
+            albumInfo
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    private var albumImage: some View {
+        Group {
+            if let imageUrl = album.images.first?.url,
+               let url = URL(string: imageUrl) {
+                AsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    albumPlaceholder
+                }
+            } else {
+                albumPlaceholder
+            }
+        }
+        .frame(width: 48, height: 48)
+        .cornerRadius(4)
+    }
+
+    private var albumPlaceholder: some View {
+        Rectangle()
+            .fill(Color(.tertiarySystemFill))
+            .overlay {
+                Image(systemName: "music.note")
+                    .foregroundColor(.secondary)
+            }
+    }
+
+    private var albumInfo: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(album.name)
+                .font(.body)
+                .fontWeight(.medium)
+                .lineLimit(1)
+
+            HStack(spacing: 4) {
+                Text(String(album.releaseDate.prefix(4)))
+                    .foregroundColor(.secondary)
+                Text("-")
+                    .foregroundColor(.secondary)
+                Text("\(album.totalTracks) tracks")
+                    .foregroundColor(.secondary)
+            }
+            .font(.subheadline)
+        }
+    }
+}
+
+// MARK: - Playlist Row
+
+struct PlaylistRow: View {
+    let playlist: Playlist
+    let onSendTapped: ((Playlist) -> Void)?
+
+    init(playlist: Playlist, onSendTapped: ((Playlist) -> Void)? = nil) {
+        self.playlist = playlist
+        self.onSendTapped = onSendTapped
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            playlistImage
+            playlistInfo
+            Spacer()
+            if let onSendTapped = onSendTapped {
+                Button {
+                    onSendTapped(playlist)
+                } label: {
+                    Image(systemName: "paperplane.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(.blue)
+                        .padding(8)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    private var playlistImage: some View {
+        Group {
+            if let imageUrl = playlist.images?.first?.url,
+               let url = URL(string: imageUrl) {
+                AsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    playlistPlaceholder
+                }
+            } else {
+                playlistPlaceholder
+            }
+        }
+        .frame(width: 48, height: 48)
+        .cornerRadius(4)
+    }
+
+    private var playlistPlaceholder: some View {
+        Rectangle()
+            .fill(Color(.tertiarySystemFill))
+            .overlay {
+                Image(systemName: "music.note.list")
+                    .foregroundColor(.secondary)
+            }
+    }
+
+    private var playlistInfo: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(playlist.name)
+                .font(.body)
+                .fontWeight(.medium)
+                .lineLimit(1)
+
+            HStack(spacing: 4) {
+                Text("by \(playlist.owner.displayName ?? "Unknown")")
+                    .foregroundColor(.secondary)
+                Text("-")
+                    .foregroundColor(.secondary)
+                Text("\(playlist.tracks.total) tracks")
+                    .foregroundColor(.secondary)
+            }
+            .font(.subheadline)
+            .lineLimit(1)
+        }
+    }
+}
+
+// MARK: - Sound Wave Animation
+
 struct SoundWaveBar: View {
     let delay: Double
     @State private var animating = false
@@ -401,5 +783,5 @@ struct SoundWaveBar: View {
 }
 
 #Preview {
-    SearchView(selectedTab: .constant(0), shouldEditProfile: .constant(false), navigateToFriend: .constant(nil))
+    SearchView(selectedTab: .constant(1), shouldEditProfile: .constant(false), navigateToFriend: .constant(nil))
 }

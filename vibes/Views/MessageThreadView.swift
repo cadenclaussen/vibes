@@ -29,11 +29,17 @@ struct MessageThreadView: View {
             // Messages list
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(spacing: 12) {
+                    LazyVStack(spacing: 16) {
                         ForEach(viewModel.messages) { message in
                             MessageBubbleView(
                                 message: message,
-                                isFromCurrentUser: message.senderId == viewModel.currentUserId
+                                isFromCurrentUser: message.senderId == viewModel.currentUserId,
+                                currentUserId: viewModel.currentUserId,
+                                onReactionAdded: { messageId, emoji in
+                                    Task {
+                                        await viewModel.addReaction(messageId: messageId, emoji: emoji)
+                                    }
+                                }
                             )
                         }
                     }
@@ -62,11 +68,7 @@ struct MessageThreadView: View {
                 VStack(spacing: 2) {
                     Text("@\(friendUsername)")
                         .font(.headline)
-                    if viewModel.activeVibestreak > 0 {
-                        Text("🔥 \(viewModel.activeVibestreak)")
-                            .font(.caption)
-                            .foregroundColor(.orange)
-                    }
+                    VibestreakView(streak: viewModel.activeVibestreak, size: .small)
                 }
             }
         }
@@ -100,28 +102,91 @@ struct MessageThreadView: View {
 struct MessageBubbleView: View {
     let message: Message
     let isFromCurrentUser: Bool
+    let currentUserId: String
+    let onReactionAdded: (String, String) -> Void
+
+    @State private var showTimestamp = false
 
     var body: some View {
-        HStack(spacing: 8) {
-            if isFromCurrentUser {
-                Spacer()
+        VStack(alignment: isFromCurrentUser ? .trailing : .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                if isFromCurrentUser {
+                    Spacer(minLength: 60)
+                }
+
+                VStack(alignment: isFromCurrentUser ? .trailing : .leading, spacing: 6) {
+                    switch message.messageType {
+                    case .text:
+                        TextMessageBubble(
+                            text: message.textContent ?? "",
+                            isFromCurrentUser: isFromCurrentUser
+                        )
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                showTimestamp.toggle()
+                            }
+                        }
+                    case .song:
+                        SongMessageBubbleView(
+                            message: message,
+                            isFromCurrentUser: isFromCurrentUser,
+                            currentUserId: currentUserId,
+                            onReactionAdded: onReactionAdded
+                        )
+                    case .playlist:
+                        PlaylistMessageBubbleView(
+                            message: message,
+                            isFromCurrentUser: isFromCurrentUser,
+                            currentUserId: currentUserId,
+                            onReactionAdded: onReactionAdded
+                        )
+                    }
+                }
+
+                if !isFromCurrentUser {
+                    Spacer(minLength: 60)
+                }
             }
 
-            if message.messageType == .text {
-                Text(message.textContent ?? "")
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(isFromCurrentUser ? Color.blue : Color(.systemGray5))
-                    .foregroundColor(isFromCurrentUser ? .white : .primary)
-                    .cornerRadius(16)
-            } else {
-                SongMessageBubbleView(message: message, isFromCurrentUser: isFromCurrentUser)
-            }
-
-            if !isFromCurrentUser {
-                Spacer()
+            // Timestamp (shown on tap)
+            if showTimestamp {
+                Text(formatTimestamp(message.timestamp))
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 4)
+                    .transition(.opacity.combined(with: .scale(scale: 0.8)))
             }
         }
+    }
+
+    private func formatTimestamp(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        let calendar = Calendar.current
+
+        if calendar.isDateInToday(date) {
+            formatter.dateFormat = "h:mm a"
+        } else if calendar.isDateInYesterday(date) {
+            formatter.dateFormat = "'Yesterday' h:mm a"
+        } else {
+            formatter.dateFormat = "MMM d, h:mm a"
+        }
+
+        return formatter.string(from: date)
+    }
+}
+
+// MARK: - Text Message Bubble
+struct TextMessageBubble: View {
+    let text: String
+    let isFromCurrentUser: Bool
+
+    var body: some View {
+        Text(text)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(isFromCurrentUser ? Color.blue : Color(.systemGray5))
+            .foregroundColor(isFromCurrentUser ? .white : .primary)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
 
@@ -129,7 +194,14 @@ struct MessageBubbleView: View {
 struct SongMessageBubbleView: View {
     let message: Message
     let isFromCurrentUser: Bool
+    let currentUserId: String
+    let onReactionAdded: (String, String) -> Void
+
     @ObservedObject var audioPlayer = AudioPlayerService.shared
+    @ObservedObject var spotifyService = SpotifyService.shared
+    @State private var showPlaylistPicker = false
+    @State private var showReactionPicker = false
+    @State private var showTimestamp = false
 
     private var trackId: String {
         message.spotifyTrackId ?? message.id ?? UUID().uuidString
@@ -147,43 +219,127 @@ struct SongMessageBubbleView: View {
         message.previewUrl != nil
     }
 
+    private var trackUri: String? {
+        guard let trackId = message.spotifyTrackId else { return nil }
+        return "spotify:track:\(trackId)"
+    }
+
+    private var reactionsList: [(userId: String, emoji: String)] {
+        guard let reactions = message.reactions else { return [] }
+        return reactions.map { (userId: $0.key, emoji: $0.value) }
+    }
+
+    private var myReaction: String? {
+        message.reactions?[currentUserId]
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 12) {
-                albumArtView
+        VStack(alignment: isFromCurrentUser ? .trailing : .leading, spacing: 6) {
+            // Main song card
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 12) {
+                    albumArtView
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(message.songTitle ?? "Unknown Song")
-                        .font(.headline)
-                        .lineLimit(1)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(message.songTitle ?? "Unknown Song")
+                            .font(.headline)
+                            .lineLimit(1)
 
-                    Text(message.songArtist ?? "Unknown Artist")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-
-                    if let duration = message.duration {
-                        Text(formatDuration(duration))
-                            .font(.caption)
+                        Text(message.songArtist ?? "Unknown Artist")
+                            .font(.subheadline)
                             .foregroundColor(.secondary)
+                            .lineLimit(1)
+
+                        if let duration = message.duration {
+                            Text(formatDuration(duration))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    Spacer()
+
+                    VStack(spacing: 8) {
+                        playButton
+                        if spotifyService.isAuthenticated && trackUri != nil {
+                            addToPlaylistButton
+                        }
                     }
                 }
 
-                Spacer()
-
-                playButton
+                if let caption = message.caption, !caption.isEmpty {
+                    Text(caption)
+                        .font(.body)
+                        .padding(.top, 4)
+                }
+            }
+            .padding(12)
+            .background(isFromCurrentUser ? Color.blue.opacity(0.1) : Color(.systemGray6))
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .frame(maxWidth: 280)
+            .onTapGesture {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showTimestamp.toggle()
+                }
+            }
+            .onLongPressGesture {
+                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                impactFeedback.impactOccurred()
+                showReactionPicker = true
             }
 
-            if let caption = message.caption, !caption.isEmpty {
-                Text(caption)
-                    .font(.body)
-                    .padding(.top, 4)
+            // Reactions display
+            if !reactionsList.isEmpty {
+                ReactionsDisplayView(reactions: reactionsList, isFromCurrentUser: isFromCurrentUser)
+            }
+
+            // Timestamp
+            if showTimestamp {
+                Text(formatTimestamp(message.timestamp))
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .transition(.opacity.combined(with: .scale(scale: 0.8)))
             }
         }
-        .padding(12)
-        .background(isFromCurrentUser ? Color.blue.opacity(0.1) : Color(.systemGray6))
-        .cornerRadius(16)
-        .frame(maxWidth: 280)
+        .sheet(isPresented: $showPlaylistPicker) {
+            if let uri = trackUri {
+                PlaylistPickerView(
+                    trackUri: uri,
+                    trackName: message.songTitle ?? "Unknown Song",
+                    artistName: message.songArtist ?? "Unknown Artist",
+                    albumArtUrl: message.albumArtUrl,
+                    onAdded: {}
+                )
+            }
+        }
+        .sheet(isPresented: $showReactionPicker) {
+            ReactionPickerView(
+                currentReaction: myReaction,
+                onReactionSelected: { emoji in
+                    if let messageId = message.id {
+                        onReactionAdded(messageId, emoji)
+                    }
+                    showReactionPicker = false
+                }
+            )
+            .presentationDetents([.height(120)])
+            .presentationDragIndicator(.visible)
+        }
+    }
+
+    private func formatTimestamp(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        let calendar = Calendar.current
+
+        if calendar.isDateInToday(date) {
+            formatter.dateFormat = "h:mm a"
+        } else if calendar.isDateInYesterday(date) {
+            formatter.dateFormat = "'Yesterday' h:mm a"
+        } else {
+            formatter.dateFormat = "MMM d, h:mm a"
+        }
+
+        return formatter.string(from: date)
     }
 
     private var albumArtView: some View {
@@ -244,10 +400,185 @@ struct SongMessageBubbleView: View {
         .disabled(!hasPreview)
     }
 
+    private var addToPlaylistButton: some View {
+        Button {
+            showPlaylistPicker = true
+        } label: {
+            Image(systemName: "plus.circle.fill")
+                .font(.system(size: 24))
+                .foregroundColor(.green)
+        }
+    }
+
     private func formatDuration(_ seconds: Int) -> String {
         let minutes = seconds / 60
         let remainingSeconds = seconds % 60
         return String(format: "%d:%02d", minutes, remainingSeconds)
+    }
+}
+
+// MARK: - Playlist Message Bubble View
+struct PlaylistMessageBubbleView: View {
+    let message: Message
+    let isFromCurrentUser: Bool
+    let currentUserId: String
+    let onReactionAdded: (String, String) -> Void
+
+    @State private var showReactionPicker = false
+    @State private var showTimestamp = false
+    @State private var showPlaylistDetail = false
+
+    private var reactionsList: [(userId: String, emoji: String)] {
+        guard let reactions = message.reactions else { return [] }
+        return reactions.map { (userId: $0.key, emoji: $0.value) }
+    }
+
+    private var myReaction: String? {
+        message.reactions?[currentUserId]
+    }
+
+    private var playlist: Playlist? {
+        guard let playlistId = message.playlistId else { return nil }
+        return Playlist(
+            id: playlistId,
+            name: message.playlistName ?? "Unknown Playlist",
+            description: nil,
+            images: message.playlistImageUrl.map { [SpotifyImage(url: $0, height: nil, width: nil)] },
+            owner: PlaylistOwner(id: "", displayName: message.playlistOwnerName),
+            tracks: PlaylistTracksInfo(total: message.playlistTrackCount ?? 0),
+            isPublic: nil,
+            collaborative: nil,
+            uri: "spotify:playlist:\(playlistId)",
+            externalUrls: nil
+        )
+    }
+
+    var body: some View {
+        VStack(alignment: isFromCurrentUser ? .trailing : .leading, spacing: 6) {
+            // Main playlist card
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 12) {
+                    playlistArtView
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(message.playlistName ?? "Unknown Playlist")
+                            .font(.headline)
+                            .lineLimit(2)
+
+                        if let ownerName = message.playlistOwnerName {
+                            Text("by \(ownerName)")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+
+                        if let trackCount = message.playlistTrackCount {
+                            Text("\(trackCount) tracks")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(12)
+            .background(isFromCurrentUser ? Color.green.opacity(0.1) : Color(.systemGray6))
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .frame(maxWidth: 280)
+            .onTapGesture {
+                if playlist != nil {
+                    showPlaylistDetail = true
+                }
+            }
+            .onLongPressGesture {
+                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                impactFeedback.impactOccurred()
+                showReactionPicker = true
+            }
+
+            // Reactions display
+            if !reactionsList.isEmpty {
+                ReactionsDisplayView(reactions: reactionsList, isFromCurrentUser: isFromCurrentUser)
+            }
+
+            // Timestamp
+            if showTimestamp {
+                Text(formatTimestamp(message.timestamp))
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .transition(.opacity.combined(with: .scale(scale: 0.8)))
+            }
+        }
+        .sheet(isPresented: $showReactionPicker) {
+            ReactionPickerView(
+                currentReaction: myReaction,
+                onReactionSelected: { emoji in
+                    if let messageId = message.id {
+                        onReactionAdded(messageId, emoji)
+                    }
+                    showReactionPicker = false
+                }
+            )
+            .presentationDetents([.height(120)])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showPlaylistDetail) {
+            if let playlist = playlist {
+                NavigationStack {
+                    PlaylistDetailView(playlist: playlist)
+                }
+            }
+        }
+    }
+
+    private var playlistArtView: some View {
+        Group {
+            if let imageUrl = message.playlistImageUrl, let url = URL(string: imageUrl) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    case .failure, .empty:
+                        playlistPlaceholder
+                    @unknown default:
+                        playlistPlaceholder
+                    }
+                }
+            } else {
+                playlistPlaceholder
+            }
+        }
+        .frame(width: 60, height: 60)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private var playlistPlaceholder: some View {
+        Image(systemName: "music.note.list")
+            .font(.title)
+            .frame(width: 60, height: 60)
+            .background(Color.green.opacity(0.2))
+    }
+
+    private func formatTimestamp(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        let calendar = Calendar.current
+
+        if calendar.isDateInToday(date) {
+            formatter.dateFormat = "h:mm a"
+        } else if calendar.isDateInYesterday(date) {
+            formatter.dateFormat = "'Yesterday' h:mm a"
+        } else {
+            formatter.dateFormat = "MMM d, h:mm a"
+        }
+
+        return formatter.string(from: date)
     }
 }
 
@@ -353,6 +684,78 @@ struct MessageThreadContainer: View {
         } catch {
             errorMessage = "Failed to load conversation: \(error.localizedDescription)"
             isLoading = false
+        }
+    }
+}
+
+// MARK: - Reaction Picker View
+struct ReactionPickerView: View {
+    let currentReaction: String?
+    let onReactionSelected: (String) -> Void
+
+    private let reactions = ["🔥", "❤️", "💯", "😐"]
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("React to this song")
+                .font(.headline)
+                .padding(.top, 8)
+
+            HStack(spacing: 24) {
+                ForEach(reactions, id: \.self) { emoji in
+                    Button {
+                        onReactionSelected(emoji)
+                    } label: {
+                        Text(emoji)
+                            .font(.system(size: 36))
+                            .padding(8)
+                            .background(
+                                currentReaction == emoji
+                                    ? Color.blue.opacity(0.2)
+                                    : Color.clear
+                            )
+                            .clipShape(Circle())
+                    }
+                }
+            }
+            .padding(.bottom, 8)
+        }
+        .frame(maxWidth: .infinity)
+        .background(Color(.systemBackground))
+    }
+}
+
+// MARK: - Reactions Display View
+struct ReactionsDisplayView: View {
+    let reactions: [(userId: String, emoji: String)]
+    let isFromCurrentUser: Bool
+
+    private var groupedReactions: [(emoji: String, count: Int)] {
+        var counts: [String: Int] = [:]
+        for reaction in reactions {
+            counts[reaction.emoji, default: 0] += 1
+        }
+        return counts.map { (emoji: $0.key, count: $0.value) }
+            .sorted { $0.count > $1.count }
+    }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(groupedReactions, id: \.emoji) { reaction in
+                HStack(spacing: 2) {
+                    Text(reaction.emoji)
+                        .font(.caption)
+                    if reaction.count > 1 {
+                        Text("\(reaction.count)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(Color(.systemGray5))
+                .clipShape(Capsule())
+            }
         }
     }
 }

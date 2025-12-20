@@ -28,6 +28,13 @@ struct Message: Codable, Identifiable {
     var caption: String?
     var rating: Int?
 
+    // Playlist message fields
+    var playlistId: String?
+    var playlistName: String?
+    var playlistImageUrl: String?
+    var playlistTrackCount: Int?
+    var playlistOwnerName: String?
+
     // Reactions - stored as dictionary in Firestore with userId as key
     var reactions: [String: String]?
 
@@ -41,6 +48,7 @@ struct Message: Codable, Identifiable {
     enum MessageType: String, Codable {
         case text
         case song
+        case playlist
     }
 
     // Check if a user has read this group message

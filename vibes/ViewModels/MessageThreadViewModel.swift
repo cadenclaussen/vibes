@@ -178,9 +178,55 @@ class MessageThreadViewModel: ObservableObject {
         guard let messageId = message.id else { return }
 
         do {
-            try await firestoreService.addReaction(messageId: messageId, userId: currentUserId, reaction: emoji)
+            try await firestoreService.addReaction(messageId: messageId, threadId: threadId, userId: currentUserId, reaction: emoji)
         } catch {
             errorMessage = "Failed to add reaction: \(error.localizedDescription)"
+        }
+    }
+
+    func addReaction(messageId: String, emoji: String) async {
+        do {
+            try await firestoreService.addReaction(messageId: messageId, threadId: threadId, userId: currentUserId, reaction: emoji)
+        } catch {
+            errorMessage = "Failed to add reaction: \(error.localizedDescription)"
+        }
+    }
+
+    func sendPlaylistMessage(playlistId: String, name: String, imageUrl: String?, trackCount: Int, ownerName: String?) async {
+        isSending = true
+        errorMessage = nil
+
+        do {
+            let message = Message(
+                id: nil,
+                threadId: threadId,
+                senderId: currentUserId,
+                recipientId: otherUserId,
+                messageType: .playlist,
+                textContent: nil,
+                spotifyTrackId: nil,
+                songTitle: nil,
+                songArtist: nil,
+                albumArtUrl: nil,
+                previewUrl: nil,
+                duration: nil,
+                caption: nil,
+                rating: nil,
+                playlistId: playlistId,
+                playlistName: name,
+                playlistImageUrl: imageUrl,
+                playlistTrackCount: trackCount,
+                playlistOwnerName: ownerName,
+                reactions: nil,
+                timestamp: Date(),
+                read: false
+            )
+
+            try await firestoreService.sendMessage(message)
+            isSending = false
+        } catch {
+            errorMessage = "Failed to send playlist: \(error.localizedDescription)"
+            isSending = false
         }
     }
 

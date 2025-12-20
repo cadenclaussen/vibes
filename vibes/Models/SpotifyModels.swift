@@ -42,13 +42,13 @@ struct SpotifyUserProfile: Codable {
     }
 }
 
-struct SpotifyImage: Codable {
+struct SpotifyImage: Codable, Hashable {
     let url: String
     let height: Int?
     let width: Int?
 }
 
-struct Followers: Codable {
+struct Followers: Codable, Hashable {
     let total: Int
 }
 
@@ -74,19 +74,23 @@ struct Track: Codable, Identifiable {
     }
 }
 
-struct Artist: Codable, Identifiable {
+struct Artist: Codable, Identifiable, Hashable {
     let id: String
     let name: String
     let uri: String
     let externalUrls: ExternalUrls?
+    let images: [SpotifyImage]?
+    let genres: [String]?
+    let followers: Followers?
+    let popularity: Int?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, uri
+        case id, name, uri, images, genres, followers, popularity
         case externalUrls = "external_urls"
     }
 }
 
-struct Album: Codable, Identifiable {
+struct Album: Codable, Identifiable, Hashable {
     let id: String
     let name: String
     let images: [SpotifyImage]
@@ -101,23 +105,23 @@ struct Album: Codable, Identifiable {
     }
 }
 
-struct ExternalUrls: Codable {
+struct ExternalUrls: Codable, Hashable {
     let spotify: String
 }
 
 // MARK: - Playlist Models
 
-struct Playlist: Codable, Identifiable {
+struct Playlist: Codable, Identifiable, Hashable {
     let id: String
     let name: String
     let description: String?
-    let images: [SpotifyImage]
+    let images: [SpotifyImage]?
     let owner: PlaylistOwner
     let tracks: PlaylistTracksInfo
     let isPublic: Bool?
-    let collaborative: Bool
+    let collaborative: Bool?
     let uri: String
-    let externalUrls: ExternalUrls
+    let externalUrls: ExternalUrls?
 
     enum CodingKeys: String, CodingKey {
         case id, name, description, images, owner, tracks, collaborative, uri
@@ -126,7 +130,7 @@ struct Playlist: Codable, Identifiable {
     }
 }
 
-struct PlaylistOwner: Codable {
+struct PlaylistOwner: Codable, Hashable {
     let id: String
     let displayName: String?
 
@@ -136,12 +140,12 @@ struct PlaylistOwner: Codable {
     }
 }
 
-struct PlaylistTracksInfo: Codable {
+struct PlaylistTracksInfo: Codable, Hashable {
     let total: Int
 }
 
 struct PlaylistPage: Codable {
-    let items: [Playlist]
+    let items: [Playlist?]
     let total: Int
     let limit: Int
     let offset: Int
@@ -149,6 +153,29 @@ struct PlaylistPage: Codable {
 }
 
 // MARK: - Search Models
+
+enum SearchType: String, CaseIterable {
+    case track = "track"
+    case artist = "artist"
+    case album = "album"
+    case playlist = "playlist"
+
+    var displayName: String {
+        switch self {
+        case .track: return "Songs"
+        case .artist: return "Artists"
+        case .album: return "Albums"
+        case .playlist: return "Playlists"
+        }
+    }
+}
+
+struct UnifiedSearchResult: Codable {
+    let tracks: TrackPage?
+    let artists: ArtistPage?
+    let albums: AlbumSearchPage?
+    let playlists: PlaylistSearchPage?
+}
 
 struct TrackSearchResult: Codable {
     let tracks: TrackPage
@@ -161,6 +188,86 @@ struct TrackPage: Codable {
     let offset: Int
     let next: String?
     let previous: String?
+}
+
+struct ArtistPage: Codable {
+    let items: [Artist]
+    let total: Int
+    let limit: Int
+    let offset: Int
+}
+
+struct AlbumSearchPage: Codable {
+    let items: [Album]
+    let total: Int
+    let limit: Int
+    let offset: Int
+}
+
+struct PlaylistSearchPage: Codable {
+    let items: [Playlist?]
+    let total: Int
+    let limit: Int
+    let offset: Int
+}
+
+// MARK: - Album Tracks Models
+
+struct AlbumTracksResponse: Codable {
+    let items: [SimplifiedTrack]
+    let total: Int
+    let limit: Int
+    let offset: Int
+}
+
+struct SimplifiedTrack: Codable, Identifiable {
+    let id: String
+    let name: String
+    let artists: [Artist]
+    let durationMs: Int
+    let explicit: Bool
+    let previewUrl: String?
+    let trackNumber: Int
+    let uri: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, artists, explicit, uri
+        case durationMs = "duration_ms"
+        case previewUrl = "preview_url"
+        case trackNumber = "track_number"
+    }
+}
+
+// MARK: - Playlist Tracks Models
+
+struct PlaylistTracksResponse: Codable {
+    let items: [PlaylistTrackItem]
+    let total: Int
+    let limit: Int
+    let offset: Int
+}
+
+struct PlaylistTrackItem: Codable {
+    let track: Track?
+    let addedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case track
+        case addedAt = "added_at"
+    }
+}
+
+// MARK: - Artist Top Tracks Models
+
+struct ArtistTopTracksResponse: Codable {
+    let tracks: [Track]
+}
+
+struct ArtistAlbumsResponse: Codable {
+    let items: [Album]
+    let total: Int
+    let limit: Int
+    let offset: Int
 }
 
 // MARK: - Currently Playing Models
@@ -235,5 +342,56 @@ struct SpotifyErrorResponse: Codable {
     struct ErrorDetail: Codable {
         let status: Int
         let message: String
+    }
+}
+
+// MARK: - Top Items Models
+
+struct TopArtistsResponse: Codable {
+    let items: [Artist]
+    let total: Int
+    let limit: Int
+    let offset: Int
+}
+
+struct TopTracksResponse: Codable {
+    let items: [Track]
+    let total: Int
+    let limit: Int
+    let offset: Int
+}
+
+// MARK: - New Releases Models
+
+struct NewReleasesResponse: Codable {
+    let albums: AlbumPage
+}
+
+struct AlbumPage: Codable {
+    let items: [Album]
+    let total: Int
+    let limit: Int
+    let offset: Int
+}
+
+// MARK: - Recommendations Models
+
+struct RecommendationsResponse: Codable {
+    let tracks: [Track]
+    let seeds: [RecommendationSeed]
+}
+
+struct RecommendationSeed: Codable {
+    let id: String
+    let type: String
+    let initialPoolSize: Int?
+    let afterFilteringSize: Int?
+    let afterRelinkingSize: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id, type
+        case initialPoolSize = "initialPoolSize"
+        case afterFilteringSize = "afterFilteringSize"
+        case afterRelinkingSize = "afterRelinkingSize"
     }
 }

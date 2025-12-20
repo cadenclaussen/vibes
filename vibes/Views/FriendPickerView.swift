@@ -8,10 +8,26 @@
 import SwiftUI
 import FirebaseAuth
 
+enum FriendPickerContent {
+    case track(Track, previewUrl: String?)
+    case playlist(Playlist)
+}
+
 struct FriendPickerView: View {
-    let track: Track
-    let previewUrl: String?
-    var onSongSent: ((FriendProfile) -> Void)?
+    let content: FriendPickerContent
+    var onSent: ((FriendProfile) -> Void)?
+
+    // Legacy initializer for tracks
+    init(track: Track, previewUrl: String?, onSongSent: ((FriendProfile) -> Void)? = nil) {
+        self.content = .track(track, previewUrl: previewUrl)
+        self.onSent = onSongSent
+    }
+
+    // New initializer for playlists
+    init(playlist: Playlist, onPlaylistSent: ((FriendProfile) -> Void)? = nil) {
+        self.content = .playlist(playlist)
+        self.onSent = onPlaylistSent
+    }
 
     @StateObject private var viewModel = FriendsViewModel()
     @Environment(\.dismiss) private var dismiss
@@ -27,6 +43,13 @@ struct FriendPickerView: View {
 
     private var selectedCount: Int {
         selectedFriends.count
+    }
+
+    private var navigationTitle: String {
+        switch content {
+        case .track: return "Send Song"
+        case .playlist: return "Send Playlist"
+        }
     }
 
     var body: some View {
@@ -52,7 +75,7 @@ struct FriendPickerView: View {
                 } else {
                     List {
                         Section {
-                            trackPreviewRow
+                            contentPreviewRow
                         }
                         Section("Select Friends") {
                             ForEach(viewModel.friends) { friend in
@@ -74,7 +97,7 @@ struct FriendPickerView: View {
                     sendButton
                 }
             }
-            .navigationTitle("Send Song")
+            .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -112,23 +135,42 @@ struct FriendPickerView: View {
         .padding()
     }
 
-    private var trackPreviewRow: some View {
-        HStack(spacing: 12) {
-            albumArtView
-            VStack(alignment: .leading, spacing: 4) {
-                Text(track.name)
-                    .font(.headline)
-                    .lineLimit(1)
-                Text(track.artists.map { $0.name }.joined(separator: ", "))
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
+    @ViewBuilder
+    private var contentPreviewRow: some View {
+        switch content {
+        case .track(let track, _):
+            HStack(spacing: 12) {
+                trackArtView(track: track)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(track.name)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Text(track.artists.map { $0.name }.joined(separator: ", "))
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
             }
+            .padding(.vertical, 4)
+
+        case .playlist(let playlist):
+            HStack(spacing: 12) {
+                playlistArtView(playlist: playlist)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(playlist.name)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Text("\(playlist.tracks.total) tracks")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .padding(.vertical, 4)
         }
-        .padding(.vertical, 4)
     }
 
-    private var albumArtView: some View {
+    private func trackArtView(track: Track) -> some View {
         Group {
             if let imageUrl = track.album.images.first?.url,
                let url = URL(string: imageUrl) {
@@ -152,11 +194,44 @@ struct FriendPickerView: View {
         .cornerRadius(6)
     }
 
+    private func playlistArtView(playlist: Playlist) -> some View {
+        Group {
+            if let imageUrl = playlist.images?.first?.url,
+               let url = URL(string: imageUrl) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    case .failure, .empty:
+                        playlistPlaceholder
+                    @unknown default:
+                        playlistPlaceholder
+                    }
+                }
+            } else {
+                playlistPlaceholder
+            }
+        }
+        .frame(width: 50, height: 50)
+        .cornerRadius(6)
+    }
+
     private var albumPlaceholder: some View {
         Rectangle()
             .fill(Color(.tertiarySystemFill))
             .overlay {
                 Image(systemName: "music.note")
+                    .foregroundColor(.secondary)
+            }
+    }
+
+    private var playlistPlaceholder: some View {
+        Rectangle()
+            .fill(Color(.tertiarySystemFill))
+            .overlay {
+                Image(systemName: "music.note.list")
                     .foregroundColor(.secondary)
             }
     }
@@ -221,25 +296,60 @@ struct FriendPickerView: View {
                         userId2: friend.id
                     )
 
-                    let message = Message(
-                        id: nil,
-                        threadId: threadId,
-                        senderId: currentUserId,
-                        recipientId: friend.id,
-                        messageType: .song,
-                        textContent: nil,
-                        spotifyTrackId: track.id,
-                        songTitle: track.name,
-                        songArtist: track.artists.map { $0.name }.joined(separator: ", "),
-                        albumArtUrl: track.album.images.first?.url,
-                        previewUrl: previewUrl,
-                        duration: track.durationMs / 1000,
-                        caption: nil,
-                        rating: nil,
-                        reactions: nil,
-                        timestamp: Date(),
-                        read: false
-                    )
+                    let message: Message
+                    switch content {
+                    case .track(let track, let previewUrl):
+                        message = Message(
+                            id: nil,
+                            threadId: threadId,
+                            senderId: currentUserId,
+                            recipientId: friend.id,
+                            messageType: .song,
+                            textContent: nil,
+                            spotifyTrackId: track.id,
+                            songTitle: track.name,
+                            songArtist: track.artists.map { $0.name }.joined(separator: ", "),
+                            albumArtUrl: track.album.images.first?.url,
+                            previewUrl: previewUrl,
+                            duration: track.durationMs / 1000,
+                            caption: nil,
+                            rating: nil,
+                            playlistId: nil,
+                            playlistName: nil,
+                            playlistImageUrl: nil,
+                            playlistTrackCount: nil,
+                            playlistOwnerName: nil,
+                            reactions: nil,
+                            timestamp: Date(),
+                            read: false
+                        )
+
+                    case .playlist(let playlist):
+                        message = Message(
+                            id: nil,
+                            threadId: threadId,
+                            senderId: currentUserId,
+                            recipientId: friend.id,
+                            messageType: .playlist,
+                            textContent: nil,
+                            spotifyTrackId: nil,
+                            songTitle: nil,
+                            songArtist: nil,
+                            albumArtUrl: nil,
+                            previewUrl: nil,
+                            duration: nil,
+                            caption: nil,
+                            rating: nil,
+                            playlistId: playlist.id,
+                            playlistName: playlist.name,
+                            playlistImageUrl: playlist.images?.first?.url,
+                            playlistTrackCount: playlist.tracks.total,
+                            playlistOwnerName: playlist.owner.displayName,
+                            reactions: nil,
+                            timestamp: Date(),
+                            read: false
+                        )
+                    }
 
                     try await FirestoreService.shared.sendMessage(message)
                     successCount += 1
@@ -249,8 +359,14 @@ struct FriendPickerView: View {
                 }
             }
 
+            let itemName: String
+            switch content {
+            case .track: itemName = "song"
+            case .playlist: itemName = "playlist"
+            }
+
             if successCount == 0 {
-                errorMessage = "Failed to send song"
+                errorMessage = "Failed to send \(itemName)"
                 isSending = false
             } else {
                 // Brief delay to show completion
@@ -259,7 +375,7 @@ struct FriendPickerView: View {
 
                 // Only navigate to conversation if sent to exactly one friend
                 if selectedFriendProfiles.count == 1, let friend = lastSentFriend {
-                    onSongSent?(friend)
+                    onSent?(friend)
                 }
             }
         }
@@ -271,7 +387,7 @@ struct FriendPickerView: View {
         track: Track(
             id: "123",
             name: "Test Song",
-            artists: [Artist(id: "1", name: "Test Artist", uri: "spotify:artist:1", externalUrls: nil)],
+            artists: [Artist(id: "1", name: "Test Artist", uri: "spotify:artist:1", externalUrls: nil, images: nil, genres: nil, followers: nil, popularity: nil)],
             album: Album(
                 id: "1",
                 name: "Test Album",

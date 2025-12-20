@@ -21,6 +21,8 @@ class SpotifyService: ObservableObject {
         "user-read-email",
         "playlist-read-private",
         "playlist-read-collaborative",
+        "playlist-modify-public",
+        "playlist-modify-private",
         "user-read-currently-playing",
         "user-read-playback-state",
         "user-top-read",
@@ -190,7 +192,7 @@ class SpotifyService: ObservableObject {
         }
 
         let page: PlaylistPage = try await makeRequest(url: url)
-        return page.items
+        return page.items.compactMap { $0 }
     }
 
     func getPlaylistTracks(playlistId: String, limit: Int = 50) async throws -> [Track] {
@@ -200,7 +202,44 @@ class SpotifyService: ObservableObject {
         }
 
         let response: PlaylistTracksResponse = try await makeRequest(url: url)
-        return response.items.map { $0.track }
+        return response.items.compactMap { $0.track }
+    }
+
+    func addTrackToPlaylist(playlistId: String, trackUri: String) async throws {
+        let urlString = "https://api.spotify.com/v1/playlists/\(playlistId)/tracks"
+        guard let url = URL(string: urlString) else {
+            throw SpotifyError.invalidURL
+        }
+
+        // Check if token is expired before making request
+        if keychainManager.isTokenExpired() {
+            try await refreshAccessToken()
+        }
+
+        var request = try createAuthenticatedRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body = ["uris": [trackUri]]
+        request.httpBody = try JSONEncoder().encode(body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SpotifyError.unknown(statusCode: 0, message: "Invalid response")
+        }
+
+        // 201 Created is success for adding tracks
+        if httpResponse.statusCode == 401 {
+            try await refreshAccessToken()
+            try await addTrackToPlaylist(playlistId: playlistId, trackUri: trackUri)
+            return
+        }
+
+        guard httpResponse.statusCode == 201 else {
+            try handleHTTPError(response: httpResponse, data: data)
+            return
+        }
     }
 
     // MARK: - Search
@@ -215,6 +254,69 @@ class SpotifyService: ObservableObject {
 
         let result: TrackSearchResult = try await makeRequest(url: url)
         return result.tracks.items
+    }
+
+    func search(query: String, type: SearchType, limit: Int = 20) async throws -> UnifiedSearchResult {
+        let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let urlString = "https://api.spotify.com/v1/search?q=\(encodedQuery)&type=\(type.rawValue)&limit=\(limit)"
+
+        guard let url = URL(string: urlString) else {
+            throw SpotifyError.invalidURL
+        }
+
+        return try await makeRequest(url: url)
+    }
+
+    func searchArtists(query: String, limit: Int = 20) async throws -> [Artist] {
+        let result = try await search(query: query, type: .artist, limit: limit)
+        return result.artists?.items ?? []
+    }
+
+    func searchAlbums(query: String, limit: Int = 20) async throws -> [Album] {
+        let result = try await search(query: query, type: .album, limit: limit)
+        return result.albums?.items ?? []
+    }
+
+    func searchPlaylists(query: String, limit: Int = 20) async throws -> [Playlist] {
+        let result = try await search(query: query, type: .playlist, limit: limit)
+        return result.playlists?.items.compactMap { $0 } ?? []
+    }
+
+    // MARK: - Album Tracks
+
+    func getAlbumTracks(albumId: String, limit: Int = 50) async throws -> [SimplifiedTrack] {
+        let urlString = "https://api.spotify.com/v1/albums/\(albumId)/tracks?limit=\(limit)"
+
+        guard let url = URL(string: urlString) else {
+            throw SpotifyError.invalidURL
+        }
+
+        let response: AlbumTracksResponse = try await makeRequest(url: url)
+        return response.items
+    }
+
+    // MARK: - Artist Details
+
+    func getArtistTopTracks(artistId: String) async throws -> [Track] {
+        let urlString = "https://api.spotify.com/v1/artists/\(artistId)/top-tracks"
+
+        guard let url = URL(string: urlString) else {
+            throw SpotifyError.invalidURL
+        }
+
+        let response: ArtistTopTracksResponse = try await makeRequest(url: url)
+        return response.tracks
+    }
+
+    func getArtistAlbums(artistId: String, limit: Int = 10) async throws -> [Album] {
+        let urlString = "https://api.spotify.com/v1/artists/\(artistId)/albums?include_groups=album,single&limit=\(limit)"
+
+        guard let url = URL(string: urlString) else {
+            throw SpotifyError.invalidURL
+        }
+
+        let response: ArtistAlbumsResponse = try await makeRequest(url: url)
+        return response.items
     }
 
     // MARK: - Currently Playing
@@ -275,6 +377,73 @@ class SpotifyService: ObservableObject {
 
         let response: RecentlyPlayedResponse = try await makeRequest(url: url)
         return response.items
+    }
+
+    // MARK: - Top Items
+
+    func getTopArtists(timeRange: String = "medium_term", limit: Int = 20) async throws -> [Artist] {
+        let urlString = "https://api.spotify.com/v1/me/top/artists?time_range=\(timeRange)&limit=\(limit)"
+
+        guard let url = URL(string: urlString) else {
+            throw SpotifyError.invalidURL
+        }
+
+        let response: TopArtistsResponse = try await makeRequest(url: url)
+        return response.items
+    }
+
+    func getTopTracks(timeRange: String = "medium_term", limit: Int = 20) async throws -> [Track] {
+        let urlString = "https://api.spotify.com/v1/me/top/tracks?time_range=\(timeRange)&limit=\(limit)"
+
+        guard let url = URL(string: urlString) else {
+            throw SpotifyError.invalidURL
+        }
+
+        let response: TopTracksResponse = try await makeRequest(url: url)
+        return response.items
+    }
+
+    // MARK: - New Releases
+
+    func getNewReleases(limit: Int = 20) async throws -> [Album] {
+        let urlString = "https://api.spotify.com/v1/browse/new-releases?limit=\(limit)"
+
+        guard let url = URL(string: urlString) else {
+            throw SpotifyError.invalidURL
+        }
+
+        let response: NewReleasesResponse = try await makeRequest(url: url)
+        return response.albums.items
+    }
+
+    // MARK: - Recommendations
+
+    func getRecommendations(seedTracks: [String] = [], seedArtists: [String] = [], limit: Int = 20) async throws -> [Track] {
+        var queryItems: [String] = ["limit=\(limit)"]
+
+        if !seedTracks.isEmpty {
+            let trackIds = seedTracks.prefix(5).joined(separator: ",")
+            queryItems.append("seed_tracks=\(trackIds)")
+        }
+
+        if !seedArtists.isEmpty {
+            let artistIds = seedArtists.prefix(5).joined(separator: ",")
+            queryItems.append("seed_artists=\(artistIds)")
+        }
+
+        // Need at least one seed
+        if seedTracks.isEmpty && seedArtists.isEmpty {
+            return []
+        }
+
+        let urlString = "https://api.spotify.com/v1/recommendations?\(queryItems.joined(separator: "&"))"
+
+        guard let url = URL(string: urlString) else {
+            throw SpotifyError.invalidURL
+        }
+
+        let response: RecommendationsResponse = try await makeRequest(url: url)
+        return response.tracks
     }
 
     // MARK: - Helper Methods
@@ -345,26 +514,5 @@ class SpotifyService: ObservableObject {
             }
             throw SpotifyError.unknown(statusCode: response.statusCode, message: "Unknown error")
         }
-    }
-}
-
-// MARK: - Additional Models for Playlist Tracks
-
-struct PlaylistTracksResponse: Codable {
-    let items: [PlaylistTrackItem]
-    let total: Int
-    let limit: Int
-    let offset: Int
-}
-
-struct PlaylistTrackItem: Codable {
-    let addedAt: String
-    let addedBy: PlaylistOwner
-    let track: Track
-
-    enum CodingKeys: String, CodingKey {
-        case track
-        case addedAt = "added_at"
-        case addedBy = "added_by"
     }
 }
