@@ -154,9 +154,297 @@
   - Send button remains as alternative method
   - Build succeeded on iPhone 16e simulator
 
+### 38. Add songs to Spotify playlist
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Services/SpotifyService.swift, vibes/Views/SearchView.swift, vibes/Views/PlaylistPickerView.swift, vibes/Views/MessageThreadView.swift
+- **Requested**: Add ability to add songs (from search results or received songs in DMs) to user's Spotify playlist
+- **Context**: User wants to save songs they discover or receive from friends to their Spotify library
+- **Acceptance Criteria**:
+  - [x] Add playlist-modify-public and playlist-modify-private OAuth scopes
+  - [x] Add addTrackToPlaylist() method to SpotifyService
+  - [x] Create playlist picker UI
+  - [x] Add "Add to Playlist" action on search result tracks
+  - [x] Add "Add to Playlist" action on song messages in DMs
+  - [x] Show success/error feedback
+  - [x] Build and test on simulator
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented complete "Add to Playlist" functionality:
+  - Added playlist-modify-public and playlist-modify-private OAuth scopes to SpotifyService
+  - Added addTrackToPlaylist(playlistId:, trackUri:) method to SpotifyService using POST to Spotify API
+  - Created PlaylistPickerView.swift with playlist list, loading/error states, and success feedback
+  - Added green plus button to TrackRow in SearchView that opens playlist picker
+  - Added green plus button to SongMessageBubbleView in MessageThreadView for songs in DMs
+  - Only shows user's own playlists (can't add to others' playlists)
+  - Shows loading spinner during add, checkmark on success
+  - Build succeeded on iPhone 16e simulator
+
+### 39. Phase 1: Tab Structure & Profile Foundation
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/ContentView.swift, vibes/Views/ProfileView.swift, vibes/Views/DiscoverView.swift, vibes/Services/SpotifyService.swift, vibes/Models/SpotifyModels.swift
+- **Requested**: Implement Phase 1 of the new implementation plan - remove Stats tab, add Discover tab placeholder, merge stats into Profile with top artists/tracks from Spotify API
+- **Context**: Refactoring app to match vision in user-journeys.md. Phase 1 simplifies tab bar and adds listening stats to Profile.
+- **Acceptance Criteria**:
+  - [x] Remove Stats tab from TabView
+  - [x] Add Discover tab placeholder as first tab (home)
+  - [x] Reorder tabs: Discover, Search, Chats, Profile
+  - [x] Add getTopArtists() and getTopTracks() to SpotifyService
+  - [x] Add TopArtistsResponse and TopTracksResponse models
+  - [x] Add time period picker (short/medium/long term) to ProfileView
+  - [x] Add Top Artists section with album art grid
+  - [x] Add Top Songs section with track list
+  - [x] Add Recently Played horizontal scroll section
+  - [x] Build and test on simulator
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented complete Phase 1:
+  - Created DiscoverView.swift with placeholder UI (waveform icon, "coming soon" message)
+  - Removed StatsTab struct from ContentView.swift
+  - Reordered tabs to: Discover (0), Search (1), Chats (2), Profile (3)
+  - Added TopArtistsResponse and TopTracksResponse models to SpotifyModels.swift
+  - Extended Artist model with images, genres, followers, popularity fields
+  - Added getTopArtists(timeRange:limit:) and getTopTracks(timeRange:limit:) to SpotifyService
+  - Updated ProfileView.swift with:
+    - TimeRange enum (shortTerm/mediumTerm/longTerm with display names)
+    - Segmented time period picker
+    - Top Artists grid (3x2 layout with circular artist images)
+    - Top Songs list with rank numbers and album art
+    - Recently Played horizontal scroll section
+    - Loading and error states with retry button
+  - Created helper views: TopArtistCell, TopTrackRow, RecentlyPlayedCell
+  - Build succeeded on iPhone 16e simulator
+
+### 40. Phase 2: Discover Tab (New Home)
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/DiscoverView.swift, vibes/ViewModels/DiscoverViewModel.swift, vibes/Services/SpotifyService.swift, vibes/Models/SpotifyModels.swift
+- **Requested**: Implement Phase 2 - build out the Discover tab with new releases, recommendations, friend activity, and trending songs
+- **Context**: Transform Discover from placeholder to main landing page with personalized music discovery
+- **Acceptance Criteria**:
+  - [x] Add getNewReleases() to SpotifyService
+  - [x] Add getRecommendations() to SpotifyService
+  - [x] Create DiscoverViewModel with data loading
+  - [x] Build Recently Active friends section
+  - [x] Build New Releases horizontal scroll section
+  - [x] Build For You recommendations section
+  - [x] Build Trending Among Friends section
+  - [x] Build and test on simulator
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented complete Phase 2:
+  - Added NewReleasesResponse, AlbumPage, RecommendationsResponse, RecommendationSeed models to SpotifyModels.swift
+  - Added getNewReleases(limit:) to SpotifyService - fetches from /browse/new-releases
+  - Added getRecommendations(seedTracks:seedArtists:limit:) to SpotifyService - fetches personalized recommendations using user's top tracks/artists as seeds
+  - Created DiscoverViewModel.swift with:
+    - TrendingSong and RecentlyActiveFriend models
+    - loadAllData() loads all sections in parallel
+    - loadNewReleases() fetches from Spotify API
+    - loadRecommendations() uses top tracks/artists as seeds
+    - loadTrendingSongs() queries Firestore for songs shared by friends in last 7 days, groups by track, counts occurrences
+    - loadRecentlyActiveFriends() finds friends who recently shared songs
+  - Built full DiscoverView.swift with:
+    - Recently Active section: horizontal scroll of friends with their last shared song
+    - New Releases section: horizontal scroll of album cards
+    - For You section: playable track list with recommendations
+    - Trending Among Friends section: songs shared by friends with share counts
+    - Connect Spotify prompt when not authenticated
+    - Loading and empty states
+    - Pull-to-refresh support
+  - Helper views: RecentlyActiveFriendCard, NewReleaseCard, RecommendationRow, TrendingSongRow
+  - Build succeeded on iPhone 16e simulator
+
+### 41. Phase 3: Search Enhancements
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/SearchView.swift, vibes/ViewModels/SearchViewModel.swift, vibes/Services/SpotifyService.swift, vibes/Models/SpotifyModels.swift
+- **Requested**: Implement Phase 3 - enhance search with recent searches, type filters (songs/artists/albums/playlists), and improved results UI
+- **Context**: Improve search experience with history, filtering, and richer result displays
+- **Acceptance Criteria**:
+  - [x] Add search type parameter to Spotify API
+  - [x] Store recent searches in UserDefaults (last 10)
+  - [x] Show recent searches when search field is empty
+  - [x] Add segmented control for search type (Songs/Artists/Albums/Playlists)
+  - [x] Build Artist results with circular image, name, follower count
+  - [x] Build Album results with art, name, artist, year
+  - [x] Build Playlist results with image, name, owner, track count
+  - [x] Build and test on simulator
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented complete Phase 3:
+  - Added SearchType enum with track, artist, album, playlist cases
+  - Added UnifiedSearchResult, ArtistPage, AlbumSearchPage, PlaylistSearchPage models
+  - Added search(query:type:limit:), searchArtists, searchAlbums, searchPlaylists to SpotifyService
+  - Updated SearchViewModel with:
+    - selectedSearchType for filtering results
+    - recentSearches array persisted with UserDefaults
+    - saveRecentSearch, clearRecentSearches, selectRecentSearch methods
+    - Search type-aware result loading and storage
+    - hasResults computed property for current search type
+  - Updated SearchView with:
+    - Segmented control picker for Songs/Artists/Albums/Playlists
+    - Recent searches section with clock icon and "Clear" button
+    - Tap recent search to re-execute
+    - Dynamic search placeholder text based on type
+  - Created new result row views:
+    - ArtistRow: Circular artist image, name, formatted follower count (1.2M, 500K, etc.)
+    - AlbumRow: Album art, name, release year, track count
+    - PlaylistRow: Playlist image, name, owner, track count
+  - Build succeeded on iPhone 16e simulator
+
+### 42. Album/Playlist/Artist Detail Views
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/AlbumDetailView.swift, vibes/Views/PlaylistDetailView.swift, vibes/Views/ArtistDetailView.swift, vibes/Views/SearchView.swift, vibes/Services/SpotifyService.swift, vibes/Models/SpotifyModels.swift
+- **Requested**: When tapping on album/playlist in search, show list of songs with 30-second previews. When tapping artist, show top songs and new releases with previews.
+- **Context**: Enable browsing and previewing tracks from albums, playlists, and artists
+- **Acceptance Criteria**:
+  - [x] Add getAlbumTracks API to SpotifyService
+  - [x] Add getPlaylistTracks API to SpotifyService
+  - [x] Add getArtistTopTracks and getArtistAlbums APIs
+  - [x] Create AlbumDetailView with playable track list
+  - [x] Create PlaylistDetailView with playable track list
+  - [x] Create ArtistDetailView with top songs and releases sections
+  - [x] Make search result rows tappable with navigation
+  - [x] Build and test on simulator
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented complete detail views with playable previews:
+  - Added AlbumTracksResponse, SimplifiedTrack, PlaylistTracksResponse, PlaylistTrackItem, ArtistTopTracksResponse, ArtistAlbumsResponse models to SpotifyModels.swift
+  - Added Hashable conformance to Artist, Album, Playlist, and related types for navigation
+  - Added getAlbumTracks(albumId:limit:) to SpotifyService - fetches album track list
+  - Updated getPlaylistTracks(playlistId:limit:) to use models from SpotifyModels.swift
+  - Added getArtistTopTracks(artistId:) to SpotifyService - fetches top tracks
+  - Added getArtistAlbums(artistId:limit:) to SpotifyService - fetches albums/singles
+  - Created AlbumDetailView.swift with:
+    - Header section with album art, name, release year, track count
+    - Track list showing track number, name, artist, duration
+    - Playable 30-second previews via AudioPlayerService
+    - Sound wave animation for currently playing track
+    - Speaker slash icon for tracks without preview
+  - Created PlaylistDetailView.swift with:
+    - Header section with playlist image, name, owner, track count
+    - Track list showing album art, name, artist, duration, explicit badge
+    - Playable 30-second previews via AudioPlayerService
+  - Created ArtistDetailView.swift with:
+    - Header section with circular artist image, name, follower count
+    - Top Songs section (top 10 tracks with rank, playable previews)
+    - Discography section (horizontal scroll of albums, tappable to AlbumDetailView)
+  - Updated SearchView.swift with NavigationLinks for Artist, Album, Playlist rows
+  - Added navigationDestination modifiers for type-safe navigation
+  - Build succeeded on iPhone 16e simulator
+
+### 43. Fix preview playback in detail views using iTunes
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Views/AlbumDetailView.swift, vibes/Views/PlaylistDetailView.swift, vibes/Views/ArtistDetailView.swift
+- **Requested**: Song previews weren't playing because Spotify preview URLs are unavailable - use iTunes previews instead
+- **Context**: Spotify often returns nil for previewUrl. The app already has iTunesService for fetching preview URLs as fallback.
+- **Acceptance Criteria**:
+  - [x] AlbumDetailView fetches iTunes previews for all tracks
+  - [x] PlaylistDetailView fetches iTunes previews for all tracks
+  - [x] ArtistDetailView fetches iTunes previews for top tracks
+  - [x] Playback uses iTunes preview URLs
+  - [x] Build and test on simulator
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Updated all detail views to use iTunes previews:
+  - Added `previewUrls: [String: String]` state to store iTunes preview URLs
+  - Added `loadiTunesPreviews()` async function that fetches iTunes previews for all tracks
+  - Updated track row components to accept previewUrl parameter
+  - AlbumTrackRow, PlaylistTrackRow, ArtistTopTrackRow now use passed previewUrl instead of track.previewUrl
+  - Previews are fetched immediately after loading tracks from Spotify API
+  - Build succeeded on iPhone 16e simulator
+
+### 44. Phase 4: Chats Enhancements
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/MessageThreadView.swift, vibes/Models/Message.swift, vibes/Views/FriendPickerView.swift, vibes/Views/SearchView.swift, vibes/ViewModels/MessageThreadViewModel.swift
+- **Requested**: Implement Phase 4 of implementation plan - visual refresh, song reactions, playlist sharing
+- **Context**: Enhance chat experience with better UI and new features
+- **Acceptance Criteria**:
+  - [x] 4.1 Visual refresh: softer corners, better spacing, timestamps on tap
+  - [x] 4.2 Song reactions: long press to show 🔥 ❤️ 💯 😐 picker, display below song
+  - [x] 4.4 Playlist sharing: share playlists in chat with track preview
+  - [x] Build and test on simulator
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented all Phase 4 enhancements:
+  - **4.1 Visual Refresh**:
+    - Updated MessageBubbleView with softer corners using RoundedRectangle with .continuous style
+    - Added showTimestamp state with tap-to-reveal timestamp
+    - Increased message spacing from 12 to 16
+    - Better visual hierarchy with VStack alignment
+    - Timestamps show relative time (Today, Yesterday, or date)
+  - **4.2 Song Reactions**:
+    - Created ReactionPickerView with fire/heart/100/meh emojis
+    - Long press on song messages triggers haptic feedback and shows reaction picker
+    - Created ReactionsDisplayView to show grouped reactions with counts
+    - Added addReaction methods to MessageThreadViewModel
+    - Updated FirestoreService.addReaction to store reactions in Firestore
+    - Reactions stored as [userId: emoji] dictionary in Message model
+  - **4.4 Playlist Sharing**:
+    - Added MessageType.playlist to Message enum
+    - Added playlist fields to Message: playlistId, playlistName, playlistImageUrl, playlistTrackCount, playlistOwnerName
+    - Created PlaylistMessageBubbleView with playlist card, reactions, and timestamp support
+    - Updated FriendPickerView to handle both tracks and playlists with FriendPickerContent enum
+    - Added share button to PlaylistRow in SearchView
+    - Added sendPlaylistMessage to MessageThreadViewModel
+  - Build succeeded on iPhone 16e simulator
+
+### 45. Phase 5: Polish & Gamification
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/Components/VibestreakView.swift, vibes/Views/Components/MusicPersonalityCard.swift, vibes/Views/Components/AchievementsView.swift, vibes/Views/OnboardingView.swift, vibes/Views/ProfileView.swift, vibes/Views/ChatRowView.swift, vibes/ContentView.swift
+- **Requested**: Implement Phase 5 - vibestreak rewards, music personality card, achievements/badges, onboarding flow
+- **Context**: Add gamification and polish to enhance user engagement
+- **Acceptance Criteria**:
+  - [x] 5.1 Vibestreak Rewards: tier colors (gray/bronze/silver/gold/animated) based on streak length
+  - [x] 5.2 Music Personality Card: analyze genres, generate personality label, shareable card
+  - [x] 5.3 Achievements/Badges: badge system with criteria tracking
+  - [x] 5.4 Onboarding Flow: welcome screens for new users
+  - [x] Build and test on simulator
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented all Phase 5 features:
+  - **5.1 Vibestreak Rewards**:
+    - Created VibestreakView.swift with StreakTier enum (none/starter/bronze/silver/gold/legendary)
+    - Tier thresholds: starter 1-6 days (gray), bronze 7-29 (bronze), silver 30-99 (silver), gold 100-364 (gold glow), legendary 365+ (animated flame)
+    - Created AnimatedFlameIcon with pulsing animation for legendary tier
+    - Created VibestreakBadgeView for large profile display
+    - Updated ChatRowView to use VibestreakView component
+  - **5.2 Music Personality Card**:
+    - Created MusicPersonalityCard.swift with MusicPersonality struct
+    - Implemented analyze(genres:) that analyzes user's top artist genres
+    - 11 personality types: Hip-Hop Head, Indie Explorer, Pop Enthusiast, Rock Soul, Electronic Soul, R&B Romantic, Jazz Aficionado, Country Soul, Classical Connoisseur, Latin Vibes, Genre Fluid
+    - Each personality has title, subtitle, emoji, primary genre, traits, gradient colors
+    - MusicPersonalityCardView loads from Spotify top artists
+    - Gradient header card with traits as capsule tags
+    - Integrated into ProfileView when Spotify connected
+  - **5.3 Achievements/Badges**:
+    - Created AchievementsView.swift with Achievement struct and AchievementCategory enum
+    - 15 achievement definitions across 4 categories: Sharing, Social, Streak, Discovery
+    - AchievementBadge shows circular icon with progress ring
+    - AchievementRow for list display with progress counts
+    - AchievementsGridView shows 6 badges in grid layout
+    - AchievementsListView with category filter pills
+    - AchievementStats computes achievements from user data
+    - Integrated into ProfileView with "See All" sheet
+  - **5.4 Onboarding Flow**:
+    - Created OnboardingView.swift with swipeable page view
+    - 4 pages: Welcome, Share Songs, Build Vibestreaks, Connect Spotify
+    - Each page has icon, title, subtitle with color gradient
+    - Page indicator dots with color matching current page
+    - Skip button available throughout, Next button advances
+    - Final page offers Spotify connect or skip option
+    - Uses AppStorage("hasCompletedOnboarding") for persistence
+    - Integrated into MainTabView in ContentView.swift
+  - Build succeeded on iPhone 16e simulator
+
 ## Task Statistics
-- Total Tasks: 37
-- Completed: 36
+- Total Tasks: 45
+- Completed: 44
 - Deferred: 1
 - In Progress: 0
 - Pending: 0

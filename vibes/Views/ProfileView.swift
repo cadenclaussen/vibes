@@ -8,6 +8,20 @@
 import SwiftUI
 import FirebaseAuth
 
+enum TimeRange: String, CaseIterable {
+    case shortTerm = "short_term"
+    case mediumTerm = "medium_term"
+    case longTerm = "long_term"
+
+    var displayName: String {
+        switch self {
+        case .shortTerm: return "4 Weeks"
+        case .mediumTerm: return "6 Months"
+        case .longTerm: return "All Time"
+        }
+    }
+}
+
 struct ProfileView: View {
     @StateObject private var viewModel = ProfileViewModel()
     @StateObject private var spotifyService = SpotifyService.shared
@@ -15,6 +29,14 @@ struct ProfileView: View {
     @Binding var shouldEditProfile: Bool
     @State private var genreInput = ""
     @State private var showingSpotifyAuth = false
+    @State private var selectedTimeRange: TimeRange = .mediumTerm
+    @State private var topArtists: [Artist] = []
+    @State private var topTracks: [Track] = []
+    @State private var recentlyPlayed: [PlayHistory] = []
+    @State private var isLoadingStats = false
+    @State private var statsError: String?
+    @State private var achievements: [Achievement] = []
+    @State private var showingAllAchievements = false
 
     var body: some View {
         NavigationStack {
@@ -28,11 +50,17 @@ struct ProfileView: View {
         }
         .task {
             await viewModel.loadProfile()
+            await loadStats()
         }
         .onChange(of: shouldEditProfile) { _, newValue in
             if newValue && !viewModel.isEditing {
                 viewModel.toggleEditMode()
                 shouldEditProfile = false
+            }
+        }
+        .onChange(of: selectedTimeRange) { _, _ in
+            Task {
+                await loadStats()
             }
         }
         .onDisappear {
@@ -42,6 +70,27 @@ struct ProfileView: View {
                 }
             }
         }
+    }
+
+    private func loadStats() async {
+        guard spotifyService.isAuthenticated else { return }
+
+        isLoadingStats = true
+        statsError = nil
+
+        do {
+            async let artists = spotifyService.getTopArtists(timeRange: selectedTimeRange.rawValue, limit: 6)
+            async let tracks = spotifyService.getTopTracks(timeRange: selectedTimeRange.rawValue, limit: 10)
+            async let recent = spotifyService.getRecentlyPlayed(limit: 10)
+
+            topArtists = try await artists
+            topTracks = try await tracks
+            recentlyPlayed = try await recent
+        } catch {
+            statsError = error.localizedDescription
+        }
+
+        isLoadingStats = false
     }
 
     @ToolbarContentBuilder
@@ -92,9 +141,25 @@ struct ProfileView: View {
         ScrollView {
             VStack(spacing: 24) {
                 profileHeader(profile)
-                infoSection(profile)
                 spotifySection
+
+                if spotifyService.isAuthenticated {
+                    musicPersonalitySection
+                    timeRangePickerSection
+                    if isLoadingStats {
+                        statsLoadingSection
+                    } else if let error = statsError {
+                        statsErrorSection(error)
+                    } else {
+                        topArtistsSection
+                        topTracksSection
+                        recentlyPlayedSection
+                    }
+                }
+
                 genresSection(profile)
+                achievementsSection(profile)
+                infoSection(profile)
 
                 if let error = viewModel.errorMessage {
                     errorSection(error)
@@ -314,6 +379,210 @@ struct ProfileView: View {
         }
     }
 
+    // MARK: - Music Personality Section
+
+    private var musicPersonalitySection: some View {
+        MusicPersonalityCardView()
+    }
+
+    // MARK: - Achievements Section
+
+    private func achievementsSection(_ profile: UserProfile) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Achievements")
+                    .font(.headline)
+
+                Spacer()
+
+                let unlockedCount = achievements.filter { $0.isUnlocked }.count
+                Text("\(unlockedCount)/\(achievements.count)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Button {
+                    showingAllAchievements = true
+                } label: {
+                    Text("See All")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
+            }
+
+            if achievements.isEmpty {
+                Text("Loading achievements...")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                AchievementsGridView(achievements: achievements)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(12)
+        .sheet(isPresented: $showingAllAchievements) {
+            NavigationStack {
+                AchievementsListView(achievements: achievements)
+                    .navigationTitle("Achievements")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") {
+                                showingAllAchievements = false
+                            }
+                        }
+                    }
+            }
+        }
+        .task {
+            await loadAchievements(profile)
+        }
+    }
+
+    private func loadAchievements(_ profile: UserProfile) async {
+        var stats = AchievementStats()
+
+        stats.genresCount = profile.musicTasteTags.count
+        stats.isSpotifyConnected = spotifyService.isAuthenticated
+
+        // Load actual stats from Firestore
+        do {
+            let firestoreStats = try await FirestoreService.shared.getAchievementStats(userId: profile.uid)
+            stats.songsShared = firestoreStats.songsShared
+            stats.playlistsShared = firestoreStats.playlistsShared
+            stats.friendsCount = firestoreStats.friendsCount
+            stats.maxVibestreak = firestoreStats.maxVibestreak
+        } catch {
+            print("Failed to load achievement stats: \(error)")
+        }
+
+        achievements = stats.buildAchievements()
+    }
+
+    // MARK: - Stats Sections
+
+    private var timeRangePickerSection: some View {
+        Picker("Time Range", selection: $selectedTimeRange) {
+            ForEach(TimeRange.allCases, id: \.self) { range in
+                Text(range.displayName).tag(range)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    private var statsLoadingSection: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+            Text("Loading your stats...")
+                .font(.caption)
+                .foregroundColor(Color(.secondaryLabel))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+    }
+
+    private func statsErrorSection(_ error: String) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.title2)
+                .foregroundColor(.orange)
+            Text("Failed to load stats")
+                .font(.headline)
+            Text(error)
+                .font(.caption)
+                .foregroundColor(Color(.secondaryLabel))
+                .multilineTextAlignment(.center)
+            Button("Retry") {
+                Task {
+                    await loadStats()
+                }
+            }
+            .buttonStyle(.bordered)
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(12)
+    }
+
+    private var topArtistsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Top Artists")
+                .font(.headline)
+
+            if topArtists.isEmpty {
+                Text("No top artists data available")
+                    .font(.body)
+                    .foregroundColor(Color(.tertiaryLabel))
+            } else {
+                LazyVGrid(columns: [
+                    GridItem(.flexible()),
+                    GridItem(.flexible()),
+                    GridItem(.flexible())
+                ], spacing: 12) {
+                    ForEach(topArtists) { artist in
+                        TopArtistCell(artist: artist)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(12)
+    }
+
+    private var topTracksSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Top Songs")
+                .font(.headline)
+
+            if topTracks.isEmpty {
+                Text("No top tracks data available")
+                    .font(.body)
+                    .foregroundColor(Color(.tertiaryLabel))
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(Array(topTracks.enumerated()), id: \.element.id) { index, track in
+                        TopTrackRow(rank: index + 1, track: track)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(12)
+    }
+
+    private var recentlyPlayedSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Recently Played")
+                .font(.headline)
+
+            if recentlyPlayed.isEmpty {
+                Text("No recent plays")
+                    .font(.body)
+                    .foregroundColor(Color(.tertiaryLabel))
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(recentlyPlayed, id: \.track.id) { history in
+                            RecentlyPlayedCell(playHistory: history)
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(12)
+    }
+
+    // MARK: - Error Section
+
     private func errorSection(_ error: String) -> some View {
         Text(error)
             .font(.caption)
@@ -329,6 +598,129 @@ struct ProfileView: View {
         guard !trimmed.isEmpty, !viewModel.musicTasteTags.contains(trimmed) else { return }
         viewModel.musicTasteTags.append(trimmed)
         genreInput = ""
+    }
+}
+
+// MARK: - Helper Views
+
+struct TopArtistCell: View {
+    let artist: Artist
+
+    var body: some View {
+        VStack(spacing: 6) {
+            if let imageUrl = artist.images?.first?.url,
+               let url = URL(string: imageUrl) {
+                AsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Color(.tertiarySystemBackground)
+                }
+                .frame(width: 80, height: 80)
+                .clipShape(Circle())
+            } else {
+                Image(systemName: "music.mic")
+                    .font(.title)
+                    .foregroundColor(Color(.tertiaryLabel))
+                    .frame(width: 80, height: 80)
+                    .background(Color(.tertiarySystemBackground))
+                    .clipShape(Circle())
+            }
+
+            Text(artist.name)
+                .font(.caption)
+                .fontWeight(.medium)
+                .lineLimit(1)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+struct TopTrackRow: View {
+    let rank: Int
+    let track: Track
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Text("\(rank)")
+                .font(.caption)
+                .fontWeight(.bold)
+                .foregroundColor(Color(.secondaryLabel))
+                .frame(width: 20)
+
+            if let imageUrl = track.album.images.first?.url,
+               let url = URL(string: imageUrl) {
+                AsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Color(.tertiarySystemBackground)
+                }
+                .frame(width: 40, height: 40)
+                .cornerRadius(4)
+            } else {
+                Image(systemName: "music.note")
+                    .frame(width: 40, height: 40)
+                    .background(Color(.tertiarySystemBackground))
+                    .cornerRadius(4)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(track.name)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+                Text(track.artists.map { $0.name }.joined(separator: ", "))
+                    .font(.caption)
+                    .foregroundColor(Color(.secondaryLabel))
+                    .lineLimit(1)
+            }
+
+            Spacer()
+        }
+    }
+}
+
+struct RecentlyPlayedCell: View {
+    let playHistory: PlayHistory
+
+    var body: some View {
+        VStack(spacing: 6) {
+            if let imageUrl = playHistory.track.album.images.first?.url,
+               let url = URL(string: imageUrl) {
+                AsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Color(.tertiarySystemBackground)
+                }
+                .frame(width: 80, height: 80)
+                .cornerRadius(8)
+            } else {
+                Image(systemName: "music.note")
+                    .font(.title)
+                    .foregroundColor(Color(.tertiaryLabel))
+                    .frame(width: 80, height: 80)
+                    .background(Color(.tertiarySystemBackground))
+                    .cornerRadius(8)
+            }
+
+            VStack(spacing: 2) {
+                Text(playHistory.track.name)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+                Text(playHistory.track.artists.first?.name ?? "")
+                    .font(.caption2)
+                    .foregroundColor(Color(.secondaryLabel))
+                    .lineLimit(1)
+            }
+        }
+        .frame(width: 80)
     }
 }
 

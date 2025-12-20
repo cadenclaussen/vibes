@@ -23,27 +23,36 @@ struct ContentView: View {
 }
 
 struct MainTabView: View {
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var selectedTab = 0
     @State private var shouldEditProfile = false
     @State private var navigateToFriend: FriendProfile?
 
     var body: some View {
+        if !hasCompletedOnboarding {
+            OnboardingView(hasCompletedOnboarding: $hasCompletedOnboarding)
+        } else {
+            mainContent
+        }
+    }
+
+    private var mainContent: some View {
         TabView(selection: $selectedTab) {
+            DiscoverView(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
+                .tabItem {
+                    Label("Discover", systemImage: "waveform.circle.fill")
+                }
+                .tag(0)
+
             SearchView(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile, navigateToFriend: $navigateToFriend)
                 .tabItem {
                     Label("Search", systemImage: "magnifyingglass")
                 }
-                .tag(0)
+                .tag(1)
 
             ChatsView(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
                 .tabItem {
                     Label("Chats", systemImage: "bubble.left.and.bubble.right.fill")
-                }
-                .tag(1)
-
-            StatsTab(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
-                .tabItem {
-                    Label("Stats", systemImage: "chart.bar.fill")
                 }
                 .tag(2)
 
@@ -52,38 +61,6 @@ struct MainTabView: View {
                     Label("Profile", systemImage: "person.fill")
                 }
                 .tag(3)
-        }
-    }
-}
-
-// Placeholder views for tabs we haven't built yet
-
-struct StatsTab: View {
-    @EnvironmentObject var authManager: AuthManager
-    @Binding var selectedTab: Int
-    @Binding var shouldEditProfile: Bool
-
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 16) {
-                Image(systemName: "hammer.fill")
-                    .font(.system(size: 60))
-                    .foregroundColor(Color(.tertiaryLabel))
-
-                Text("Under Construction")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-
-                Text("This feature is coming soon")
-                    .font(.body)
-                    .foregroundColor(Color(.secondaryLabel))
-            }
-            .navigationTitle("Stats")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    SettingsMenu(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
-                }
-            }
         }
     }
 }

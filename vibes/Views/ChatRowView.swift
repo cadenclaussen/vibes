@@ -44,16 +44,7 @@ struct ChatRowView: View {
 
                     HStack(spacing: 8) {
                         // Vibestreak
-                        if chat.vibestreak > 0 {
-                            HStack(spacing: 2) {
-                                Text("\(chat.vibestreak)")
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.orange)
-                                Text("\u{1F525}")
-                                    .font(.caption)
-                            }
-                        }
+                        VibestreakView(streak: chat.vibestreak, size: .small)
 
                         // Unread badge
                         if chat.unreadCount > 0 {

@@ -168,7 +168,7 @@ class FirestoreService {
 
     // MARK: - Reactions
 
-    func addReaction(messageId: String, userId: String, reaction: String) async throws {
+    func addReaction(messageId: String, threadId: String, userId: String, reaction: String) async throws {
         try await db.collection("messages").document(messageId).updateData([
             "reactions.\(userId)": reaction
         ])
@@ -467,5 +467,36 @@ class FirestoreService {
         default:
             return "vibes://notifications"
         }
+    }
+
+    // MARK: - Achievement Stats
+
+    struct UserAchievementStats {
+        var songsShared: Int = 0
+        var playlistsShared: Int = 0
+        var friendsCount: Int = 0
+        var maxVibestreak: Int = 0
+    }
+
+    func getAchievementStats(userId: String) async throws -> UserAchievementStats {
+        var stats = UserAchievementStats()
+
+        let friendships = try await getFriends(userId: userId)
+        stats.friendsCount = friendships.count
+        stats.maxVibestreak = friendships.map { $0.vibestreak }.max() ?? 0
+
+        let songMessages = try await db.collection("messages")
+            .whereField("senderId", isEqualTo: userId)
+            .whereField("messageType", isEqualTo: "song")
+            .getDocuments()
+        stats.songsShared = songMessages.documents.count
+
+        let playlistMessages = try await db.collection("messages")
+            .whereField("senderId", isEqualTo: userId)
+            .whereField("messageType", isEqualTo: "playlist")
+            .getDocuments()
+        stats.playlistsShared = playlistMessages.documents.count
+
+        return stats
     }
 }
