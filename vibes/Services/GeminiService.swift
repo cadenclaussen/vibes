@@ -401,6 +401,24 @@ class GeminiService: ObservableObject {
         }
         keys.forEach { defaults.removeObject(forKey: $0) }
     }
+
+    // Clear all user data (for account deletion)
+    func clearUserData() {
+        // Remove API key from Keychain
+        try? keychainManager.deleteGeminiAPIKey()
+        apiKey = nil
+        isConfigured = false
+
+        // Clear rate limiting data
+        let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: "aiLastRequestDate")
+        defaults.removeObject(forKey: "aiDailyRequestCount")
+        dailyRequestCount = 0
+        lastRequestDate = nil
+
+        // Clear cache
+        clearCache()
+    }
 }
 
 // MARK: - Gemini API Models

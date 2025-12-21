@@ -133,6 +133,11 @@ class MessageThreadViewModel: ObservableObject {
             print("📤 Sending to thread: \(threadId)")
             try await firestoreService.sendMessage(message)
             print("✅ Message sent successfully")
+
+            // Track for achievements
+            LocalAchievementStats.shared.messagesSent += 1
+            LocalAchievementStats.shared.trackConversation(with: otherUserId)
+
             isSending = false
         } catch {
             print("❌ Error sending message: \(error)")
@@ -167,6 +172,15 @@ class MessageThreadViewModel: ObservableObject {
             )
 
             try await firestoreService.sendMessage(message)
+
+            // Track for achievements
+            LocalAchievementStats.shared.trackArtistShared(artist)
+            LocalAchievementStats.shared.trackSongSharedOnFriday()
+            LocalAchievementStats.shared.checkTimeBasedAchievements()
+            LocalAchievementStats.shared.messagesSent += 1
+            LocalAchievementStats.shared.songMessagesSent += 1
+            LocalAchievementStats.shared.trackConversation(with: otherUserId)
+
             isSending = false
         } catch {
             errorMessage = "Failed to send song: \(error.localizedDescription)"
@@ -179,6 +193,8 @@ class MessageThreadViewModel: ObservableObject {
 
         do {
             try await firestoreService.addReaction(messageId: messageId, threadId: threadId, userId: currentUserId, reaction: emoji)
+            // Track for achievements
+            LocalAchievementStats.shared.reactionsGiven += 1
         } catch {
             errorMessage = "Failed to add reaction: \(error.localizedDescription)"
         }
@@ -187,6 +203,8 @@ class MessageThreadViewModel: ObservableObject {
     func addReaction(messageId: String, emoji: String) async {
         do {
             try await firestoreService.addReaction(messageId: messageId, threadId: threadId, userId: currentUserId, reaction: emoji)
+            // Track for achievements
+            LocalAchievementStats.shared.reactionsGiven += 1
         } catch {
             errorMessage = "Failed to add reaction: \(error.localizedDescription)"
         }

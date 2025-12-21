@@ -73,6 +73,9 @@ class AudioPlayerService: ObservableObject {
         currentTrackId = trackId
         player?.play()
         isPlaying = true
+
+        // Track for achievements
+        LocalAchievementStats.shared.previewPlays += 1
     }
 
     func togglePlayPause() {

@@ -13,7 +13,6 @@ struct SettingsMenu: View {
     @Binding var shouldEditProfile: Bool
     @State private var showingMenu = false
     @State private var showingDeleteAccount = false
-    @State private var showingAISettings = false
 
     var body: some View {
         Button {
@@ -27,30 +26,12 @@ struct SettingsMenu: View {
             VStack(spacing: 0) {
                 Button {
                     showingMenu = false
-                    shouldEditProfile = true
                     selectedTab = 3
                 } label: {
                     HStack {
-                        Image(systemName: "person.circle")
+                        Image(systemName: "gearshape")
                             .foregroundColor(Color(.label))
-                        Text("Edit Profile")
-                            .foregroundColor(Color(.label))
-                        Spacer()
-                    }
-                    .padding()
-                    .contentShape(Rectangle())
-                }
-
-                Divider()
-
-                Button {
-                    showingMenu = false
-                    showingAISettings = true
-                } label: {
-                    HStack {
-                        Image(systemName: "sparkles")
-                            .foregroundColor(.purple)
-                        Text("AI Features")
+                        Text("Settings")
                             .foregroundColor(Color(.label))
                         Spacer()
                     }
@@ -101,9 +82,6 @@ struct SettingsMenu: View {
         }
         .sheet(isPresented: $showingDeleteAccount) {
             DeleteAccountView()
-        }
-        .sheet(isPresented: $showingAISettings) {
-            AISettingsView()
         }
     }
 }

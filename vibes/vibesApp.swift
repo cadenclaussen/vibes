@@ -58,8 +58,10 @@ struct vibesApp: App {
                 switch phase {
                 case .active:
                     try await FirestoreService.shared.setUserOnline(userId: userId)
+                    NowPlayingService.shared.startPolling(userId: userId)
                 case .inactive, .background:
                     try await FirestoreService.shared.setUserOffline(userId: userId)
+                    NowPlayingService.shared.stopPolling()
                 @unknown default:
                     break
                 }

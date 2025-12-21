@@ -98,6 +98,9 @@ struct AlbumDetailView: View {
         isLoading = true
         errorMessage = nil
 
+        // Track for achievements
+        LocalAchievementStats.shared.albumsViewed += 1
+
         do {
             tracks = try await spotifyService.getAlbumTracks(albumId: album.id)
             await loadiTunesPreviews()
@@ -123,6 +126,28 @@ struct AlbumTrackRow: View {
     let album: Album
     let previewUrl: String?
     @ObservedObject var audioPlayer = AudioPlayerService.shared
+    @ObservedObject var spotifyService = SpotifyService.shared
+    @State private var showFriendPicker = false
+    @State private var showPlaylistPicker = false
+
+    private var trackUri: String {
+        "spotify:track:\(track.id)"
+    }
+
+    private var fullTrack: Track {
+        Track(
+            id: track.id,
+            name: track.name,
+            artists: track.artists,
+            album: album,
+            durationMs: track.durationMs,
+            explicit: track.explicit,
+            popularity: 0,
+            previewUrl: previewUrl,
+            uri: track.uri,
+            externalUrls: ExternalUrls(spotify: "https://open.spotify.com/track/\(track.id)")
+        )
+    }
 
     private var isCurrentTrack: Bool {
         audioPlayer.currentTrackId == track.id
@@ -197,6 +222,44 @@ struct AlbumTrackRow: View {
             .opacity(hasPreview ? 1.0 : 0.5)
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            Button {
+                HapticService.lightImpact()
+                showFriendPicker = true
+            } label: {
+                Label("Send to Friend", systemImage: "paperplane")
+            }
+
+            if spotifyService.isAuthenticated {
+                Button {
+                    HapticService.lightImpact()
+                    showPlaylistPicker = true
+                } label: {
+                    Label("Add to Playlist", systemImage: "plus.circle")
+                }
+            }
+
+            Button {
+                HapticService.lightImpact()
+                if let url = URL(string: "https://open.spotify.com/track/\(track.id)") {
+                    UIApplication.shared.open(url)
+                }
+            } label: {
+                Label("Open in Spotify", systemImage: "arrow.up.right")
+            }
+        }
+        .sheet(isPresented: $showFriendPicker) {
+            FriendPickerView(track: fullTrack, previewUrl: previewUrl)
+        }
+        .sheet(isPresented: $showPlaylistPicker) {
+            PlaylistPickerView(
+                trackUri: trackUri,
+                trackName: track.name,
+                artistName: track.artists.map { $0.name }.joined(separator: ", "),
+                albumArtUrl: album.images.first?.url,
+                onAdded: {}
+            )
+        }
     }
 
     private func formatDuration(_ milliseconds: Int) -> String {

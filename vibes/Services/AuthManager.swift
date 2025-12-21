@@ -30,6 +30,9 @@ class AuthManager: ObservableObject {
             self?.user = user
             self?.isAuthenticated = user != nil
 
+            // Update achievement notification service with current user
+            AchievementNotificationService.shared.setCurrentUser(user?.uid)
+
             if let userId = user?.uid {
                 Task {
                     await self?.checkSpotifyLink(userId: userId)
@@ -115,9 +118,6 @@ class AuthManager: ObservableObject {
 
         let userId = user.uid
 
-        // Delete profile picture from storage
-        try? await StorageService.shared.deleteProfilePicture(userId: userId)
-
         // Delete all user data from Firestore
         try await FirestoreService.shared.deleteAllUserData(userId: userId)
 
@@ -130,6 +130,18 @@ class AuthManager: ObservableObject {
 
         // Clear Spotify tokens
         SpotifyService.shared.signOut()
+
+        // Clear AI/Gemini data
+        GeminiService.shared.clearUserData()
+
+        // Clear achievement notification data
+        AchievementNotificationService.shared.clearUserData()
+
+        // Clear local achievement stats
+        LocalAchievementStats.shared.clearAllData()
+
+        // Clear recent searches
+        UserDefaults.standard.removeObject(forKey: "recent_searches")
 
         print("Account deleted successfully")
     }

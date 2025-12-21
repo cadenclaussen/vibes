@@ -84,6 +84,7 @@ struct SearchView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .onChange(of: viewModel.selectedSearchType) { _, _ in
+            HapticService.selectionChanged()
             viewModel.onSearchTypeChanged()
         }
     }
@@ -380,6 +381,7 @@ struct TrackRow: View {
 
     var body: some View {
         Button {
+            HapticService.lightImpact()
             if let url = previewUrl {
                 audioPlayer.playUrl(url, trackId: track.id)
             } else {
@@ -391,8 +393,6 @@ struct TrackRow: View {
                 trackInfo
                 Spacer()
                 playIndicator
-                addToPlaylistButton
-                sendButton
                 durationLabel
             }
             .padding(.horizontal, 16)
@@ -401,6 +401,30 @@ struct TrackRow: View {
             .opacity(hasPreview ? 1.0 : 0.5)
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            Button {
+                HapticService.lightImpact()
+                onSendTapped(track)
+            } label: {
+                Label("Send to Friend", systemImage: "paperplane")
+            }
+
+            Button {
+                HapticService.lightImpact()
+                onAddToPlaylistTapped(track)
+            } label: {
+                Label("Add to Playlist", systemImage: "plus.circle")
+            }
+
+            Button {
+                HapticService.lightImpact()
+                if let url = URL(string: "https://open.spotify.com/track/\(track.id)") {
+                    UIApplication.shared.open(url)
+                }
+            } label: {
+                Label("Open in Spotify", systemImage: "arrow.up.right")
+            }
+        }
         .alert("Preview Unavailable", isPresented: $showNoPreviewAlert) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -473,28 +497,6 @@ struct TrackRow: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
-    }
-
-    private var addToPlaylistButton: some View {
-        Button {
-            onAddToPlaylistTapped(track)
-        } label: {
-            Image(systemName: "plus.circle.fill")
-                .font(.body)
-                .foregroundColor(.green)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var sendButton: some View {
-        Button {
-            onSendTapped(track)
-        } label: {
-            Image(systemName: "paperplane.fill")
-                .font(.body)
-                .foregroundColor(.blue)
-        }
-        .buttonStyle(.plain)
     }
 
     private var albumPlaceholder: some View {

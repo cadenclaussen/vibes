@@ -185,12 +185,19 @@ struct PlaylistPickerView: View {
 
         do {
             try await spotifyService.addTrackToPlaylist(playlistId: playlist.id, trackUri: trackUri)
+            HapticService.success()
+
+            // Track for achievements
+            LocalAchievementStats.shared.songsAddedToPlaylists += 1
+            LocalAchievementStats.shared.checkTimeBasedAchievements()
+
             isAdding = false
             // Brief delay to show success state before dismissing
             try? await Task.sleep(nanoseconds: 500_000_000)
             onAdded()
             dismiss()
         } catch {
+            HapticService.error()
             isAdding = false
             addedToPlaylistId = nil
             errorMessage = "Failed to add: \(error.localizedDescription)"

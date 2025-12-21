@@ -19,6 +19,20 @@ struct FriendProfile: Codable, Identifiable, Hashable {
     let isOnline: Bool
     let lastSeen: Date?
 
+    // Now Playing
+    let nowPlayingTrackId: String?
+    let nowPlayingTrackName: String?
+    let nowPlayingArtistName: String?
+    let nowPlayingAlbumArt: String?
+    let nowPlayingUpdatedAt: Date?
+
+    var isCurrentlyPlaying: Bool {
+        guard let updatedAt = nowPlayingUpdatedAt,
+              nowPlayingTrackName != nil else { return false }
+        // Consider "now playing" valid for 3 minutes
+        return Date().timeIntervalSince(updatedAt) < 180
+    }
+
     // Returns 0 if streak has expired (not updated yesterday or today)
     var activeVibestreak: Int {
         guard vibestreak > 0, let lastUpdated = streakLastUpdated else {
@@ -69,5 +83,10 @@ struct FriendProfile: Codable, Identifiable, Hashable {
         self.friendshipId = friendshipId
         self.isOnline = userProfile.isOnline ?? false
         self.lastSeen = userProfile.lastSeen
+        self.nowPlayingTrackId = userProfile.nowPlayingTrackId
+        self.nowPlayingTrackName = userProfile.nowPlayingTrackName
+        self.nowPlayingArtistName = userProfile.nowPlayingArtistName
+        self.nowPlayingAlbumArt = userProfile.nowPlayingAlbumArt
+        self.nowPlayingUpdatedAt = userProfile.nowPlayingUpdatedAt
     }
 }

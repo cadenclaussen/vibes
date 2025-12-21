@@ -41,8 +41,13 @@ struct MessageThreadView: View {
                                     }
                                 }
                             )
+                            .transition(.asymmetric(
+                                insertion: .scale(scale: 0.8).combined(with: .opacity),
+                                removal: .opacity
+                            ))
                         }
                     }
+                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: viewModel.messages.count)
                     .padding()
                 }
                 .onAppear {
@@ -83,8 +88,10 @@ struct MessageThreadView: View {
     private func sendMessage() {
         guard !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
+        HapticService.lightImpact()
         Task {
             await viewModel.sendTextMessage(messageText)
+            HapticService.success()
             messageText = ""
         }
     }
@@ -122,6 +129,7 @@ struct MessageBubbleView: View {
                             isFromCurrentUser: isFromCurrentUser
                         )
                         .onTapGesture {
+                            HapticService.lightImpact()
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 showTimestamp.toggle()
                             }
@@ -200,11 +208,12 @@ struct SongMessageBubbleView: View {
     @ObservedObject var audioPlayer = AudioPlayerService.shared
     @ObservedObject var spotifyService = SpotifyService.shared
     @State private var showPlaylistPicker = false
-    @State private var showReactionPicker = false
+    @State private var showFriendPicker = false
     @State private var showTimestamp = false
 
     private var trackId: String {
-        message.spotifyTrackId ?? message.id ?? UUID().uuidString
+        // Use message ID for uniqueness so duplicate songs are tracked independently
+        message.id ?? message.spotifyTrackId ?? UUID().uuidString
     }
 
     private var isCurrentTrack: Bool {
@@ -229,8 +238,28 @@ struct SongMessageBubbleView: View {
         return reactions.map { (userId: $0.key, emoji: $0.value) }
     }
 
-    private var myReaction: String? {
-        message.reactions?[currentUserId]
+    private var trackForSharing: Track? {
+        guard let spotifyTrackId = message.spotifyTrackId else { return nil }
+        let album = Album(
+            id: "",
+            name: "",
+            images: message.albumArtUrl.map { [SpotifyImage(url: $0, height: nil, width: nil)] } ?? [],
+            releaseDate: "",
+            totalTracks: 0,
+            uri: ""
+        )
+        return Track(
+            id: spotifyTrackId,
+            name: message.songTitle ?? "Unknown",
+            artists: [Artist(id: "", name: message.songArtist ?? "Unknown", uri: "", externalUrls: nil, images: nil, genres: nil, followers: nil, popularity: nil)],
+            album: album,
+            durationMs: 0,
+            explicit: false,
+            popularity: 0,
+            previewUrl: message.previewUrl,
+            uri: "spotify:track:\(spotifyTrackId)",
+            externalUrls: ExternalUrls(spotify: "https://open.spotify.com/track/\(spotifyTrackId)")
+        )
     }
 
     var body: some View {
@@ -259,12 +288,7 @@ struct SongMessageBubbleView: View {
 
                     Spacer()
 
-                    VStack(spacing: 8) {
-                        playButton
-                        if spotifyService.isAuthenticated && trackUri != nil {
-                            addToPlaylistButton
-                        }
-                    }
+                    playButton
                 }
 
                 if let caption = message.caption, !caption.isEmpty {
@@ -278,14 +302,51 @@ struct SongMessageBubbleView: View {
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             .frame(maxWidth: 280)
             .onTapGesture {
+                HapticService.lightImpact()
                 withAnimation(.easeInOut(duration: 0.2)) {
                     showTimestamp.toggle()
                 }
             }
-            .onLongPressGesture {
-                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                impactFeedback.impactOccurred()
-                showReactionPicker = true
+            .contextMenu {
+                // Reaction options
+                Menu {
+                    Button { addReaction("🔥") } label: { Text("🔥 Fire") }
+                    Button { addReaction("❤️") } label: { Text("❤️ Love") }
+                    Button { addReaction("💯") } label: { Text("💯 100") }
+                    Button { addReaction("😐") } label: { Text("😐 Meh") }
+                } label: {
+                    Label("React", systemImage: "face.smiling")
+                }
+
+                if trackForSharing != nil {
+                    Button {
+                        HapticService.lightImpact()
+                        showFriendPicker = true
+                    } label: {
+                        Label("Send to Friend", systemImage: "paperplane")
+                    }
+                }
+
+                // Add to playlist option
+                if spotifyService.isAuthenticated && trackUri != nil {
+                    Button {
+                        HapticService.lightImpact()
+                        showPlaylistPicker = true
+                    } label: {
+                        Label("Add to Playlist", systemImage: "plus.circle")
+                    }
+                }
+
+                if let spotifyTrackId = message.spotifyTrackId {
+                    Button {
+                        HapticService.lightImpact()
+                        if let url = URL(string: "https://open.spotify.com/track/\(spotifyTrackId)") {
+                            UIApplication.shared.open(url)
+                        }
+                    } label: {
+                        Label("Open in Spotify", systemImage: "arrow.up.right")
+                    }
+                }
             }
 
             // Reactions display
@@ -312,18 +373,17 @@ struct SongMessageBubbleView: View {
                 )
             }
         }
-        .sheet(isPresented: $showReactionPicker) {
-            ReactionPickerView(
-                currentReaction: myReaction,
-                onReactionSelected: { emoji in
-                    if let messageId = message.id {
-                        onReactionAdded(messageId, emoji)
-                    }
-                    showReactionPicker = false
-                }
-            )
-            .presentationDetents([.height(120)])
-            .presentationDragIndicator(.visible)
+        .sheet(isPresented: $showFriendPicker) {
+            if let track = trackForSharing {
+                FriendPickerView(track: track, previewUrl: message.previewUrl)
+            }
+        }
+    }
+
+    private func addReaction(_ emoji: String) {
+        HapticService.selectionChanged()
+        if let messageId = message.id {
+            onReactionAdded(messageId, emoji)
         }
     }
 
@@ -389,6 +449,7 @@ struct SongMessageBubbleView: View {
 
     private var playButton: some View {
         Button {
+            HapticService.lightImpact()
             if let previewUrl = message.previewUrl {
                 audioPlayer.playUrl(previewUrl, trackId: trackId)
             }
@@ -398,16 +459,6 @@ struct SongMessageBubbleView: View {
                 .foregroundColor(hasPreview ? .blue : .gray)
         }
         .disabled(!hasPreview)
-    }
-
-    private var addToPlaylistButton: some View {
-        Button {
-            showPlaylistPicker = true
-        } label: {
-            Image(systemName: "plus.circle.fill")
-                .font(.system(size: 24))
-                .foregroundColor(.green)
-        }
     }
 
     private func formatDuration(_ seconds: Int) -> String {
@@ -424,17 +475,12 @@ struct PlaylistMessageBubbleView: View {
     let currentUserId: String
     let onReactionAdded: (String, String) -> Void
 
-    @State private var showReactionPicker = false
     @State private var showTimestamp = false
     @State private var showPlaylistDetail = false
 
     private var reactionsList: [(userId: String, emoji: String)] {
         guard let reactions = message.reactions else { return [] }
         return reactions.map { (userId: $0.key, emoji: $0.value) }
-    }
-
-    private var myReaction: String? {
-        message.reactions?[currentUserId]
     }
 
     private var playlist: Playlist? {
@@ -491,14 +537,20 @@ struct PlaylistMessageBubbleView: View {
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             .frame(maxWidth: 280)
             .onTapGesture {
+                HapticService.lightImpact()
                 if playlist != nil {
                     showPlaylistDetail = true
                 }
             }
-            .onLongPressGesture {
-                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                impactFeedback.impactOccurred()
-                showReactionPicker = true
+            .contextMenu {
+                Menu {
+                    Button { addReaction("🔥") } label: { Text("🔥 Fire") }
+                    Button { addReaction("❤️") } label: { Text("❤️ Love") }
+                    Button { addReaction("💯") } label: { Text("💯 100") }
+                    Button { addReaction("😐") } label: { Text("😐 Meh") }
+                } label: {
+                    Label("React", systemImage: "face.smiling")
+                }
             }
 
             // Reactions display
@@ -513,19 +565,6 @@ struct PlaylistMessageBubbleView: View {
                     .foregroundColor(.secondary)
                     .transition(.opacity.combined(with: .scale(scale: 0.8)))
             }
-        }
-        .sheet(isPresented: $showReactionPicker) {
-            ReactionPickerView(
-                currentReaction: myReaction,
-                onReactionSelected: { emoji in
-                    if let messageId = message.id {
-                        onReactionAdded(messageId, emoji)
-                    }
-                    showReactionPicker = false
-                }
-            )
-            .presentationDetents([.height(120)])
-            .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showPlaylistDetail) {
             if let playlist = playlist {
@@ -564,6 +603,13 @@ struct PlaylistMessageBubbleView: View {
             .font(.title)
             .frame(width: 60, height: 60)
             .background(Color.green.opacity(0.2))
+    }
+
+    private func addReaction(_ emoji: String) {
+        HapticService.selectionChanged()
+        if let messageId = message.id {
+            onReactionAdded(messageId, emoji)
+        }
     }
 
     private func formatTimestamp(_ date: Date) -> String {
@@ -704,6 +750,7 @@ struct ReactionPickerView: View {
             HStack(spacing: 24) {
                 ForEach(reactions, id: \.self) { emoji in
                     Button {
+                        HapticService.selectionChanged()
                         onReactionSelected(emoji)
                     } label: {
                         Text(emoji)
@@ -755,8 +802,10 @@ struct ReactionsDisplayView: View {
                 .padding(.vertical, 3)
                 .background(Color(.systemGray5))
                 .clipShape(Capsule())
+                .transition(.scale.combined(with: .opacity))
             }
         }
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: reactions.count)
     }
 }
 

@@ -61,6 +61,9 @@ struct OnboardingView: View {
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
+                .onChange(of: currentPage) { _, _ in
+                    HapticService.selectionChanged()
+                }
 
                 bottomSection
             }
@@ -98,6 +101,7 @@ struct OnboardingView: View {
     private var navigationButtons: some View {
         HStack {
             Button {
+                HapticService.lightImpact()
                 completeOnboarding()
             } label: {
                 Text("Skip")
@@ -107,6 +111,7 @@ struct OnboardingView: View {
             Spacer()
 
             Button {
+                HapticService.lightImpact()
                 withAnimation {
                     currentPage += 1
                 }
@@ -129,6 +134,7 @@ struct OnboardingView: View {
         VStack(spacing: 12) {
             if !spotifyService.isAuthenticated {
                 Button {
+                    HapticService.lightImpact()
                     showSpotifyConnect = true
                 } label: {
                     HStack {
@@ -145,6 +151,7 @@ struct OnboardingView: View {
             }
 
             Button {
+                HapticService.mediumImpact()
                 completeOnboarding()
             } label: {
                 Text(spotifyService.isAuthenticated ? "Get Started" : "Skip for Now")

@@ -434,13 +434,6 @@ class FirestoreService {
         ])
     }
 
-    func updateProfilePictureURL(userId: String, url: String) async throws {
-        try await db.collection("users").document(userId).updateData([
-            "profilePictureURL": url,
-            "updatedAt": Date()
-        ])
-    }
-
     // MARK: - Presence
 
     func updatePresence(userId: String, isOnline: Bool) async throws {
@@ -462,6 +455,44 @@ class FirestoreService {
 
     func setUserOffline(userId: String) async throws {
         try await updatePresence(userId: userId, isOnline: false)
+    }
+
+    // MARK: - Now Playing
+
+    func updateNowPlaying(userId: String, trackId: String?, trackName: String?, artistName: String?, albumArt: String?) async throws {
+        var data: [String: Any] = [
+            "nowPlayingUpdatedAt": Date()
+        ]
+
+        if let trackId = trackId {
+            data["nowPlayingTrackId"] = trackId
+        } else {
+            data["nowPlayingTrackId"] = FieldValue.delete()
+        }
+
+        if let trackName = trackName {
+            data["nowPlayingTrackName"] = trackName
+        } else {
+            data["nowPlayingTrackName"] = FieldValue.delete()
+        }
+
+        if let artistName = artistName {
+            data["nowPlayingArtistName"] = artistName
+        } else {
+            data["nowPlayingArtistName"] = FieldValue.delete()
+        }
+
+        if let albumArt = albumArt {
+            data["nowPlayingAlbumArt"] = albumArt
+        } else {
+            data["nowPlayingAlbumArt"] = FieldValue.delete()
+        }
+
+        try await db.collection("users").document(userId).updateData(data)
+    }
+
+    func clearNowPlaying(userId: String) async throws {
+        try await updateNowPlaying(userId: userId, trackId: nil, trackName: nil, artistName: nil, albumArt: nil)
     }
 
     // MARK: - Account Deletion
@@ -577,6 +608,7 @@ class FirestoreService {
         var playlistsShared: Int = 0
         var friendsCount: Int = 0
         var maxVibestreak: Int = 0
+        var reactionsReceived: Int = 0
     }
 
     func getAchievementStats(userId: String) async throws -> UserAchievementStats {
@@ -597,6 +629,22 @@ class FirestoreService {
             .whereField("messageType", isEqualTo: "playlist")
             .getDocuments()
         stats.playlistsShared = playlistMessages.documents.count
+
+        // Count reactions received on user's messages from other users
+        let userMessages = try await db.collection("messages")
+            .whereField("senderId", isEqualTo: userId)
+            .getDocuments()
+
+        var reactionsCount = 0
+        for doc in userMessages.documents {
+            if let reactions = doc.data()["reactions"] as? [String: String] {
+                // Count reactions from users other than the sender
+                for reactorId in reactions.keys where reactorId != userId {
+                    reactionsCount += 1
+                }
+            }
+        }
+        stats.reactionsReceived = reactionsCount
 
         return stats
     }

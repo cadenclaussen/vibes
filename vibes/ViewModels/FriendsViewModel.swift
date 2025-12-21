@@ -53,6 +53,8 @@ class FriendsViewModel: ObservableObject {
 
         do {
             try await friendService.sendFriendRequest(toUsername: username)
+            // Track for achievements
+            LocalAchievementStats.shared.friendRequestsSent += 1
         } catch {
             errorMessage = error.localizedDescription
         }

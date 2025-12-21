@@ -261,11 +261,14 @@ struct FriendPickerView: View {
                     .font(.title2)
                     .foregroundColor(selectedFriends.contains(friend.id) ? .blue : .secondary)
             }
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
         .disabled(isSending)
     }
 
     private func toggleSelection(_ friend: FriendProfile) {
+        HapticService.selectionChanged()
         if selectedFriends.contains(friend.id) {
             selectedFriends.remove(friend.id)
         } else {
@@ -354,6 +357,22 @@ struct FriendPickerView: View {
                     try await FirestoreService.shared.sendMessage(message)
                     successCount += 1
                     lastSentFriend = friend
+
+                    // Track for achievements
+                    if case .track(let track, _) = content {
+                        // Track song message sent for each recipient
+                        LocalAchievementStats.shared.songMessagesSent += 1
+                        LocalAchievementStats.shared.messagesSent += 1
+                        LocalAchievementStats.shared.trackConversation(with: friend.id)
+
+                        // Only track these once per send action
+                        if successCount == 1 {
+                            let artistName = track.artists.first?.name ?? ""
+                            LocalAchievementStats.shared.trackArtistShared(artistName)
+                            LocalAchievementStats.shared.trackSongSharedOnFriday()
+                            LocalAchievementStats.shared.checkTimeBasedAchievements()
+                        }
+                    }
                 } catch {
                     print("Failed to send to \(friend.username): \(error)")
                 }
@@ -366,9 +385,11 @@ struct FriendPickerView: View {
             }
 
             if successCount == 0 {
+                HapticService.error()
                 errorMessage = "Failed to send \(itemName)"
                 isSending = false
             } else {
+                HapticService.success()
                 // Brief delay to show completion
                 try? await Task.sleep(nanoseconds: 200_000_000)
                 dismiss()

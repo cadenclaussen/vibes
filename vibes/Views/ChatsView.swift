@@ -75,6 +75,7 @@ struct ChatsView: View {
         } else {
             ScrollView {
                 VStack(spacing: 16) {
+                    nowPlayingSection
                     notificationsSection
                     pendingRequestsSection
                     chatsSection
@@ -192,8 +193,10 @@ struct ChatsView: View {
 
             HStack(spacing: 8) {
                 Button {
+                    HapticService.lightImpact()
                     Task {
                         await viewModel.acceptFriendRequest(friendshipId: request.friendship.id ?? "")
+                        HapticService.success()
                     }
                 } label: {
                     Image(systemName: "checkmark.circle.fill")
@@ -202,6 +205,7 @@ struct ChatsView: View {
                 }
 
                 Button {
+                    HapticService.lightImpact()
                     Task {
                         await viewModel.declineFriendRequest(friendshipId: request.friendship.id ?? "")
                     }
@@ -213,6 +217,38 @@ struct ChatsView: View {
             }
         }
         .padding(.horizontal)
+    }
+
+    @ViewBuilder
+    private var nowPlayingSection: some View {
+        if !viewModel.friendsNowPlaying.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "music.note.list")
+                        .foregroundColor(.green)
+                    Text("Now Playing")
+                        .font(.headline)
+                }
+                .padding(.horizontal)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(viewModel.friendsNowPlaying) { friend in
+                            NowPlayingCard(friend: friend) {
+                                navigationPath.append(friend)
+                            }
+                            .transition(.scale.combined(with: .opacity))
+                        }
+                    }
+                    .padding(.horizontal)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.friendsNowPlaying.count)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 12)
+            .background(Color(.secondarySystemBackground))
+            .cornerRadius(12)
+        }
     }
 
     private var chatsSection: some View {
@@ -234,6 +270,7 @@ struct ChatsView: View {
                         .buttonStyle(.plain)
                         .contextMenu {
                             Button {
+                                HapticService.lightImpact()
                                 selectedFriendForBlend = chat.friend
                             } label: {
                                 Label("Create Music Blend", systemImage: "wand.and.stars")
@@ -301,6 +338,70 @@ struct ChatsView: View {
             let days = seconds / 86400
             return "\(days)d ago"
         }
+    }
+}
+
+// MARK: - Now Playing Card
+
+struct NowPlayingCard: View {
+    let friend: FriendProfile
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 8) {
+                ZStack(alignment: .bottomTrailing) {
+                    if let albumArt = friend.nowPlayingAlbumArt,
+                       let url = URL(string: albumArt) {
+                        AsyncImage(url: url) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Color(.tertiarySystemFill)
+                        }
+                        .frame(width: 80, height: 80)
+                        .cornerRadius(8)
+                    } else {
+                        Color(.tertiarySystemFill)
+                            .frame(width: 80, height: 80)
+                            .cornerRadius(8)
+                            .overlay {
+                                Image(systemName: "music.note")
+                                    .foregroundColor(.secondary)
+                            }
+                    }
+
+                    // Animated equalizer
+                    HStack(spacing: 2) {
+                        ForEach(0..<3, id: \.self) { index in
+                            SoundWaveBar(delay: Double(index) * 0.1)
+                        }
+                    }
+                    .padding(4)
+                    .background(Color.black.opacity(0.6))
+                    .cornerRadius(4)
+                    .padding(4)
+                }
+
+                VStack(spacing: 2) {
+                    Text(friend.displayName)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+
+                    if let trackName = friend.nowPlayingTrackName {
+                        Text(trackName)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+            .frame(width: 90)
+        }
+        .buttonStyle(.plain)
     }
 }
 

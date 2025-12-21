@@ -32,6 +32,13 @@ struct UserProfile: Codable, Identifiable {
     var isOnline: Bool?
     var lastSeen: Date?
 
+    // Now Playing
+    var nowPlayingTrackId: String?
+    var nowPlayingTrackName: String?
+    var nowPlayingArtistName: String?
+    var nowPlayingAlbumArt: String?
+    var nowPlayingUpdatedAt: Date?
+
     struct PrivacySettings: Codable {
         var profileVisibility: String
         var showNowPlaying: Bool

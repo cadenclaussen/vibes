@@ -92,8 +92,8 @@ struct PlaylistDetailView: View {
             .padding()
         } else {
             LazyVStack(spacing: 0) {
-                ForEach(tracks) { track in
-                    PlaylistTrackRow(track: track, previewUrl: previewUrls[track.id])
+                ForEach(Array(tracks.enumerated()), id: \.offset) { index, track in
+                    PlaylistTrackRow(track: track, index: index, previewUrl: previewUrls[track.id])
                     Divider()
                         .padding(.leading, 72)
                 }
@@ -127,11 +127,24 @@ struct PlaylistDetailView: View {
 
 struct PlaylistTrackRow: View {
     let track: Track
+    let index: Int
     let previewUrl: String?
     @ObservedObject var audioPlayer = AudioPlayerService.shared
+    @ObservedObject var spotifyService = SpotifyService.shared
+    @State private var showFriendPicker = false
+    @State private var showPlaylistPicker = false
+
+    private var trackUri: String {
+        "spotify:track:\(track.id)"
+    }
+
+    // Use index for unique identifier to handle duplicate songs in playlist
+    private var uniqueTrackId: String {
+        "playlist-\(index)-\(track.id)"
+    }
 
     private var isCurrentTrack: Bool {
-        audioPlayer.currentTrackId == track.id
+        audioPlayer.currentTrackId == uniqueTrackId
     }
 
     private var isPlaying: Bool {
@@ -145,7 +158,7 @@ struct PlaylistTrackRow: View {
     var body: some View {
         Button {
             if let url = previewUrl {
-                audioPlayer.playUrl(url, trackId: track.id)
+                audioPlayer.playUrl(url, trackId: uniqueTrackId)
             }
         } label: {
             HStack(spacing: 12) {
@@ -200,6 +213,44 @@ struct PlaylistTrackRow: View {
             .opacity(hasPreview ? 1.0 : 0.5)
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            Button {
+                HapticService.lightImpact()
+                showFriendPicker = true
+            } label: {
+                Label("Send to Friend", systemImage: "paperplane")
+            }
+
+            if spotifyService.isAuthenticated {
+                Button {
+                    HapticService.lightImpact()
+                    showPlaylistPicker = true
+                } label: {
+                    Label("Add to Playlist", systemImage: "plus.circle")
+                }
+            }
+
+            Button {
+                HapticService.lightImpact()
+                if let url = URL(string: "https://open.spotify.com/track/\(track.id)") {
+                    UIApplication.shared.open(url)
+                }
+            } label: {
+                Label("Open in Spotify", systemImage: "arrow.up.right")
+            }
+        }
+        .sheet(isPresented: $showFriendPicker) {
+            FriendPickerView(track: track, previewUrl: previewUrl)
+        }
+        .sheet(isPresented: $showPlaylistPicker) {
+            PlaylistPickerView(
+                trackUri: trackUri,
+                trackName: track.name,
+                artistName: track.artists.map { $0.name }.joined(separator: ", "),
+                albumArtUrl: track.album.images.first?.url,
+                onAdded: {}
+            )
+        }
     }
 
     private var albumArtView: some View {

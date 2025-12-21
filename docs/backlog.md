@@ -4,21 +4,6 @@ This file tracks tasks and features to be implemented in the future.
 
 ---
 
-## Profile Enhancements
-
-### 2. Predefined genre selection
-- **Type**: Feature
-- **Description**: Instead of adding favorite genres with free text input, have a set list of music genres that you can pick from
-- **Context**: Free text input allows typos and inconsistencies, predefined list ensures data quality
-- **Requirements**:
-  - Define comprehensive list of music genres
-  - Replace text input with selection UI (checkboxes, chips, or multi-select)
-  - Allow multiple genre selection
-  - Update ProfileEditView to use genre picker
-  - Consider genre categorization (Rock, Pop, Hip-Hop, Electronic, etc.)
-
----
-
 ## Friends Tab Enhancements
 
 ### 18. Search/filter friends list
@@ -32,20 +17,6 @@ This file tracks tasks and features to be implemented in the future.
   - Show "No results" state when no matches
   - Clear button to reset search
   - Keep search bar visible while scrolling (sticky header)
-
-### 3. Real-time Now Playing
-- **Type**: Feature
-- **Description**: Show what friends are currently listening to on Spotify in real-time
-- **Context**: Enables music discovery through seeing friends' current listening activity
-- **Requirements**:
-  - Integrate Spotify Web API "currently playing" endpoint
-  - Create "Now Playing" section at top of friends list
-  - Poll or subscribe to friends' listening status
-  - Display song name, artist, and album art
-  - Show "Listening to..." status with live indicator
-  - Respect privacy settings (users can hide their activity)
-  - Tap to view song details or share
-  - Empty state when no friends are listening
 
 ### 6. Swipe-to-reveal message timestamps
 - **Type**: Feature
@@ -91,36 +62,6 @@ This file tracks tasks and features to be implemented in the future.
 ---
 
 ## UI/UX Polish
-
-### 10. Add haptic feedback throughout the app
-- **Type**: Feature
-- **Description**: Implement haptic feedback for key user interactions to improve tactile experience
-- **Context**: Subtle haptics make the app feel more responsive and polished
-- **Requirements**:
-  - Add light haptic on button taps (send message, friend request, edit profile)
-  - Add notification haptic for success actions (message sent, friend added)
-  - Add warning haptic for error states
-  - Add selection haptic for tab switches
-  - Add impact haptic for pull-to-refresh completion
-  - Add success haptic for streak milestones
-  - Use UIImpactFeedbackGenerator with appropriate styles (.light, .medium, .heavy)
-  - Ensure haptics don't fire too frequently (debounce if needed)
-
-### 11. Add smooth animations and transitions
-- **Type**: Feature
-- **Description**: Implement fluid animations for UI state changes and transitions
-- **Context**: Animations make the app feel modern and help users understand state changes
-- **Requirements**:
-  - Add .animation(.spring()) to state-driven UI changes
-  - Implement slide-in animation for new messages
-  - Add fade transitions between views
-  - Animate profile picture updates with scale effect
-  - Add bounce animation for reactions
-  - Implement smooth keyboard dismiss animations
-  - Add tab switch animations with scale effect
-  - Animate button states (pressed, disabled) with opacity/scale
-  - Use .transition() for view appearance/disappearance
-  - Keep animations subtle and quick (0.2-0.4s duration)
 
 ### 12. Add visual depth with shadows and elevation
 - **Type**: Feature
@@ -174,8 +115,7 @@ This file tracks tasks and features to be implemented in the future.
 ---
 
 ## Backlog Statistics
-- Total Future Tasks: 11
-- Profile Enhancements: 1
-- Friends Tab Enhancements: 5
-- UI/UX Polish: 4
+- Total Future Tasks: 8
+- Friends Tab Enhancements: 4
+- UI/UX Polish: 3
 - Messaging Enhancements: 1

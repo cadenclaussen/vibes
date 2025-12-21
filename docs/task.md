@@ -2,572 +2,381 @@
 
 ## Active Tasks
 
-### 30. Improve messaging UX with swipe-to-reveal timestamps and unread badges
+### 51. Add haptic feedback throughout app
 - **Status**: COMPLETED
 - **Type**: Feature
-- **Location**: vibes/Views/MessageThreadView.swift (cleaned), docs/backlog.md (added)
-- **Requested**: 1) Remove timestamps from under messages - show them when swiping left like iMessage. 2) Add red notification badge with unread message count next to friend name in friends list
-- **Context**: Improve messaging UI to be more like iMessage with cleaner message view and better unread indicators
+- **Location**: vibes/Services/HapticService.swift (new), multiple Views
+- **Requested**: Add haptic feedback for button taps, success actions, achievements, vibestreak milestones, and other interactions
+- **Context**: Haptic feedback improves perceived quality and provides tactile confirmation of actions
 - **Acceptance Criteria**:
-  - [x] Remove timestamp feature attempts
-  - [x] Remove unread badge feature attempts
-  - [x] Add timestamp feature to backlog
-  - [x] Clean up code
-- **Failure Count**: 0
-- **Failures**: None
-- **Solution**: Removed both features and added timestamp feature to backlog:
-  - Attempted implementation but features didn't work as expected
-  - Removed all swipe-to-reveal timestamp code from MessageThreadView.swift
-  - Removed all unread badge code from FriendsViewModel, FriendsView, and FirestoreService
-  - Added "Swipe-to-reveal message timestamps" as task #6 in docs/backlog.md under Friends Tab Enhancements
-  - Message view now back to clean simple state without timestamps or unread badges
-  - Built and verified clean build
-
-### 31. Integrate Spotify API to access user playlists
-- **Status**: COMPLETED
-- **Type**: Feature
-- **Location**: vibes/Models/SpotifyModels.swift, vibes/Services/SpotifyService.swift, vibes/Services/KeychainManager.swift, vibes/Views/SpotifyAuthView.swift, vibes/Views/ProfileView.swift
-- **Requested**: "I want to be able to access my playlist on spotify through my app"
-- **Context**: User wants to connect their Spotify account and view their playlists within the vibes app.
-- **Acceptance Criteria**:
-  - [x] Implement OAuth 2.0 authentication flow for Spotify
-  - [x] Register app in Spotify Developer Dashboard and configure redirect URI
-  - [x] Create SpotifyService to handle API calls and token management
-  - [x] Store access/refresh tokens securely in Keychain
-  - [x] Fetch and display user's Spotify playlists
-  - [x] Handle token refresh when expired
-  - [x] Add error handling for auth failures and API errors
-  - [x] Test on simulator with real Spotify account
-- **Failure Count**: 0
-- **Failures**: None
-- **Solution**: Successfully implemented comprehensive Spotify API integration with OAuth 2.0 flow, Keychain token storage, and API methods for playlists, search, and playback status.
-
-### 32. Implement Spotify song search in Search tab
-- **Status**: COMPLETED
-- **Type**: Feature
-- **Location**: vibes/Views/SearchView.swift, vibes/ViewModels/SearchViewModel.swift, vibes/ContentView.swift
-- **Requested**: Implement the search tab to search for songs and music from Spotify
-- **Context**: SearchTab currently shows placeholder "Under Construction". SpotifyService already has searchTracks() method.
-- **Acceptance Criteria**:
-  - [x] Create SearchView with search bar
-  - [x] Display search results with album art, track name, artist
-  - [x] Handle loading and error states
-  - [x] Handle case when Spotify not connected
-  - [x] Replace placeholder SearchTab with actual implementation
+  - [x] Create HapticService with impact, notification, and selection feedback
+  - [x] Add light impact haptics to button taps
+  - [x] Add success haptics to message send, playlist save, friend request actions
+  - [x] Add haptics to reaction picker selection
+  - [x] Add haptics to vibestreak milestone notifications
+  - [x] Add selection haptics to segmented controls and pickers
   - [x] Build and test on simulator
 - **Failure Count**: 0
 - **Failures**: None
-- **Solution**: Created SearchViewModel.swift and SearchView.swift with debounced search, results list, and Spotify connection handling.
+- **Solution**: Created HapticService.swift with static methods for light/medium/heavy impact, success/warning/error notifications, and selection changed feedback. Added haptics throughout MessageThreadView, SearchView, PlaylistPickerView, FriendPickerView, AuthView, OnboardingView, AddFriendView, ProfileView, ChatsView, AIPlaylistView.
 
-### 33. Implement AVPlayer song preview in search results
+### 52. Replace song action buttons with long-press context menu
 - **Status**: COMPLETED
 - **Type**: Feature
-- **Location**: vibes/Services/AudioPlayerService.swift, vibes/Views/SearchView.swift
-- **Requested**: Implement tap-to-play 30-second song previews using AVPlayer when users tap on search results
-- **Context**: Spotify provides previewUrl on Track objects. Need AudioPlayerService singleton to manage playback.
+- **Location**: vibes/Views/SearchView.swift, vibes/Views/MessageThreadView.swift
+- **Requested**: Instead of there being plus buttons to add to spotify and little paper airplanes to send to friends, you have to hold on the song, then a menu will pop up with those options
+- **Context**: Cleaner UI that hides actions behind a context menu, similar to Apple Music and Spotify
 - **Acceptance Criteria**:
-  - [x] Create AudioPlayerService singleton with AVPlayer
-  - [x] Handle play/pause/stop and track switching
-  - [x] Update TrackRow to show play/pause overlay on album art
-  - [x] Add sound wave animation for playing tracks
-  - [x] Show indicator for tracks without preview
+  - [x] Remove visible plus and send buttons from TrackRow in SearchView
+  - [x] Add context menu to TrackRow with "Add to Playlist" and "Send to Friend" options
+  - [x] Remove visible plus button from SongMessageBubbleView in MessageThreadView
+  - [x] Add context menu to song messages with "Add to Playlist" option
+  - [x] Add haptic feedback on context menu actions
   - [x] Build and test on simulator
 - **Failure Count**: 0
 - **Failures**: None
-- **Solution**: Created AudioPlayerService.swift with AVPlayer, iTunesService.swift for fallback previews, and SoundWaveBar animation component.
+- **Solution**: Removed buttons, added .contextMenu with options and haptic feedback to SearchView TrackRow, MessageThreadView SongMessageBubbleView, and PlaylistMessageBubbleView.
 
-### 34. Send songs from search to friends with playable previews in DMs
+### 53. Add context menu to all song views throughout app
 - **Status**: COMPLETED
 - **Type**: Feature
-- **Location**: vibes/Views/SearchView.swift, vibes/Views/MessageThreadView.swift, vibes/Views/FriendPickerView.swift
-- **Requested**: User wants to send songs from search results to friends, have the song appear in DMs, and allow friends to play the song preview directly
-- **Context**: SearchView has song search with preview playback. Message model already supports song messages.
+- **Location**: Multiple views (ArtistDetailView, AlbumDetailView, PlaylistDetailView, DiscoverView)
+- **Requested**: The long press context menu should work for any song, whether it be in an artist profile, an album, or something a friend sent
+- **Context**: Consistent UX - users should be able to long-press any song anywhere to send or add to playlist
 - **Acceptance Criteria**:
-  - [x] Add "Send to Friend" action on search result tracks
-  - [x] Show friend picker sheet when sending a song
-  - [x] Send song as message to selected friend's DM thread
-  - [x] Make play button functional in SongMessageBubbleView
+  - [x] Add context menu to ArtistDetailView track rows
+  - [x] Add context menu to AlbumDetailView track rows
+  - [x] Add context menu to PlaylistDetailView track rows
+  - [x] Add context menu to DiscoverView song cards
   - [x] Build and test on simulator
 - **Failure Count**: 0
 - **Failures**: None
-- **Solution**: Added send button to TrackRow, created FriendPickerView.swift, and connected SongMessageBubbleView to AudioPlayerService.
+- **Solution**: Added context menu with "Send to Friend" and "Add to Playlist" to ArtistTopTrackRow, AlbumTrackRow (with fullTrack computed property), PlaylistTrackRow, RecommendationRow, and TrendingSongRow (with track computed property).
 
-### 37. Implement group chats
-- **Status**: DEFERRED
-- **Type**: Feature
-- **Location**: N/A (moved to backlog)
-- **Requested**: Add group chat functionality with a new Chats tab replacing Friends tab
-- **Context**: Enable users to create group conversations, send messages to multiple friends at once
-- **Acceptance Criteria**:
-  - [x] Create ChatsView (replaces FriendsView as tab) - kept for DMs
-  - [x] Create ChatRowView for conversation list - kept for DMs
-  - [ ] Group chat features - moved to backlog task #19
-- **Failure Count**: 1
-- **Failures**: Groups were creating but disappearing from the list due to Firestore composite index requirement
-- **Solution**: Removed group chat features, kept Chats tab for DM conversations only. Group chats added to backlog as task #19 for future implementation with proper Firestore index setup.
+### 54. Fix profile picture upload error
+- **Status**: N/A (Feature Removed)
+- **Type**: Bug
+- **Location**: N/A
+- **Requested**: When trying to upload pictures, it says "upload failed: object profile picture/____ does not exist"
+- **Context**: Profile picture upload failing - user does not have Firebase Storage (requires paid plan)
+- **Acceptance Criteria**: N/A
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Profile picture upload feature was completely removed since user does not have Firebase Storage access. See Task #47 in archive.
 
-### 36. Implement vibestreaks tracking
+### 55. Add achievement unlock banner and real-time updates
 - **Status**: COMPLETED
 - **Type**: Feature
-- **Location**: Multiple files
-- **Requested**: Implement vibestreaks - daily engagement tracking between friends with streak counters
-- **Context**: Gamification feature to encourage daily music sharing between friends
+- **Location**: vibes/Services/AchievementNotificationService.swift (new), vibes/Views/Components/AchievementsView.swift, vibes/ContentView.swift, vibes/Views/ProfileView.swift
+- **Requested**: When I get an achievement, I have to refresh the page to see it updated. Instead I want a little banner in the app that says "you got so and so achievement", and I want it to update without switching tabs
+- **Context**: Better UX for achievement unlocks with immediate feedback
 - **Acceptance Criteria**:
-  - [x] Add vibestreak to FriendProfile model
-  - [x] Update FriendService to fetch vibestreak data with friends
-  - [x] Display streak count (fire emoji) next to friends in friends list
-  - [x] Calculate streak logic: both users must interact daily to maintain streak
-  - [x] Increment streak when both users interact on consecutive days
-  - [x] Reset streak to 0 when a day is missed
-  - [x] Load vibestreak in MessageThreadViewModel
+  - [x] Create achievement unlock banner component
+  - [x] Show banner when achievement is unlocked
+  - [x] Auto-update achievements without tab switching
+  - [x] Add haptic feedback on achievement unlock
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Created AchievementNotificationService.swift singleton that tracks unlocked achievements via UserDefaults, queues new unlocks, and shows banners. Created AchievementBannerView and AchievementBannerOverlay with slide-down animation. Added overlay to MainTabView and integrated with ProfileView.
+
+### 56. Add context menu to recently played and top songs in Profile
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/ProfileView.swift
+- **Requested**: The recently played and top songs sections in Profile should have the same long-press context menu as other songs (hold down to play or send to friends). Also make top artists clickable.
+- **Context**: Consistent UX - all songs should have the same context menu behavior
+- **Acceptance Criteria**:
+  - [x] Add context menu to TopTrackRow with "Send to Friend" and "Add to Playlist" options
+  - [x] Add context menu to RecentlyPlayedCell with same options
+  - [x] Add state and sheets for FriendPickerView and PlaylistPickerView
+  - [x] Make top artists clickable to navigate to ArtistDetailView
   - [x] Build and test on simulator
 - **Failure Count**: 0
 - **Failures**: None
-- **Solution**: Implemented complete vibestreak system:
-  - **FriendProfile.swift**: Added vibestreak and friendshipId fields
-  - **Friendship.swift**: Added user1LastInteraction, user2LastInteraction, streakLastUpdated fields
-  - **FriendService.swift**: Updated fetchFriends() to include vibestreak data from Friendship
-  - **FriendsView.swift**: Added fire emoji with streak count next to friends in list
-  - **FirestoreService.swift**: Added updateVibestreak() logic - tracks per-user interactions, increments streak when both users interact on consecutive days, resets if day missed, creates milestone notifications at 7/30/100/365 days
-  - **MessageThreadViewModel.swift**: Added loadVibestreak() to fetch and listen to streak updates in real-time
-  - Build succeeded on iPhone 16e simulator
+- **Solution**: Added onSendTapped and onAddToPlaylistTapped callbacks with context menus to TopTrackRow and RecentlyPlayedCell. Added trackToSend/trackToAddToPlaylist state and sheet modifiers. Wrapped TopArtistCell in NavigationLink to ArtistDetailView.
 
-### 35. Send messages with Return/Enter key
+### 57. Move AI Features from menu to Profile next to Connect Spotify
 - **Status**: COMPLETED
 - **Type**: Feature
-- **Location**: vibes/Views/MessageThreadView.swift:272-280
-- **Requested**: Allow users to send messages by pressing Return/Enter instead of clicking the send button
-- **Context**: Improves messaging UX by enabling faster message sending with keyboard (from backlog task #7)
+- **Location**: vibes/Views/ProfileView.swift, vibes/Views/SettingsMenu.swift
+- **Requested**: The AI features should be a part of the profile next to connect spotify, instead of in the menu
+- **Context**: Better discoverability - AI configuration should be alongside Spotify connection
 - **Acceptance Criteria**:
-  - [x] Add onSubmit handler to TextField in message input
-  - [x] Add .submitLabel(.send) to show "Send" on keyboard
-  - [x] Keep send button as alternative method
-  - [x] Prevent sending empty messages (already implemented)
-  - [x] Build and test on simulator
+  - [x] Remove AI Features option from SettingsMenu
+  - [x] Add AI Features section to ProfileView after Spotify section
+  - [x] Build and test
 - **Failure Count**: 0
 - **Failures**: None
-- **Solution**: Updated MessageInputBar in MessageThreadView.swift:
-  - Changed TextField to single-line (removed axis: .vertical and lineLimit)
-  - Added `.submitLabel(.send)` to show "Send" on the iOS keyboard return key
-  - Added `.onSubmit` handler that calls onSend() when Return is pressed
-  - Only sends if canSend is true (non-empty message) and not currently sending
-  - Send button remains as alternative method
-  - Build succeeded on iPhone 16e simulator
+- **Solution**: Removed AI Features button and showingAISettings state from SettingsMenu. Added aiFeaturesSection to ProfileView right after spotifySection with similar styling. Shows "Set Up AI Features" button when not configured, or "Manage AI Settings" when configured.
 
-### 38. Add songs to Spotify playlist
+### 58. Real-time Now Playing
 - **Status**: COMPLETED
 - **Type**: Feature
-- **Location**: vibes/Services/SpotifyService.swift, vibes/Views/SearchView.swift, vibes/Views/PlaylistPickerView.swift, vibes/Views/MessageThreadView.swift
-- **Requested**: Add ability to add songs (from search results or received songs in DMs) to user's Spotify playlist
-- **Context**: User wants to save songs they discover or receive from friends to their Spotify library
+- **Location**: vibes/Services/NowPlayingService.swift (new), vibes/Views/ChatsView.swift, vibes/Models/User.swift, vibes/Models/FriendProfile.swift
+- **Requested**: Show what friends are currently listening to on Spotify in real-time
+- **Context**: Social feature for music discovery through friends' listening activity
 - **Acceptance Criteria**:
-  - [x] Add playlist-modify-public and playlist-modify-private OAuth scopes
-  - [x] Add addTrackToPlaylist() method to SpotifyService
-  - [x] Create playlist picker UI
-  - [x] Add "Add to Playlist" action on search result tracks
-  - [x] Add "Add to Playlist" action on song messages in DMs
-  - [x] Show success/error feedback
-  - [x] Build and test on simulator
+  - [x] Add now playing fields to UserProfile and FriendProfile
+  - [x] Create NowPlayingService to poll Spotify and update Firestore
+  - [x] Add updateNowPlaying/clearNowPlaying to FirestoreService
+  - [x] Add Now Playing section to ChatsView with NowPlayingCard
+  - [x] Start/stop polling based on app lifecycle
+  - [x] Build and test
 - **Failure Count**: 0
 - **Failures**: None
-- **Solution**: Implemented complete "Add to Playlist" functionality:
-  - Added playlist-modify-public and playlist-modify-private OAuth scopes to SpotifyService
-  - Added addTrackToPlaylist(playlistId:, trackUri:) method to SpotifyService using POST to Spotify API
-  - Created PlaylistPickerView.swift with playlist list, loading/error states, and success feedback
-  - Added green plus button to TrackRow in SearchView that opens playlist picker
-  - Added green plus button to SongMessageBubbleView in MessageThreadView for songs in DMs
-  - Only shows user's own playlists (can't add to others' playlists)
-  - Shows loading spinner during add, checkmark on success
-  - Build succeeded on iPhone 16e simulator
+- **Solution**: Created NowPlayingService.swift singleton that polls Spotify every 30 seconds and updates Firestore. Added nowPlayingTrackId/Name/Artist/AlbumArt/UpdatedAt fields to UserProfile and FriendProfile. Created NowPlayingCard component with album art and animated equalizer. Added Now Playing section to ChatsView that shows friends currently listening.
 
-### 39. Phase 1: Tab Structure & Profile Foundation
+### 59. Predefined genre selection
 - **Status**: COMPLETED
 - **Type**: Feature
-- **Location**: vibes/ContentView.swift, vibes/Views/ProfileView.swift, vibes/Views/DiscoverView.swift, vibes/Services/SpotifyService.swift, vibes/Models/SpotifyModels.swift
-- **Requested**: Implement Phase 1 of the new implementation plan - remove Stats tab, add Discover tab placeholder, merge stats into Profile with top artists/tracks from Spotify API
-- **Context**: Refactoring app to match vision in user-journeys.md. Phase 1 simplifies tab bar and adds listening stats to Profile.
+- **Location**: vibes/Views/Components/GenrePickerView.swift (new), vibes/Views/ProfileView.swift
+- **Requested**: Replace free-text genre input with predefined genre picker
+- **Context**: Better data quality with consistent genre names
 - **Acceptance Criteria**:
-  - [x] Remove Stats tab from TabView
-  - [x] Add Discover tab placeholder as first tab (home)
-  - [x] Reorder tabs: Discover, Search, Chats, Profile
-  - [x] Add getTopArtists() and getTopTracks() to SpotifyService
-  - [x] Add TopArtistsResponse and TopTracksResponse models
-  - [x] Add time period picker (short/medium/long term) to ProfileView
-  - [x] Add Top Artists section with album art grid
-  - [x] Add Top Songs section with track list
-  - [x] Add Recently Played horizontal scroll section
-  - [x] Build and test on simulator
+  - [x] Create MusicGenre model with 35+ genres
+  - [x] Create GenrePickerView with grid of selectable genres
+  - [x] Replace text input with genre picker sheet
+  - [x] Add haptic feedback on selection
+  - [x] Build and test
 - **Failure Count**: 0
 - **Failures**: None
-- **Solution**: Implemented complete Phase 1:
-  - Created DiscoverView.swift with placeholder UI (waveform icon, "coming soon" message)
-  - Removed StatsTab struct from ContentView.swift
-  - Reordered tabs to: Discover (0), Search (1), Chats (2), Profile (3)
-  - Added TopArtistsResponse and TopTracksResponse models to SpotifyModels.swift
-  - Extended Artist model with images, genres, followers, popularity fields
-  - Added getTopArtists(timeRange:limit:) and getTopTracks(timeRange:limit:) to SpotifyService
-  - Updated ProfileView.swift with:
-    - TimeRange enum (shortTerm/mediumTerm/longTerm with display names)
-    - Segmented time period picker
-    - Top Artists grid (3x2 layout with circular artist images)
-    - Top Songs list with rank numbers and album art
-    - Recently Played horizontal scroll section
-    - Loading and error states with retry button
-  - Created helper views: TopArtistCell, TopTrackRow, RecentlyPlayedCell
-  - Build succeeded on iPhone 16e simulator
+- **Solution**: Created GenrePickerView.swift with 35 predefined genres across categories (Pop, Hip-Hop, Electronic, Jazz, Latin, etc.). Each genre has name, icon, and color. GenreChip component shows circular icon with selection state. Replaced TextField in ProfileView with "Add Genres" button that opens picker sheet.
 
-### 40. Phase 2: Discover Tab (New Home)
+### 60. Smooth animations and transitions
 - **Status**: COMPLETED
 - **Type**: Feature
-- **Location**: vibes/Views/DiscoverView.swift, vibes/ViewModels/DiscoverViewModel.swift, vibes/Services/SpotifyService.swift, vibes/Models/SpotifyModels.swift
-- **Requested**: Implement Phase 2 - build out the Discover tab with new releases, recommendations, friend activity, and trending songs
-- **Context**: Transform Discover from placeholder to main landing page with personalized music discovery
+- **Location**: vibes/Views/MessageThreadView.swift, vibes/Views/ChatsView.swift, vibes/Views/Components/GenrePickerView.swift
+- **Requested**: Add spring animations and smooth transitions throughout app
+- **Context**: Polish for a more refined user experience
 - **Acceptance Criteria**:
-  - [x] Add getNewReleases() to SpotifyService
-  - [x] Add getRecommendations() to SpotifyService
-  - [x] Create DiscoverViewModel with data loading
-  - [x] Build Recently Active friends section
-  - [x] Build New Releases horizontal scroll section
-  - [x] Build For You recommendations section
-  - [x] Build Trending Among Friends section
-  - [x] Build and test on simulator
+  - [x] Add message appear animation (scale + opacity)
+  - [x] Add reaction animation (spring scale)
+  - [x] Add Now Playing card transition animation
+  - [x] Add genre selection animation
+  - [x] Build and test
 - **Failure Count**: 0
 - **Failures**: None
-- **Solution**: Implemented complete Phase 2:
-  - Added NewReleasesResponse, AlbumPage, RecommendationsResponse, RecommendationSeed models to SpotifyModels.swift
-  - Added getNewReleases(limit:) to SpotifyService - fetches from /browse/new-releases
-  - Added getRecommendations(seedTracks:seedArtists:limit:) to SpotifyService - fetches personalized recommendations using user's top tracks/artists as seeds
-  - Created DiscoverViewModel.swift with:
-    - TrendingSong and RecentlyActiveFriend models
-    - loadAllData() loads all sections in parallel
-    - loadNewReleases() fetches from Spotify API
-    - loadRecommendations() uses top tracks/artists as seeds
-    - loadTrendingSongs() queries Firestore for songs shared by friends in last 7 days, groups by track, counts occurrences
-    - loadRecentlyActiveFriends() finds friends who recently shared songs
-  - Built full DiscoverView.swift with:
-    - Recently Active section: horizontal scroll of friends with their last shared song
-    - New Releases section: horizontal scroll of album cards
-    - For You section: playable track list with recommendations
-    - Trending Among Friends section: songs shared by friends with share counts
-    - Connect Spotify prompt when not authenticated
-    - Loading and empty states
-    - Pull-to-refresh support
-  - Helper views: RecentlyActiveFriendCard, NewReleaseCard, RecommendationRow, TrendingSongRow
-  - Build succeeded on iPhone 16e simulator
+- **Solution**: Added spring animations throughout: messages appear with scale+opacity transition, reactions display with spring animation, Now Playing cards animate in/out, genre chips animate on selection. All use .spring() with appropriate response/dampingFraction values.
 
-### 41. Phase 3: Search Enhancements
+### 61. Add play functionality to profile top songs and recently played
 - **Status**: COMPLETED
 - **Type**: Feature
-- **Location**: vibes/Views/SearchView.swift, vibes/ViewModels/SearchViewModel.swift, vibes/Services/SpotifyService.swift, vibes/Models/SpotifyModels.swift
-- **Requested**: Implement Phase 3 - enhance search with recent searches, type filters (songs/artists/albums/playlists), and improved results UI
-- **Context**: Improve search experience with history, filtering, and richer result displays
+- **Location**: vibes/Views/ProfileView.swift
+- **Requested**: In profile page, be able to play/send/add to playlist top songs and recently played songs. Currently only send and add to playlist work via context menu. Need to add tap-to-play functionality like SearchView has.
+- **Context**: Consistency with SearchView where tapping a track plays its preview
 - **Acceptance Criteria**:
-  - [x] Add search type parameter to Spotify API
-  - [x] Store recent searches in UserDefaults (last 10)
-  - [x] Show recent searches when search field is empty
-  - [x] Add segmented control for search type (Songs/Artists/Albums/Playlists)
-  - [x] Build Artist results with circular image, name, follower count
-  - [x] Build Album results with art, name, artist, year
-  - [x] Build Playlist results with image, name, owner, track count
-  - [x] Build and test on simulator
+  - [x] Make TopTrackRow tappable to play track preview
+  - [x] Make RecentlyPlayedCell tappable to play track preview
+  - [x] Show play/pause indicator on currently playing track
+  - [x] Handle tracks without preview URLs gracefully
+  - [x] Add "Open in Spotify" option to context menu
+  - [x] Build and test
 - **Failure Count**: 0
 - **Failures**: None
-- **Solution**: Implemented complete Phase 3:
-  - Added SearchType enum with track, artist, album, playlist cases
-  - Added UnifiedSearchResult, ArtistPage, AlbumSearchPage, PlaylistSearchPage models
-  - Added search(query:type:limit:), searchArtists, searchAlbums, searchPlaylists to SpotifyService
-  - Updated SearchViewModel with:
-    - selectedSearchType for filtering results
-    - recentSearches array persisted with UserDefaults
-    - saveRecentSearch, clearRecentSearches, selectRecentSearch methods
-    - Search type-aware result loading and storage
-    - hasResults computed property for current search type
-  - Updated SearchView with:
-    - Segmented control picker for Songs/Artists/Albums/Playlists
-    - Recent searches section with clock icon and "Clear" button
-    - Tap recent search to re-execute
-    - Dynamic search placeholder text based on type
-  - Created new result row views:
-    - ArtistRow: Circular artist image, name, formatted follower count (1.2M, 500K, etc.)
-    - AlbumRow: Album art, name, release year, track count
-    - PlaylistRow: Playlist image, name, owner, track count
-  - Build succeeded on iPhone 16e simulator
+- **Solution**: Added AudioPlayerService to TopTrackRow and RecentlyPlayedCell. Made both tappable to play track previews using iTunes 30-second previews (fetched via iTunesService as fallback when Spotify preview unavailable). Added play/pause indicator overlay on album art with progress bar. Tracks without preview show dimmed (0.5 opacity) and display "No Preview Available" alert with option to open in Spotify. Added "Open in Spotify" context menu option.
 
-### 42. Album/Playlist/Artist Detail Views
-- **Status**: COMPLETED
-- **Type**: Feature
-- **Location**: vibes/Views/AlbumDetailView.swift, vibes/Views/PlaylistDetailView.swift, vibes/Views/ArtistDetailView.swift, vibes/Views/SearchView.swift, vibes/Services/SpotifyService.swift, vibes/Models/SpotifyModels.swift
-- **Requested**: When tapping on album/playlist in search, show list of songs with 30-second previews. When tapping artist, show top songs and new releases with previews.
-- **Context**: Enable browsing and previewing tracks from albums, playlists, and artists
+### 62. Sort conversations by most recent message
+- **Status**: ABANDONED
+- **Type**: Bug
+- **Location**: vibes/ViewModels/ChatsViewModel.swift:63
+- **Requested**: User wants conversations sorted by most recent text/message without having to refresh
+- **Context**: Sorting logic exists but real-time updates kept failing due to Firestore listener overwriting local state
 - **Acceptance Criteria**:
-  - [x] Add getAlbumTracks API to SpotifyService
-  - [x] Add getPlaylistTracks API to SpotifyService
-  - [x] Add getArtistTopTracks and getArtistAlbums APIs
-  - [x] Create AlbumDetailView with playable track list
-  - [x] Create PlaylistDetailView with playable track list
-  - [x] Create ArtistDetailView with top songs and releases sections
-  - [x] Make search result rows tappable with navigation
-  - [x] Build and test on simulator
-- **Failure Count**: 0
-- **Failures**: None
-- **Solution**: Implemented complete detail views with playable previews:
-  - Added AlbumTracksResponse, SimplifiedTrack, PlaylistTracksResponse, PlaylistTrackItem, ArtistTopTracksResponse, ArtistAlbumsResponse models to SpotifyModels.swift
-  - Added Hashable conformance to Artist, Album, Playlist, and related types for navigation
-  - Added getAlbumTracks(albumId:limit:) to SpotifyService - fetches album track list
-  - Updated getPlaylistTracks(playlistId:limit:) to use models from SpotifyModels.swift
-  - Added getArtistTopTracks(artistId:) to SpotifyService - fetches top tracks
-  - Added getArtistAlbums(artistId:limit:) to SpotifyService - fetches albums/singles
-  - Created AlbumDetailView.swift with:
-    - Header section with album art, name, release year, track count
-    - Track list showing track number, name, artist, duration
-    - Playable 30-second previews via AudioPlayerService
-    - Sound wave animation for currently playing track
-    - Speaker slash icon for tracks without preview
-  - Created PlaylistDetailView.swift with:
-    - Header section with playlist image, name, owner, track count
-    - Track list showing album art, name, artist, duration, explicit badge
-    - Playable 30-second previews via AudioPlayerService
-  - Created ArtistDetailView.swift with:
-    - Header section with circular artist image, name, follower count
-    - Top Songs section (top 10 tracks with rank, playable previews)
-    - Discography section (horizontal scroll of albums, tappable to AlbumDetailView)
-  - Updated SearchView.swift with NavigationLinks for Artist, Album, Playlist rows
-  - Added navigationDestination modifiers for type-safe navigation
-  - Build succeeded on iPhone 16e simulator
+  - [x] Verify sorting logic is correct
+  - [ ] Add real-time local thread updates when messages are sent
+  - [ ] Ensure conversations move to top immediately without refresh
+  - [ ] Build and test
+- **Failure Count**: 3
+- **Failures**:
+  - Attempt 1: Assumed existing sorting was working
+  - Attempt 2: Added NotificationCenter updates but Firestore listener overwrote local state
+  - Attempt 3: Added local/server merge but still not working correctly
+- **Solution**: Reverted all changes. Basic sorting via Firestore listener remains (works on refresh).
 
-### 43. Fix preview playback in detail views using iTunes
+### 63. Fix duplicate song playing indicator across entire app
 - **Status**: COMPLETED
 - **Type**: Bug
-- **Location**: vibes/Views/AlbumDetailView.swift, vibes/Views/PlaylistDetailView.swift, vibes/Views/ArtistDetailView.swift
-- **Requested**: Song previews weren't playing because Spotify preview URLs are unavailable - use iTunes previews instead
-- **Context**: Spotify often returns nil for previewUrl. The app already has iTunesService for fetching preview URLs as fallback.
+- **Location**: Multiple views (MessageThreadView, ProfileView, PlaylistDetailView)
+- **Requested**: When clicking play on a song, if there are duplicate songs in the list, all instances show as playing instead of just the one clicked. Fix across the entire app.
+- **Context**: The trackId was using spotifyTrackId/track.id which is the same for duplicate songs. Need to use unique identifiers per instance.
 - **Acceptance Criteria**:
-  - [x] AlbumDetailView fetches iTunes previews for all tracks
-  - [x] PlaylistDetailView fetches iTunes previews for all tracks
-  - [x] ArtistDetailView fetches iTunes previews for top tracks
-  - [x] Playback uses iTunes preview URLs
-  - [x] Build and test on simulator
+  - [x] Only the specific song clicked shows as playing
+  - [x] Duplicate songs can be played independently
+  - [x] Fix in MessageThreadView (same song sent multiple times)
+  - [x] Fix in ProfileView TopTrackRow (use rank-based ID)
+  - [x] Fix in ProfileView RecentlyPlayedCell (use playedAt timestamp)
+  - [x] Fix in PlaylistDetailView (playlists can have duplicate songs)
+  - [x] Build and test
 - **Failure Count**: 0
 - **Failures**: None
-- **Solution**: Updated all detail views to use iTunes previews:
-  - Added `previewUrls: [String: String]` state to store iTunes preview URLs
-  - Added `loadiTunesPreviews()` async function that fetches iTunes previews for all tracks
-  - Updated track row components to accept previewUrl parameter
-  - AlbumTrackRow, PlaylistTrackRow, ArtistTopTrackRow now use passed previewUrl instead of track.previewUrl
-  - Previews are fetched immediately after loading tracks from Spotify API
-  - Build succeeded on iPhone 16e simulator
+- **Solution**: Used unique identifiers for each song instance:
+  - MessageThreadView: Use `message.id` instead of `spotifyTrackId`
+  - ProfileView TopTrackRow: Use `"top-\(rank)-\(track.id)"`
+  - ProfileView RecentlyPlayedCell: Use `"\(track.id)-\(playHistory.playedAt)"`
+  - PlaylistDetailView: Use `"playlist-\(index)-\(track.id)"` with enumerated ForEach
 
-### 44. Phase 4: Chats Enhancements
+### 65. Wrong song plays for certain tracks (Sky, His and Hers)
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Services/iTunesService.swift:24-95
+- **Requested**: When playing certain songs, the wrong song plays. Examples: "Sky" by Playboi Carti and "His and Hers" by Internet Money ft. Don Toliver play incorrect audio
+- **Context**: Preview URLs may be mismatched or iTunes search returning wrong tracks as fallback
+- **Acceptance Criteria**:
+  - [x] Identify root cause of wrong song playing
+  - [x] Fix preview URL resolution for affected tracks
+  - [x] Verify "Sky" by Playboi Carti plays correctly
+  - [x] Verify "His and Hers" by Internet Money plays correctly
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Root cause was iTunesService.searchPreview() falling back to the first search result when no match was found (line 52). For common song names like "Sky", this returned wrong songs. Fixed by:
+  1. Removed fallback to first result - now returns nil if no good match
+  2. Added scoring system to find best matching track
+  3. Added normalizeTrackName() to strip "(feat.)", "(Remaster)", etc.
+  4. Added extractArtistNames() to handle "ft.", "feat.", "&", etc. for featured artists
+  5. Increased result limit from 5 to 10 for better matching
+  6. Both track name AND artist must match now (previously could fall back without artist match)
+
+### 64. Standardize context menu on all songs app-wide
 - **Status**: COMPLETED
 - **Type**: Feature
-- **Location**: vibes/Views/MessageThreadView.swift, vibes/Models/Message.swift, vibes/Views/FriendPickerView.swift, vibes/Views/SearchView.swift, vibes/ViewModels/MessageThreadViewModel.swift
-- **Requested**: Implement Phase 4 of implementation plan - visual refresh, song reactions, playlist sharing
-- **Context**: Enhance chat experience with better UI and new features
+- **Location**: Multiple views
+- **Requested**: Every single song anywhere in the entire app should have a long-press context menu with three options: Send to Friend, Add to Playlist, Open in Spotify
+- **Context**: Consistent UX across all song displays
 - **Acceptance Criteria**:
-  - [x] 4.1 Visual refresh: softer corners, better spacing, timestamps on tap
-  - [x] 4.2 Song reactions: long press to show 🔥 ❤️ 💯 😐 picker, display below song
-  - [x] 4.4 Playlist sharing: share playlists in chat with track preview
-  - [x] Build and test on simulator
+  - [x] SearchView TrackRow - add "Open in Spotify"
+  - [x] MessageThreadView SongMessageBubbleView - add "Send to Friend" and "Open in Spotify"
+  - [x] ArtistDetailView ArtistTopTrackRow - add "Open in Spotify"
+  - [x] AlbumDetailView AlbumTrackRow - add "Open in Spotify"
+  - [x] PlaylistDetailView PlaylistTrackRow - add "Open in Spotify"
+  - [x] DiscoverView RecommendationRow - add "Open in Spotify"
+  - [x] DiscoverView TrendingSongRow - add "Open in Spotify"
+  - [x] AIPlaylistView ResolvedSongRow - add full context menu
+  - [x] FriendBlendView BlendSongRow - add full context menu
+  - [x] Build and test
 - **Failure Count**: 0
 - **Failures**: None
-- **Solution**: Implemented all Phase 4 enhancements:
-  - **4.1 Visual Refresh**:
-    - Updated MessageBubbleView with softer corners using RoundedRectangle with .continuous style
-    - Added showTimestamp state with tap-to-reveal timestamp
-    - Increased message spacing from 12 to 16
-    - Better visual hierarchy with VStack alignment
-    - Timestamps show relative time (Today, Yesterday, or date)
-  - **4.2 Song Reactions**:
-    - Created ReactionPickerView with fire/heart/100/meh emojis
-    - Long press on song messages triggers haptic feedback and shows reaction picker
-    - Created ReactionsDisplayView to show grouped reactions with counts
-    - Added addReaction methods to MessageThreadViewModel
-    - Updated FirestoreService.addReaction to store reactions in Firestore
-    - Reactions stored as [userId: emoji] dictionary in Message model
-  - **4.4 Playlist Sharing**:
-    - Added MessageType.playlist to Message enum
-    - Added playlist fields to Message: playlistId, playlistName, playlistImageUrl, playlistTrackCount, playlistOwnerName
-    - Created PlaylistMessageBubbleView with playlist card, reactions, and timestamp support
-    - Updated FriendPickerView to handle both tracks and playlists with FriendPickerContent enum
-    - Added share button to PlaylistRow in SearchView
-    - Added sendPlaylistMessage to MessageThreadViewModel
-  - Build succeeded on iPhone 16e simulator
+- **Solution**: Added "Open in Spotify" to all track rows that already had "Send to Friend" and "Add to Playlist". Added full context menus (all 3 options) to AIPlaylistView ResolvedSongRow and FriendBlendView BlendSongRow which previously had no context menu. All context menus now consistently have: Send to Friend, Add to Playlist, Open in Spotify (opens https://open.spotify.com/track/{trackId}).
 
-### 45. Phase 5: Polish & Gamification
+### 66. Add 50 more achievements
 - **Status**: COMPLETED
 - **Type**: Feature
-- **Location**: vibes/Views/Components/VibestreakView.swift, vibes/Views/Components/MusicPersonalityCard.swift, vibes/Views/Components/AchievementsView.swift, vibes/Views/OnboardingView.swift, vibes/Views/ProfileView.swift, vibes/Views/ChatRowView.swift, vibes/ContentView.swift
-- **Requested**: Implement Phase 5 - vibestreak rewards, music personality card, achievements/badges, onboarding flow
-- **Context**: Add gamification and polish to enhance user engagement
+- **Location**: vibes/Views/Components/AchievementsView.swift
+- **Requested**: Add approximately 50 more achievements to the app
+- **Context**: Expand gamification with more achievements across categories
 - **Acceptance Criteria**:
-  - [x] 5.1 Vibestreak Rewards: tier colors (gray/bronze/silver/gold/animated) based on streak length
-  - [x] 5.2 Music Personality Card: analyze genres, generate personality label, shareable card
-  - [x] 5.3 Achievements/Badges: badge system with criteria tracking
-  - [x] 5.4 Onboarding Flow: welcome screens for new users
-  - [x] Build and test on simulator
+  - [x] Add new achievement categories (Messaging, Reactions, AI, Listening)
+  - [x] Add 50+ new AchievementDefinition entries
+  - [x] Update AchievementStats with new trackable stats
+  - [x] Update buildAchievements() to handle new achievement IDs
+  - [x] Build and test
 - **Failure Count**: 0
 - **Failures**: None
-- **Solution**: Implemented all Phase 5 features:
-  - **5.1 Vibestreak Rewards**:
-    - Created VibestreakView.swift with StreakTier enum (none/starter/bronze/silver/gold/legendary)
-    - Tier thresholds: starter 1-6 days (gray), bronze 7-29 (bronze), silver 30-99 (silver), gold 100-364 (gold glow), legendary 365+ (animated flame)
-    - Created AnimatedFlameIcon with pulsing animation for legendary tier
-    - Created VibestreakBadgeView for large profile display
-    - Updated ChatRowView to use VibestreakView component
-  - **5.2 Music Personality Card**:
-    - Created MusicPersonalityCard.swift with MusicPersonality struct
-    - Implemented analyze(genres:) that analyzes user's top artist genres
-    - 11 personality types: Hip-Hop Head, Indie Explorer, Pop Enthusiast, Rock Soul, Electronic Soul, R&B Romantic, Jazz Aficionado, Country Soul, Classical Connoisseur, Latin Vibes, Genre Fluid
-    - Each personality has title, subtitle, emoji, primary genre, traits, gradient colors
-    - MusicPersonalityCardView loads from Spotify top artists
-    - Gradient header card with traits as capsule tags
-    - Integrated into ProfileView when Spotify connected
-  - **5.3 Achievements/Badges**:
-    - Created AchievementsView.swift with Achievement struct and AchievementCategory enum
-    - 15 achievement definitions across 4 categories: Sharing, Social, Streak, Discovery
-    - AchievementBadge shows circular icon with progress ring
-    - AchievementRow for list display with progress counts
-    - AchievementsGridView shows 6 badges in grid layout
-    - AchievementsListView with category filter pills
-    - AchievementStats computes achievements from user data
-    - Integrated into ProfileView with "See All" sheet
-  - **5.4 Onboarding Flow**:
-    - Created OnboardingView.swift with swipeable page view
-    - 4 pages: Welcome, Share Songs, Build Vibestreaks, Connect Spotify
-    - Each page has icon, title, subtitle with color gradient
-    - Page indicator dots with color matching current page
-    - Skip button available throughout, Next button advances
-    - Final page offers Spotify connect or skip option
-    - Uses AppStorage("hasCompletedOnboarding") for persistence
-    - Integrated into MainTabView in ContentView.swift
-  - Build succeeded on iPhone 16e simulator
+- **Solution**: Added 4 new categories (Messaging, Reactions, AI, Listening) and 50 new achievements (now 65 total across 8 categories):
+  - **Sharing (8)**: Added share_250, share_500, share_1000, unique_artists_25
+  - **Social (10)**: Added friends_50, friends_100, friend_requests_sent_5/25, first_blend, blends_10
+  - **Streaks (8)**: Added streak_3, streak_14, streak_60, streak_180
+  - **Discovery (10)**: Added playlist_share_5/25, genres_3/10, songs_added_10/50/100
+  - **Messaging (10)**: first_message, messages_10/50/100/500/1000, conversations_3/10, song_messages_25/100
+  - **Reactions (8)**: first_reaction, reactions_10/50/100/500, received_reactions_10/50/100
+  - **AI (6)**: ai_config, first_ai_playlist, ai_playlists_5/10/25/50
+  - **Listening (10)**: preview_plays_10/50/100/500, artists_viewed_10/50, albums_viewed_10/50, search_queries_25/100
+  - **Secret (5)**: Hidden achievements that show "?????" until unlocked:
+    - "The Collector" - Unlock 50 other achievements
+    - "Social Royalty" - Have 250 friends
+    - "Night Owl" - Play 1000 song previews
+    - "Reaction Machine" - Give 1000 reactions
+    - "Eternal Vibe" - Maintain a 500-day vibestreak
+  Also updated AchievementStats with 15 new trackable stats and added `isSecret` flag to Achievement model.
 
-### 46. Forgot Password Flow
+### 67. Reorganize Profile tab into Settings with 3 subtabs
 - **Status**: COMPLETED
 - **Type**: Feature
-- **Location**: vibes/Views/AuthView.swift, vibes/Services/AuthManager.swift
-- **Requested**: Add forgot password functionality to help users regain access to their accounts
-- **Context**: Essential authentication feature required for good UX
+- **Location**: vibes/Views/ProfileView.swift, vibes/ContentView.swift
+- **Requested**: Divide up the profile page into 3 subtabs and rename the entire tab to Settings:
+  - Achievements: contains all of the achievements
+  - Stats: Contains your top artists, top songs, and recently listened to
+  - Profile: Contains your name, username, the edit profile button, spotify connection, ai features connection, your card, favorite genres, and email
+- **Context**: Better organization of settings/profile content into logical categories
 - **Acceptance Criteria**:
-  - [x] Add "Forgot Password?" link on login screen
-  - [x] Create password reset view with email input
-  - [x] Integrate Firebase Auth password reset email
-  - [x] Show confirmation/error messages
-  - [x] Build and test on simulator
+  - [x] Rename "Profile" tab to "Settings" in ContentView
+  - [x] Add segmented picker for subtabs (Achievements, Stats, Profile)
+  - [x] Move achievements section to Achievements subtab
+  - [x] Move top artists, top songs, recently played to Stats subtab
+  - [x] Move profile header, spotify, AI features, music card, genres, email to Profile subtab
+  - [x] Build and test
 - **Failure Count**: 0
 - **Failures**: None
-- **Solution**: Added ForgotPasswordView as a sheet in AuthView with email input and Firebase sendPasswordReset integration
+- **Solution**: Added SettingsTab enum with 3 cases (achievements, stats, profile). Updated ContentView to show "Settings" tab with gearshape.fill icon. Added segmented picker at top of ProfileView. Reorganized content into 3 tab views: achievementsTabContent (achievements section), statsTabContent (time range picker, top artists, top songs, recently played), profileTabContent (profile header, spotify, AI features, music personality card, genres, email). Added statsNotConnectedView for when Spotify isn't connected on Stats tab.
 
-### 47. Profile Picture Upload
+### 68. Fix Settings subtab order and Stats page appearance
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Views/ProfileView.swift
+- **Requested**: Reorder subtabs to Profile, Stats, Achievements. Fix Stats page having two identical-looking segmented pickers stacked.
+- **Context**: UX improvement - tabs should be in logical order and Stats page looks cluttered
+- **Acceptance Criteria**:
+  - [x] Reorder SettingsTab enum to Profile, Stats, Achievements
+  - [x] Style time range picker differently from main tab picker
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Reordered SettingsTab enum cases to profile, stats, achievements. Changed time range picker from segmented style to menu style with a "Time Range" label on the left, displayed in a rounded card matching other sections.
+
+### 69. Replace Edit Profile menu option with Settings
 - **Status**: COMPLETED
 - **Type**: Feature
-- **Location**: vibes/Views/ProfileView.swift, vibes/Services/StorageService.swift, vibes/Services/FirestoreService.swift
-- **Requested**: Add ability to upload and change profile picture
-- **Context**: Users need to personalize their profiles with custom photos
+- **Location**: vibes/Views/SettingsMenu.swift
+- **Requested**: Replace the "Edit Profile" option in the top right menu with "Settings" which navigates to the Settings page
+- **Context**: Better navigation flow - users go to Settings page instead of directly into edit mode
 - **Acceptance Criteria**:
-  - [x] Add PhotosPicker integration to ProfileView
-  - [x] Create StorageService for Firebase Storage uploads
-  - [x] Resize images before upload (max 500px)
-  - [x] Update profilePictureURL in Firestore
-  - [x] Display profile picture in ProfileView and ChatRowView
-  - [x] Build and test on simulator
+  - [x] Change "Edit Profile" to "Settings" in SettingsMenu
+  - [x] Change icon from person.circle to gearshape
+  - [x] Remove shouldEditProfile trigger, just navigate to tab 3
+  - [x] Build and test
 - **Failure Count**: 0
 - **Failures**: None
-- **Solution**: Created StorageService.swift for image uploads, added PhotosPicker to profile edit mode, updated profilePictureView to show AsyncImage
+- **Solution**: Updated SettingsMenu to show "Settings" with gearshape icon instead of "Edit Profile". Now just navigates to Settings tab without triggering edit mode.
 
-### 48. Online Status Indicators
+### 70. Show completed achievements in grid view
 - **Status**: COMPLETED
 - **Type**: Feature
-- **Location**: vibes/Models/User.swift, vibes/Models/FriendProfile.swift, vibes/Views/ChatRowView.swift, vibes/vibesApp.swift, vibes/Services/FirestoreService.swift
-- **Requested**: Show real-time online status and last active timestamp for friends
-- **Context**: Helps users know when friends are available to chat
+- **Location**: vibes/Views/Components/AchievementsView.swift:927-934
+- **Requested**: On the achievements grid view, show all of the completed achievements instead of incomplete achievements
+- **Context**: Better UX - users want to see what they've accomplished, not what's locked
 - **Acceptance Criteria**:
-  - [x] Add isOnline and lastSeen fields to UserProfile
-  - [x] Add presence tracking on app lifecycle (foreground/background)
-  - [x] Display green dot indicator for online friends in ChatRowView
-  - [x] Show "Active X ago" for recent activity
-  - [x] Build and test on simulator
+  - [x] Filter to only show unlocked achievements in grid
+  - [x] Show up to 8 completed achievements (was 6 incomplete)
+  - [x] Build and test
 - **Failure Count**: 0
 - **Failures**: None
-- **Solution**: Added presence fields to models, created updatePresence methods in FirestoreService, added scenePhase tracking in vibesApp, updated ChatRowView with online indicator and lastSeenText
+- **Solution**: Changed AchievementsGridView displayedAchievements to filter only unlocked achievements and show up to 8 of them.
 
-### 49. Delete Account
+### 71. Fix achievement notifications re-appearing and clear all data on account delete
 - **Status**: COMPLETED
-- **Type**: Feature
-- **Location**: vibes/Views/SettingsMenu.swift, vibes/Services/AuthManager.swift, vibes/Services/FirestoreService.swift, vibes/Services/StorageService.swift
-- **Requested**: Allow users to permanently delete their account and all associated data
-- **Context**: Required for privacy compliance (GDPR, CCPA) and App Store requirements
+- **Type**: Bug
+- **Location**: vibes/Services/AchievementNotificationService.swift, vibes/Services/AuthManager.swift
+- **Requested**: When signing out and back in, achievement notifications for already-completed achievements appear again. Also, when deleting an account, all data should be erased including achievements, Spotify connections, and AI settings.
+- **Context**: UserDefaults key for seen achievements is not user-specific. Account deletion doesn't clear local UserDefaults or Keychain data.
 - **Acceptance Criteria**:
-  - [x] Add "Delete Account" option in settings menu
-  - [x] Create confirmation dialog with warning
-  - [x] Require password re-authentication
-  - [x] Delete all user data from Firestore (messages, friendships, threads, etc.)
-  - [x] Delete profile picture from Firebase Storage
-  - [x] Delete Firebase Auth account
-  - [x] Sign out and return to login screen
-  - [x] Build and test on simulator
+  - [x] Make achievement notification tracking user-specific
+  - [x] Sync seen achievements from Firestore on first sign-in (no re-notifications)
+  - [x] Clear all UserDefaults data on account deletion
+  - [x] Clear Gemini API key from Keychain on account deletion
+  - [x] Build and test
 - **Failure Count**: 0
 - **Failures**: None
-- **Solution**: Created DeleteAccountView with password confirmation, added deleteAllUserData to FirestoreService, updated AuthManager with reauthenticate and comprehensive deleteAccount methods
-
-### 50. AI-Powered Recommendations & Playlist Bridging
-- **Status**: COMPLETED
-- **Type**: Feature
-- **Location**: vibes/Models/AIRecommendation.swift, vibes/Services/OpenAIService.swift, vibes/Views/AIPlaylistView.swift, vibes/Views/FriendBlendView.swift, vibes/Views/AISettingsView.swift, vibes/ViewModels/AIPlaylistViewModel.swift, vibes/ViewModels/FriendBlendViewModel.swift
-- **Requested**: Enhance Discover page with AI API integrations for smarter recommendations and implement playlist bridging functionality
-- **Context**: Current recommendations use Spotify's seed-based API. User wants to integrate external AI APIs for more intelligent, context-aware recommendations and enable playlist bridging (cross-service or smart playlist generation).
-- **Acceptance Criteria**:
-  - [x] Research and select AI API for music recommendations (OpenAI GPT-4)
-  - [x] Integrate AI recommendation service
-  - [x] Implement playlist bridging functionality (Friend Taste Blend)
-  - [x] Update DiscoverView with new AI-powered sections
-  - [x] Build and test on simulator
-- **Failure Count**: 0
-- **Failures**: None
-- **Solution**: Implemented comprehensive OpenAI GPT-4 integration:
-  - **Models (AIRecommendation.swift)**:
-    - MusicProfile: User's top artists, tracks, genres for AI input
-    - PlaylistSuggestion/SongSuggestion: AI-generated playlist themes with songs
-    - BlendResult/BlendRecommendation: Friend blend results with compatibility scores
-    - OpenAI request/response models for API communication
-    - Cache models with TTL (24h for playlists, 7d for blends)
-    - OpenAIError enum for error handling
-  - **OpenAIService.swift**:
-    - Singleton with @MainActor and ObservableObject
-    - Secure API key storage via Keychain
-    - Rate limiting (10 requests/day)
-    - SHA256 profile hashing for cache keys
-    - generateThemedPlaylists() - creates 4 themed playlists from user's music profile
-    - generateFriendBlend() - creates blended playlist for two users
-  - **AIPlaylistView.swift + AIPlaylistViewModel.swift**:
-    - Generate themed playlists (morning, workout, focus, late night, etc.)
-    - Resolve AI suggestions to Spotify tracks
-    - Preview songs with 30-second clips
-    - Save as Spotify playlist
-  - **FriendBlendView.swift + FriendBlendViewModel.swift**:
-    - Blend two users' music tastes
-    - Blend score badges (0-100%) with color coding
-    - Expandable affinity reasons for each song
-    - Save blend to Spotify
-  - **AISettingsView.swift**:
-    - API key configuration with SecureField
-    - Remaining daily requests display
-    - Clear cache button
-  - **Integration**:
-    - Added AI section to DiscoverView
-    - Added "Create Music Blend" to Chats context menu
-    - Added "AI Features" to Settings menu
-    - Added createPlaylist/addTracksToPlaylist to SpotifyService
-  - Build succeeded on iPhone 16e simulator
+- **Solution**: Made AchievementNotificationService user-specific by storing unlocked achievements with key `unlocked_achievements_\(userId)`. Added setCurrentUser() called from AuthManager's auth state handler. Added first-time detection to skip notifications on initial sign-in (just syncs achievements). For account deletion, added clearUserData() methods to AchievementNotificationService, GeminiService, and LocalAchievementStats. AuthManager.deleteAccount() now calls all cleanup methods: SpotifyService.signOut(), GeminiService.clearUserData(), AchievementNotificationService.clearUserData(), LocalAchievementStats.clearAllData(), and removes recent_searches from UserDefaults.
 
 ## Task Statistics
-- Total Tasks: 50
-- Completed: 49
-- Deferred: 1
+- Total Tasks: 71
+- Completed: 69
+- Removed: 2
+- Deferred: 0
 - In Progress: 0
 - Pending: 0
-- Failed: 0
 
 ---
 
-Older completed tasks (1-29) have been archived to docs/.archive/tasks-2025-01.md
+Older completed tasks (1-50) have been archived to docs/.archive/tasks-2025-01.md

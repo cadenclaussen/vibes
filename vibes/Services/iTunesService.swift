@@ -24,7 +24,7 @@ class iTunesService {
     func searchPreview(trackName: String, artistName: String) async -> String? {
         let query = "\(trackName) \(artistName)"
         guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "\(baseURL)?term=\(encodedQuery)&media=music&entity=song&limit=5") else {
+              let url = URL(string: "\(baseURL)?term=\(encodedQuery)&media=music&entity=song&limit=10") else {
             return nil
         }
 
@@ -32,28 +32,109 @@ class iTunesService {
             let (data, _) = try await URLSession.shared.data(from: url)
             let result = try JSONDecoder().decode(iTunesSearchResult.self, from: data)
 
-            // Find best match by comparing track and artist names
-            let normalizedTrackName = trackName.lowercased()
-            let normalizedArtistName = artistName.lowercased()
+            // Normalize track name (strip parentheticals, clean up)
+            let normalizedTrackName = normalizeTrackName(trackName)
+            // Extract all artist names (handles "featuring", "ft.", "&", etc.)
+            let artistNames = extractArtistNames(artistName)
+
+            var bestMatch: (track: iTunesTrack, score: Int)?
 
             for track in result.results {
-                let itunesTrack = track.trackName.lowercased()
-                let itunesArtist = track.artistName.lowercased()
+                let itunesTrack = normalizeTrackName(track.trackName)
+                let itunesArtists = extractArtistNames(track.artistName)
 
-                // Check if track name and artist are similar enough
-                if itunesTrack.contains(normalizedTrackName) || normalizedTrackName.contains(itunesTrack) {
-                    if itunesArtist.contains(normalizedArtistName) || normalizedArtistName.contains(itunesArtist) {
-                        return track.previewUrl
+                // Calculate match score
+                var score = 0
+
+                // Track name must match well (exact or cleaned match)
+                let trackMatches = itunesTrack == normalizedTrackName ||
+                    itunesTrack.hasPrefix(normalizedTrackName + " ") ||
+                    normalizedTrackName.hasPrefix(itunesTrack + " ") ||
+                    (itunesTrack.contains(normalizedTrackName) && normalizedTrackName.count >= 4)
+
+                if !trackMatches {
+                    continue // Skip if track name doesn't match
+                }
+                score += 10
+
+                // Check if any artist matches
+                var artistMatched = false
+                for searchArtist in artistNames {
+                    for itunesArtist in itunesArtists {
+                        if itunesArtist == searchArtist ||
+                            itunesArtist.contains(searchArtist) ||
+                            searchArtist.contains(itunesArtist) {
+                            artistMatched = true
+                            score += 5
+                            break
+                        }
                     }
+                    if artistMatched { break }
+                }
+
+                if !artistMatched {
+                    continue // Skip if no artist matches
+                }
+
+                // Prefer exact track name matches
+                if itunesTrack == normalizedTrackName {
+                    score += 3
+                }
+
+                // Update best match if this is better
+                if bestMatch == nil || score > bestMatch!.score {
+                    bestMatch = (track, score)
                 }
             }
 
-            // If no exact match, return first result's preview if available
-            return result.results.first?.previewUrl
+            // Only return if we found a good match - don't fall back to first result
+            return bestMatch?.track.previewUrl
         } catch {
             print("iTunes search failed: \(error)")
             return nil
         }
+    }
+
+    private func normalizeTrackName(_ name: String) -> String {
+        var normalized = name.lowercased()
+        // Remove common suffixes in parentheses/brackets
+        let patterns = [
+            "\\s*\\(feat\\..*\\)",
+            "\\s*\\(ft\\..*\\)",
+            "\\s*\\(with.*\\)",
+            "\\s*\\[.*\\]",
+            "\\s*-\\s*remaster.*",
+            "\\s*-\\s*single.*",
+            "\\s*\\(remaster.*\\)"
+        ]
+        for pattern in patterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
+                normalized = regex.stringByReplacingMatches(
+                    in: normalized,
+                    range: NSRange(normalized.startIndex..., in: normalized),
+                    withTemplate: ""
+                )
+            }
+        }
+        return normalized.trimmingCharacters(in: .whitespaces)
+    }
+
+    private func extractArtistNames(_ artist: String) -> [String] {
+        var names: [String] = []
+        // Split on common separators
+        let separators = [" feat. ", " feat ", " ft. ", " ft ", " & ", ", ", " x ", " with "]
+        var remaining = artist.lowercased()
+
+        for separator in separators {
+            let parts = remaining.components(separatedBy: separator)
+            if parts.count > 1 {
+                names.append(parts[0].trimmingCharacters(in: .whitespaces))
+                remaining = parts.dropFirst().joined(separator: separator)
+            }
+        }
+        names.append(remaining.trimmingCharacters(in: .whitespaces))
+
+        return names.filter { !$0.isEmpty }
     }
 
     func searchPreviews(for tracks: [(id: String, name: String, artist: String)]) async -> [String: String] {

@@ -47,10 +47,14 @@ struct AddFriendView: View {
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Send") {
+                        HapticService.lightImpact()
                         Task {
                             await viewModel.sendFriendRequest(username: username)
                             if viewModel.errorMessage == nil {
+                                HapticService.success()
                                 dismiss()
+                            } else {
+                                HapticService.error()
                             }
                         }
                     }

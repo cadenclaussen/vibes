@@ -89,8 +89,14 @@ struct AIPlaylistView: View {
 
     private var generateButton: some View {
         Button {
+            HapticService.mediumImpact()
             Task {
                 await viewModel.generatePlaylists()
+                if viewModel.errorMessage == nil {
+                    HapticService.success()
+                } else {
+                    HapticService.error()
+                }
             }
         } label: {
             HStack {
@@ -251,6 +257,10 @@ struct AIPlaylistView: View {
                     Button("Save") {
                         Task {
                             await viewModel.saveAsSpotifyPlaylist(name: playlistName)
+                            if viewModel.savedPlaylistUrl != nil {
+                                // Track for achievements
+                                LocalAchievementStats.shared.aiPlaylistsCreated += 1
+                            }
                             showingSaveSheet = false
                         }
                     }
@@ -313,6 +323,9 @@ struct ResolvedSongRow: View {
     let song: ResolvedSong
     let isPlaying: Bool
     let onPlay: () -> Void
+    @ObservedObject var spotifyService = SpotifyService.shared
+    @State private var showFriendPicker = false
+    @State private var showPlaylistPicker = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -386,6 +399,50 @@ struct ResolvedSongRow: View {
         }
         .padding(12)
         .contentShape(Rectangle())
+        .contextMenu {
+            if let track = song.track {
+                Button {
+                    HapticService.lightImpact()
+                    showFriendPicker = true
+                } label: {
+                    Label("Send to Friend", systemImage: "paperplane")
+                }
+
+                if spotifyService.isAuthenticated {
+                    Button {
+                        HapticService.lightImpact()
+                        showPlaylistPicker = true
+                    } label: {
+                        Label("Add to Playlist", systemImage: "plus.circle")
+                    }
+                }
+
+                Button {
+                    HapticService.lightImpact()
+                    if let url = URL(string: "https://open.spotify.com/track/\(track.id)") {
+                        UIApplication.shared.open(url)
+                    }
+                } label: {
+                    Label("Open in Spotify", systemImage: "arrow.up.right")
+                }
+            }
+        }
+        .sheet(isPresented: $showFriendPicker) {
+            if let track = song.track {
+                FriendPickerView(track: track, previewUrl: song.previewUrl)
+            }
+        }
+        .sheet(isPresented: $showPlaylistPicker) {
+            if let track = song.track {
+                PlaylistPickerView(
+                    trackUri: "spotify:track:\(track.id)",
+                    trackName: track.name,
+                    artistName: track.artists.map { $0.name }.joined(separator: ", "),
+                    albumArtUrl: track.album.images.first?.url,
+                    onAdded: {}
+                )
+            }
+        }
     }
 
     @ViewBuilder

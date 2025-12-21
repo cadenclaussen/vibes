@@ -77,6 +77,9 @@ class SearchViewModel: ObservableObject {
 
         saveRecentSearch(query)
 
+        // Track for achievements
+        LocalAchievementStats.shared.searchQueries += 1
+
         searchTask?.cancel()
         searchTask = Task {
             isLoading = true

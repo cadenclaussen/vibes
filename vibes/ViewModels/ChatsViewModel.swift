@@ -25,6 +25,10 @@ class ChatsViewModel: ObservableObject {
 
     private var dmListener: ListenerRegistration?
 
+    var friendsNowPlaying: [FriendProfile] {
+        friends.filter { $0.isCurrentlyPlaying }
+    }
+
     var allChats: [ChatItem] {
         var chats: [ChatItem] = []
 

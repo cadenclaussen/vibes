@@ -7,7 +7,6 @@
 
 import SwiftUI
 import FirebaseAuth
-import PhotosUI
 
 enum TimeRange: String, CaseIterable {
     case shortTerm = "short_term"
@@ -23,12 +22,18 @@ enum TimeRange: String, CaseIterable {
     }
 }
 
+enum SettingsTab: String, CaseIterable {
+    case profile = "Profile"
+    case stats = "Stats"
+    case achievements = "Achievements"
+}
+
 struct ProfileView: View {
     @StateObject private var viewModel = ProfileViewModel()
     @StateObject private var spotifyService = SpotifyService.shared
     @EnvironmentObject var authManager: AuthManager
     @Binding var shouldEditProfile: Bool
-    @State private var genreInput = ""
+    @State private var showingGenrePicker = false
     @State private var showingSpotifyAuth = false
     @State private var selectedTimeRange: TimeRange = .mediumTerm
     @State private var topArtists: [Artist] = []
@@ -38,14 +43,18 @@ struct ProfileView: View {
     @State private var statsError: String?
     @State private var achievements: [Achievement] = []
     @State private var showingAllAchievements = false
-    @State private var selectedPhotoItem: PhotosPickerItem?
-    @State private var isUploadingPhoto = false
-    @State private var photoUploadError: String?
+    @State private var trackToSend: Track?
+    @State private var trackToAddToPlaylist: Track?
+    @State private var previewUrlForSend: String?
+    @State private var showingAISettings = false
+    @State private var iTunesPreviews: [String: String] = [:]
+    @State private var selectedSettingsTab: SettingsTab = .profile
+    private let itunesService = iTunesService.shared
 
     var body: some View {
         NavigationStack {
             contentView
-                .navigationTitle("Profile")
+                .navigationTitle("Settings")
                 .toolbar {
                     if viewModel.profile != nil {
                         toolbarContent
@@ -63,9 +72,13 @@ struct ProfileView: View {
             }
         }
         .onChange(of: selectedTimeRange) { _, _ in
+            HapticService.selectionChanged()
             Task {
                 await loadStats()
             }
+        }
+        .onChange(of: selectedSettingsTab) { _, _ in
+            HapticService.selectionChanged()
         }
         .onDisappear {
             if viewModel.isEditing {
@@ -90,11 +103,37 @@ struct ProfileView: View {
             topArtists = try await artists
             topTracks = try await tracks
             recentlyPlayed = try await recent
+
+            await fetchItunesPreviews()
         } catch {
             statsError = error.localizedDescription
         }
 
         isLoadingStats = false
+    }
+
+    private func fetchItunesPreviews() async {
+        var allTracks: [(id: String, name: String, artist: String)] = []
+
+        for track in topTracks where track.previewUrl == nil {
+            allTracks.append((id: track.id, name: track.name, artist: track.artists.first?.name ?? ""))
+        }
+
+        for history in recentlyPlayed where history.track.previewUrl == nil {
+            let track = history.track
+            if !allTracks.contains(where: { $0.id == track.id }) {
+                allTracks.append((id: track.id, name: track.name, artist: track.artists.first?.name ?? ""))
+            }
+        }
+
+        if !allTracks.isEmpty {
+            let previews = await itunesService.searchPreviews(for: allTracks)
+            iTunesPreviews = previews
+        }
+    }
+
+    private func getPreviewUrl(for track: Track) -> String? {
+        return track.previewUrl ?? iTunesPreviews[track.id]
     }
 
     @ToolbarContentBuilder
@@ -107,8 +146,10 @@ struct ProfileView: View {
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
+                    HapticService.lightImpact()
                     Task {
                         await viewModel.updateProfile()
+                        HapticService.success()
                     }
                 }
                 .disabled(viewModel.isLoading)
@@ -142,38 +183,135 @@ struct ProfileView: View {
     }
 
     private func profileContent(_ profile: UserProfile) -> some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                profileHeader(profile)
-                spotifySection
+        VStack(spacing: 0) {
+            settingsTabPicker
+                .padding(.horizontal)
+                .padding(.top, 8)
 
-                if spotifyService.isAuthenticated {
-                    musicPersonalitySection
-                    timeRangePickerSection
-                    if isLoadingStats {
-                        statsLoadingSection
-                    } else if let error = statsError {
-                        statsErrorSection(error)
-                    } else {
-                        topArtistsSection
-                        topTracksSection
-                        recentlyPlayedSection
+            ScrollView {
+                VStack(spacing: 24) {
+                    switch selectedSettingsTab {
+                    case .achievements:
+                        achievementsTabContent(profile)
+                    case .stats:
+                        statsTabContent
+                    case .profile:
+                        profileTabContent(profile)
+                    }
+
+                    if let error = viewModel.errorMessage {
+                        errorSection(error)
                     }
                 }
-
-                genresSection(profile)
-                achievementsSection(profile)
-                infoSection(profile)
-
-                if let error = viewModel.errorMessage {
-                    errorSection(error)
-                }
+                .padding()
             }
-            .padding()
         }
         .background(Color(.systemBackground))
         .sheet(isPresented: $showingSpotifyAuth) {
             SpotifyAuthView()
+        }
+        .sheet(item: $trackToSend) { track in
+            FriendPickerView(
+                track: track,
+                previewUrl: previewUrlForSend
+            )
+        }
+        .sheet(item: $trackToAddToPlaylist) { track in
+            PlaylistPickerView(
+                trackUri: "spotify:track:\(track.id)",
+                trackName: track.name,
+                artistName: track.artists.map { $0.name }.joined(separator: ", "),
+                albumArtUrl: track.album.images.first?.url,
+                onAdded: {}
+            )
+        }
+        .sheet(isPresented: $showingAISettings) {
+            AISettingsView()
+        }
+    }
+
+    private var settingsTabPicker: some View {
+        Picker("Settings Tab", selection: $selectedSettingsTab) {
+            ForEach(SettingsTab.allCases, id: \.self) { tab in
+                Text(tab.rawValue).tag(tab)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    // MARK: - Achievements Tab
+
+    private func achievementsTabContent(_ profile: UserProfile) -> some View {
+        VStack(spacing: 24) {
+            achievementsSection(profile)
+        }
+    }
+
+    // MARK: - Stats Tab
+
+    private var statsTabContent: some View {
+        VStack(spacing: 24) {
+            if !spotifyService.isAuthenticated {
+                statsNotConnectedView
+            } else {
+                timeRangePickerSection
+                if isLoadingStats {
+                    statsLoadingSection
+                } else if let error = statsError {
+                    statsErrorSection(error)
+                } else {
+                    topArtistsSection
+                    topTracksSection
+                    recentlyPlayedSection
+                }
+            }
+        }
+    }
+
+    private var statsNotConnectedView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "music.note.list")
+                .font(.system(size: 48))
+                .foregroundColor(Color(.tertiaryLabel))
+            Text("Connect Spotify to see your stats")
+                .font(.headline)
+                .foregroundColor(Color(.secondaryLabel))
+            Text("View your top artists, top songs, and recently played tracks")
+                .font(.caption)
+                .foregroundColor(Color(.tertiaryLabel))
+                .multilineTextAlignment(.center)
+            Button {
+                showingSpotifyAuth = true
+            } label: {
+                HStack {
+                    Image(systemName: "music.note")
+                    Text("Connect Spotify")
+                        .fontWeight(.semibold)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(Color.green)
+                .foregroundColor(.white)
+                .cornerRadius(8)
+            }
+            .padding(.horizontal, 40)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+    }
+
+    // MARK: - Profile Tab
+
+    private func profileTabContent(_ profile: UserProfile) -> some View {
+        VStack(spacing: 24) {
+            profileHeader(profile)
+            spotifySection
+            aiFeaturesSection
+            if spotifyService.isAuthenticated {
+                musicPersonalitySection
+            }
+            genresSection(profile)
+            infoSection(profile)
         }
     }
 
@@ -198,12 +336,6 @@ struct ProfileView: View {
                 .font(.subheadline)
                 .foregroundColor(Color(.secondaryLabel))
 
-            if let error = photoUploadError {
-                Text(error)
-                    .font(.caption)
-                    .foregroundColor(.red)
-            }
-
             if !viewModel.isEditing {
                 Button {
                     viewModel.toggleEditMode()
@@ -224,97 +356,11 @@ struct ProfileView: View {
         }
     }
 
-    @ViewBuilder
     private func profilePictureView(_ profile: UserProfile) -> some View {
-        ZStack {
-            if let urlString = profile.profilePictureURL,
-               let url = URL(string: urlString) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    case .failure:
-                        placeholderImage
-                    case .empty:
-                        ProgressView()
-                    @unknown default:
-                        placeholderImage
-                    }
-                }
-                .frame(width: 100, height: 100)
-                .clipShape(Circle())
-            } else {
-                placeholderImage
-            }
-
-            if viewModel.isEditing {
-                Circle()
-                    .fill(Color.black.opacity(0.4))
-                    .frame(width: 100, height: 100)
-
-                if isUploadingPhoto {
-                    ProgressView()
-                        .tint(.white)
-                } else {
-                    PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                        VStack(spacing: 4) {
-                            Image(systemName: "camera.fill")
-                                .font(.title2)
-                            Text("Change")
-                                .font(.caption)
-                        }
-                        .foregroundColor(.white)
-                    }
-                    .onChange(of: selectedPhotoItem) { _, newItem in
-                        Task {
-                            await handlePhotoSelection(newItem)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private var placeholderImage: some View {
         Image(systemName: "person.circle.fill")
             .resizable()
             .frame(width: 100, height: 100)
             .foregroundColor(Color(.tertiaryLabel))
-    }
-
-    private func handlePhotoSelection(_ item: PhotosPickerItem?) async {
-        guard let item = item,
-              let userId = authManager.user?.uid else { return }
-
-        isUploadingPhoto = true
-        photoUploadError = nil
-
-        do {
-            guard let data = try await item.loadTransferable(type: Data.self) else {
-                photoUploadError = "Failed to load image"
-                isUploadingPhoto = false
-                return
-            }
-
-            let downloadURL = try await StorageService.shared.uploadProfilePicture(
-                userId: userId,
-                imageData: data
-            )
-
-            try await FirestoreService.shared.updateProfilePictureURL(
-                userId: userId,
-                url: downloadURL
-            )
-
-            await viewModel.loadProfile()
-        } catch {
-            photoUploadError = "Upload failed: \(error.localizedDescription)"
-        }
-
-        isUploadingPhoto = false
-        selectedPhotoItem = nil
     }
 
     private func infoSection(_ profile: UserProfile) -> some View {
@@ -401,6 +447,70 @@ struct ProfileView: View {
         .cornerRadius(12)
     }
 
+    private var aiFeaturesSection: some View {
+        let geminiService = GeminiService.shared
+
+        return VStack(spacing: 12) {
+            HStack {
+                Image(systemName: "sparkles")
+                    .foregroundColor(.purple)
+                Text("AI Features")
+                    .font(.headline)
+
+                Spacer()
+
+                if geminiService.isConfigured {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                }
+            }
+
+            if geminiService.isConfigured {
+                HStack {
+                    Text("Gemini API")
+                        .font(.caption)
+                        .foregroundColor(Color(.secondaryLabel))
+                    Text("Connected")
+                        .font(.caption)
+                        .foregroundColor(Color(.label))
+                    Spacer()
+                }
+
+                Button {
+                    showingAISettings = true
+                } label: {
+                    Text("Manage AI Settings")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Text("Enable AI-powered playlist ideas and friend blends")
+                    .font(.caption)
+                    .foregroundColor(Color(.secondaryLabel))
+
+                Button {
+                    showingAISettings = true
+                } label: {
+                    HStack {
+                        Image(systemName: "sparkles")
+                        Text("Set Up AI Features")
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(Color.purple)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(12)
+    }
+
     private func genresSection(_ profile: UserProfile) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Favorite Genres")
@@ -442,7 +552,7 @@ struct ProfileView: View {
     private var editingGenresView: some View {
         VStack(alignment: .leading, spacing: 12) {
             if viewModel.musicTasteTags.isEmpty {
-                Text("No genres added yet")
+                Text("No genres selected")
                     .font(.body)
                     .foregroundColor(Color(.tertiaryLabel))
             } else {
@@ -467,14 +577,18 @@ struct ProfileView: View {
                 }
             }
 
-            HStack {
-                TextField("Add genre", text: $genreInput)
-                    .textFieldStyle(.roundedBorder)
-                Button(action: addGenre) {
+            Button {
+                showingGenrePicker = true
+            } label: {
+                HStack {
                     Image(systemName: "plus.circle.fill")
-                        .foregroundColor(.blue)
+                    Text("Add Genres")
                 }
-                .disabled(genreInput.isEmpty)
+                .font(.subheadline)
+                .foregroundColor(.blue)
+            }
+            .sheet(isPresented: $showingGenrePicker) {
+                GenrePickerView(selectedGenres: $viewModel.musicTasteTags)
             }
         }
     }
@@ -545,6 +659,7 @@ struct ProfileView: View {
 
         stats.genresCount = profile.musicTasteTags.count
         stats.isSpotifyConnected = spotifyService.isAuthenticated
+        stats.isAIConfigured = !(UserDefaults.standard.string(forKey: "gemini_api_key") ?? "").isEmpty
 
         // Load actual stats from Firestore
         do {
@@ -553,22 +668,38 @@ struct ProfileView: View {
             stats.playlistsShared = firestoreStats.playlistsShared
             stats.friendsCount = firestoreStats.friendsCount
             stats.maxVibestreak = firestoreStats.maxVibestreak
+            stats.reactionsReceived = firestoreStats.reactionsReceived
         } catch {
             print("Failed to load achievement stats: \(error)")
         }
 
+        // Load local stats (playlist adds, preview plays, etc.)
+        stats.loadLocalStats()
+
         achievements = stats.buildAchievements()
+
+        // Check for newly unlocked achievements and show banner
+        AchievementNotificationService.shared.checkForNewAchievements(achievements)
     }
 
     // MARK: - Stats Sections
 
     private var timeRangePickerSection: some View {
-        Picker("Time Range", selection: $selectedTimeRange) {
-            ForEach(TimeRange.allCases, id: \.self) { range in
-                Text(range.displayName).tag(range)
+        HStack {
+            Text("Time Range")
+                .font(.subheadline)
+                .foregroundColor(Color(.secondaryLabel))
+            Spacer()
+            Picker("Time Range", selection: $selectedTimeRange) {
+                ForEach(TimeRange.allCases, id: \.self) { range in
+                    Text(range.displayName).tag(range)
+                }
             }
+            .pickerStyle(.menu)
         }
-        .pickerStyle(.segmented)
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(12)
     }
 
     private var statsLoadingSection: some View {
@@ -622,7 +753,10 @@ struct ProfileView: View {
                     GridItem(.flexible())
                 ], spacing: 12) {
                     ForEach(topArtists) { artist in
-                        TopArtistCell(artist: artist)
+                        NavigationLink(destination: ArtistDetailView(artist: artist)) {
+                            TopArtistCell(artist: artist)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -645,7 +779,13 @@ struct ProfileView: View {
             } else {
                 VStack(spacing: 8) {
                     ForEach(Array(topTracks.enumerated()), id: \.element.id) { index, track in
-                        TopTrackRow(rank: index + 1, track: track)
+                        TopTrackRow(
+                            rank: index + 1,
+                            track: track,
+                            previewUrl: getPreviewUrl(for: track),
+                            onSendTapped: { trackToSend = $0 },
+                            onAddToPlaylistTapped: { trackToAddToPlaylist = $0 }
+                        )
                     }
                 }
             }
@@ -668,8 +808,14 @@ struct ProfileView: View {
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
-                        ForEach(recentlyPlayed, id: \.track.id) { history in
-                            RecentlyPlayedCell(playHistory: history)
+                        ForEach(Array(recentlyPlayed.enumerated()), id: \.offset) { index, history in
+                            RecentlyPlayedCell(
+                                playHistory: history,
+                                index: index,
+                                previewUrl: getPreviewUrl(for: history.track),
+                                onSendTapped: { trackToSend = $0 },
+                                onAddToPlaylistTapped: { trackToAddToPlaylist = $0 }
+                            )
                         }
                     }
                 }
@@ -693,12 +839,6 @@ struct ProfileView: View {
             .cornerRadius(12)
     }
 
-    private func addGenre() {
-        let trimmed = genreInput.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty, !viewModel.musicTasteTags.contains(trimmed) else { return }
-        viewModel.musicTasteTags.append(trimmed)
-        genreInput = ""
-    }
 }
 
 // MARK: - Helper Views
@@ -741,15 +881,106 @@ struct TopArtistCell: View {
 struct TopTrackRow: View {
     let rank: Int
     let track: Track
+    var previewUrl: String?
+    var onSendTapped: ((Track) -> Void)?
+    var onAddToPlaylistTapped: ((Track) -> Void)?
+    @ObservedObject var audioPlayer = AudioPlayerService.shared
+    @State private var showNoPreviewAlert = false
+
+    // Use rank + track.id for unique identifier to handle duplicates
+    private var uniqueTrackId: String {
+        "top-\(rank)-\(track.id)"
+    }
+
+    private var isCurrentTrack: Bool {
+        audioPlayer.currentTrackId == uniqueTrackId
+    }
+
+    private var isPlaying: Bool {
+        isCurrentTrack && audioPlayer.isPlaying
+    }
+
+    private var hasPreview: Bool {
+        previewUrl != nil
+    }
+
+    private var spotifyUrl: URL? {
+        URL(string: "https://open.spotify.com/track/\(track.id)")
+    }
 
     var body: some View {
-        HStack(spacing: 12) {
-            Text("\(rank)")
-                .font(.caption)
-                .fontWeight(.bold)
-                .foregroundColor(Color(.secondaryLabel))
-                .frame(width: 20)
+        Button {
+            HapticService.lightImpact()
+            if let url = previewUrl {
+                audioPlayer.playUrl(url, trackId: uniqueTrackId)
+            } else {
+                showNoPreviewAlert = true
+            }
+        } label: {
+            HStack(spacing: 12) {
+                Text("\(rank)")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(Color(.secondaryLabel))
+                    .frame(width: 20)
 
+                albumArtView
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(track.name)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .lineLimit(1)
+                    Text(track.artists.map { $0.name }.joined(separator: ", "))
+                        .font(.caption)
+                        .foregroundColor(Color(.secondaryLabel))
+                        .lineLimit(1)
+                }
+
+                Spacer()
+            }
+            .contentShape(Rectangle())
+            .opacity(hasPreview ? 1.0 : 0.5)
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button {
+                HapticService.lightImpact()
+                onSendTapped?(track)
+            } label: {
+                Label("Send to Friend", systemImage: "paperplane")
+            }
+
+            Button {
+                HapticService.lightImpact()
+                onAddToPlaylistTapped?(track)
+            } label: {
+                Label("Add to Playlist", systemImage: "plus.circle")
+            }
+
+            if let url = spotifyUrl {
+                Button {
+                    HapticService.lightImpact()
+                    UIApplication.shared.open(url)
+                } label: {
+                    Label("Open in Spotify", systemImage: "arrow.up.right")
+                }
+            }
+        }
+        .alert("No Preview Available", isPresented: $showNoPreviewAlert) {
+            if let url = spotifyUrl {
+                Button("Open in Spotify") {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("This track doesn't have a preview. Open it in Spotify to listen.")
+        }
+    }
+
+    private var albumArtView: some View {
+        ZStack {
             if let imageUrl = track.album.images.first?.url,
                let url = URL(string: imageUrl) {
                 AsyncImage(url: url) { image in
@@ -759,37 +990,136 @@ struct TopTrackRow: View {
                 } placeholder: {
                     Color(.tertiarySystemBackground)
                 }
-                .frame(width: 40, height: 40)
-                .cornerRadius(4)
             } else {
                 Image(systemName: "music.note")
-                    .frame(width: 40, height: 40)
-                    .background(Color(.tertiarySystemBackground))
-                    .cornerRadius(4)
+                    .foregroundColor(Color(.tertiaryLabel))
             }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(track.name)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .lineLimit(1)
-                Text(track.artists.map { $0.name }.joined(separator: ", "))
-                    .font(.caption)
-                    .foregroundColor(Color(.secondaryLabel))
-                    .lineLimit(1)
+            if hasPreview {
+                Color.black.opacity(isCurrentTrack ? 0.4 : 0)
+                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                    .foregroundColor(.white)
+                    .font(.system(size: 16))
+                    .opacity(isCurrentTrack ? 1 : 0)
             }
 
-            Spacer()
+            if isCurrentTrack {
+                GeometryReader { geometry in
+                    Rectangle()
+                        .fill(Color.green)
+                        .frame(width: geometry.size.width * audioPlayer.playbackProgress, height: 2)
+                }
+                .frame(height: 2)
+                .frame(maxHeight: .infinity, alignment: .bottom)
+            }
         }
+        .frame(width: 40, height: 40)
+        .cornerRadius(4)
+        .clipped()
     }
 }
 
 struct RecentlyPlayedCell: View {
     let playHistory: PlayHistory
+    let index: Int
+    var previewUrl: String?
+    var onSendTapped: ((Track) -> Void)?
+    var onAddToPlaylistTapped: ((Track) -> Void)?
+    @ObservedObject var audioPlayer = AudioPlayerService.shared
+    @State private var showNoPreviewAlert = false
+
+    private var track: Track {
+        playHistory.track
+    }
+
+    // Use index for unique identifier to handle same song played multiple times
+    private var uniqueTrackId: String {
+        "recent-\(index)-\(track.id)"
+    }
+
+    private var isCurrentTrack: Bool {
+        audioPlayer.currentTrackId == uniqueTrackId
+    }
+
+    private var isPlaying: Bool {
+        isCurrentTrack && audioPlayer.isPlaying
+    }
+
+    private var hasPreview: Bool {
+        previewUrl != nil
+    }
+
+    private var spotifyUrl: URL? {
+        URL(string: "https://open.spotify.com/track/\(track.id)")
+    }
 
     var body: some View {
-        VStack(spacing: 6) {
-            if let imageUrl = playHistory.track.album.images.first?.url,
+        Button {
+            HapticService.lightImpact()
+            if let url = previewUrl {
+                audioPlayer.playUrl(url, trackId: uniqueTrackId)
+            } else {
+                showNoPreviewAlert = true
+            }
+        } label: {
+            VStack(spacing: 6) {
+                albumArtView
+
+                VStack(spacing: 2) {
+                    Text(track.name)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .lineLimit(1)
+                    Text(track.artists.first?.name ?? "")
+                        .font(.caption2)
+                        .foregroundColor(Color(.secondaryLabel))
+                        .lineLimit(1)
+                }
+            }
+            .frame(width: 80)
+            .contentShape(Rectangle())
+            .opacity(hasPreview ? 1.0 : 0.5)
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button {
+                HapticService.lightImpact()
+                onSendTapped?(track)
+            } label: {
+                Label("Send to Friend", systemImage: "paperplane")
+            }
+
+            Button {
+                HapticService.lightImpact()
+                onAddToPlaylistTapped?(track)
+            } label: {
+                Label("Add to Playlist", systemImage: "plus.circle")
+            }
+
+            if let url = spotifyUrl {
+                Button {
+                    HapticService.lightImpact()
+                    UIApplication.shared.open(url)
+                } label: {
+                    Label("Open in Spotify", systemImage: "arrow.up.right")
+                }
+            }
+        }
+        .alert("No Preview Available", isPresented: $showNoPreviewAlert) {
+            if let url = spotifyUrl {
+                Button("Open in Spotify") {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("This track doesn't have a preview. Open it in Spotify to listen.")
+        }
+    }
+
+    private var albumArtView: some View {
+        ZStack {
+            if let imageUrl = track.album.images.first?.url,
                let url = URL(string: imageUrl) {
                 AsyncImage(url: url) { image in
                     image
@@ -798,29 +1128,34 @@ struct RecentlyPlayedCell: View {
                 } placeholder: {
                     Color(.tertiarySystemBackground)
                 }
-                .frame(width: 80, height: 80)
-                .cornerRadius(8)
             } else {
                 Image(systemName: "music.note")
                     .font(.title)
                     .foregroundColor(Color(.tertiaryLabel))
-                    .frame(width: 80, height: 80)
                     .background(Color(.tertiarySystemBackground))
-                    .cornerRadius(8)
             }
 
-            VStack(spacing: 2) {
-                Text(playHistory.track.name)
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .lineLimit(1)
-                Text(playHistory.track.artists.first?.name ?? "")
-                    .font(.caption2)
-                    .foregroundColor(Color(.secondaryLabel))
-                    .lineLimit(1)
+            if hasPreview {
+                Color.black.opacity(isCurrentTrack ? 0.4 : 0)
+                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                    .foregroundColor(.white)
+                    .font(.system(size: 24))
+                    .opacity(isCurrentTrack ? 1 : 0)
+            }
+
+            if isCurrentTrack {
+                GeometryReader { geometry in
+                    Rectangle()
+                        .fill(Color.green)
+                        .frame(width: geometry.size.width * audioPlayer.playbackProgress, height: 3)
+                }
+                .frame(height: 3)
+                .frame(maxHeight: .infinity, alignment: .bottom)
             }
         }
-        .frame(width: 80)
+        .frame(width: 80, height: 80)
+        .cornerRadius(8)
+        .clipped()
     }
 }
 

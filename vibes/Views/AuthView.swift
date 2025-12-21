@@ -72,11 +72,17 @@ struct AuthView: View {
     private var actionButtonSection: some View {
         Section {
             Button(action: {
+                HapticService.lightImpact()
                 Task {
                     if viewModel.isSignUpMode {
                         await viewModel.signUp()
                     } else {
                         await viewModel.signIn()
+                    }
+                    if viewModel.errorMessage != nil {
+                        HapticService.error()
+                    } else {
+                        HapticService.success()
                     }
                 }
             }) {
@@ -104,6 +110,7 @@ struct AuthView: View {
     private var toggleModeSection: some View {
         Section {
             Button(action: {
+                HapticService.lightImpact()
                 viewModel.toggleMode()
             }) {
                 Text(viewModel.isSignUpMode ? "Already have an account? Sign In" : "Don't have an account? Sign Up")
@@ -195,9 +202,11 @@ struct ForgotPasswordView: View {
 
         do {
             try await AuthManager.shared.resetPassword(email: email)
+            HapticService.success()
             message = "Password reset email sent. Check your inbox."
             isSuccess = true
         } catch {
+            HapticService.error()
             message = error.localizedDescription
             isSuccess = false
         }
