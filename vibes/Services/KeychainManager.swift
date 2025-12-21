@@ -146,4 +146,50 @@ class KeychainManager {
             return true
         }
     }
+
+    // MARK: - Convenience Methods for OpenAI API Key
+
+    func saveOpenAIAPIKey(_ key: String) throws {
+        try save(key: "openAIAPIKey", value: key)
+    }
+
+    func retrieveOpenAIAPIKey() throws -> String {
+        try retrieve(key: "openAIAPIKey")
+    }
+
+    func deleteOpenAIAPIKey() throws {
+        try delete(key: "openAIAPIKey")
+    }
+
+    func hasOpenAIAPIKey() -> Bool {
+        do {
+            _ = try retrieveOpenAIAPIKey()
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    // MARK: - Convenience Methods for Gemini API Key
+
+    func saveGeminiAPIKey(_ key: String) throws {
+        try save(key: "geminiAPIKey", value: key)
+    }
+
+    func retrieveGeminiAPIKey() throws -> String {
+        try retrieve(key: "geminiAPIKey")
+    }
+
+    func deleteGeminiAPIKey() throws {
+        try delete(key: "geminiAPIKey")
+    }
+
+    func hasGeminiAPIKey() -> Bool {
+        do {
+            _ = try retrieveGeminiAPIKey()
+            return true
+        } catch {
+            return false
+        }
+    }
 }

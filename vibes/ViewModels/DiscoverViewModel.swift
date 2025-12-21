@@ -69,11 +69,67 @@ class DiscoverViewModel: ObservableObject {
 
         isLoadingNewReleases = true
         do {
-            newReleases = try await spotifyService.getNewReleases(limit: 10)
+            // Get user's top artists to personalize new releases
+            let topArtists = try await spotifyService.getTopArtists(timeRange: "medium_term", limit: 5)
+
+            var personalizedReleases: [Album] = []
+            let oneYearAgo = Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? Date()
+
+            // Get recent albums from user's top artists (limit API calls)
+            for artist in topArtists.prefix(5) {
+                do {
+                    let artistAlbums = try await spotifyService.getArtistAlbums(artistId: artist.id, limit: 5)
+                    let recentAlbums = artistAlbums.filter { album in
+                        if let releaseDate = parseReleaseDate(album.releaseDate) {
+                            return releaseDate >= oneYearAgo
+                        }
+                        return true // Include if we can't parse date
+                    }
+                    personalizedReleases.append(contentsOf: recentAlbums)
+                } catch {
+                    print("Failed to get albums for \(artist.name): \(error)")
+                    continue
+                }
+            }
+
+            // Sort by release date (newest first)
+            personalizedReleases.sort { album1, album2 in
+                let date1 = parseReleaseDate(album1.releaseDate) ?? Date.distantPast
+                let date2 = parseReleaseDate(album2.releaseDate) ?? Date.distantPast
+                return date1 > date2
+            }
+
+            // Remove duplicates and limit
+            var seenIds = Set<String>()
+            newReleases = personalizedReleases.filter { album in
+                if seenIds.contains(album.id) { return false }
+                seenIds.insert(album.id)
+                return true
+            }.prefix(10).map { $0 }
+
         } catch {
             print("Failed to load new releases: \(error)")
         }
         isLoadingNewReleases = false
+    }
+
+    private func parseReleaseDate(_ dateString: String?) -> Date? {
+        guard let dateString = dateString else { return nil }
+
+        let formatters = [
+            "yyyy-MM-dd",
+            "yyyy-MM",
+            "yyyy"
+        ]
+
+        for format in formatters {
+            let formatter = DateFormatter()
+            formatter.dateFormat = format
+            if let date = formatter.date(from: dateString) {
+                return date
+            }
+        }
+        return nil
     }
 
     func loadRecommendations() async {

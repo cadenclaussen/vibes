@@ -13,6 +13,7 @@ struct ChatsView: View {
     @StateObject private var viewModel = ChatsViewModel()
     @State private var showingAddFriend = false
     @State private var navigationPath = NavigationPath()
+    @State private var selectedFriendForBlend: FriendProfile?
     @Binding var selectedTab: Int
     @Binding var shouldEditProfile: Bool
 
@@ -44,6 +45,19 @@ struct ChatsView: View {
                 }
                 .sheet(isPresented: $showingAddFriend) {
                     AddFriendView(viewModel: viewModel.friendsViewModel)
+                }
+                .sheet(item: $selectedFriendForBlend) { friend in
+                    NavigationStack {
+                        FriendBlendView(friend: friend)
+                            .environmentObject(authManager)
+                            .toolbar {
+                                ToolbarItem(placement: .cancellationAction) {
+                                    Button("Done") {
+                                        selectedFriendForBlend = nil
+                                    }
+                                }
+                            }
+                    }
                 }
         }
         .task {
@@ -218,6 +232,13 @@ struct ChatsView: View {
                             ChatRowView(chat: chat)
                         }
                         .buttonStyle(.plain)
+                        .contextMenu {
+                            Button {
+                                selectedFriendForBlend = chat.friend
+                            } label: {
+                                Label("Create Music Blend", systemImage: "wand.and.stars")
+                            }
+                        }
 
                         if chat.id != viewModel.allChats.last?.id {
                             Divider()

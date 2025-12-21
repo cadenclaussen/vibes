@@ -13,6 +13,7 @@ struct SettingsMenu: View {
     @Binding var shouldEditProfile: Bool
     @State private var showingMenu = false
     @State private var showingDeleteAccount = false
+    @State private var showingAISettings = false
 
     var body: some View {
         Button {
@@ -33,6 +34,23 @@ struct SettingsMenu: View {
                         Image(systemName: "person.circle")
                             .foregroundColor(Color(.label))
                         Text("Edit Profile")
+                            .foregroundColor(Color(.label))
+                        Spacer()
+                    }
+                    .padding()
+                    .contentShape(Rectangle())
+                }
+
+                Divider()
+
+                Button {
+                    showingMenu = false
+                    showingAISettings = true
+                } label: {
+                    HStack {
+                        Image(systemName: "sparkles")
+                            .foregroundColor(.purple)
+                        Text("AI Features")
                             .foregroundColor(Color(.label))
                         Spacer()
                     }
@@ -83,6 +101,9 @@ struct SettingsMenu: View {
         }
         .sheet(isPresented: $showingDeleteAccount) {
             DeleteAccountView()
+        }
+        .sheet(isPresented: $showingAISettings) {
+            AISettingsView()
         }
     }
 }

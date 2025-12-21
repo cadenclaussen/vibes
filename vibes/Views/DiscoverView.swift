@@ -12,6 +12,7 @@ struct DiscoverView: View {
     @StateObject private var viewModel = DiscoverViewModel()
     @StateObject private var spotifyService = SpotifyService.shared
     @StateObject private var audioPlayer = AudioPlayerService.shared
+    @StateObject private var geminiService = GeminiService.shared
     @Binding var selectedTab: Int
     @Binding var shouldEditProfile: Bool
 
@@ -34,6 +35,11 @@ struct DiscoverView: View {
 
                         if !viewModel.recommendations.isEmpty {
                             forYouSection
+                        }
+
+                        // AI Playlist Ideas section
+                        if geminiService.isConfigured || spotifyService.isAuthenticated {
+                            aiPlaylistSection
                         }
 
                         if !viewModel.trendingSongs.isEmpty {
@@ -158,7 +164,10 @@ struct DiscoverView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(viewModel.newReleases) { album in
-                        NewReleaseCard(album: album)
+                        NavigationLink(destination: AlbumDetailView(album: album)) {
+                            NewReleaseCard(album: album)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -208,6 +217,90 @@ struct DiscoverView: View {
             .padding()
             .background(Color(.secondarySystemBackground))
             .cornerRadius(12)
+        }
+    }
+
+    // MARK: - AI Playlist Section
+
+    private var aiPlaylistSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "sparkles")
+                    .foregroundColor(.purple)
+                Text("AI Playlist Ideas")
+                    .font(.headline)
+                Spacer()
+                NavigationLink(destination: AIPlaylistView()) {
+                    Text("See All")
+                        .font(.caption)
+                        .foregroundColor(.purple)
+                }
+            }
+
+            if geminiService.isConfigured {
+                NavigationLink(destination: AIPlaylistView()) {
+                    HStack(spacing: 16) {
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [.purple.opacity(0.3), .pink.opacity(0.3)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 60, height: 60)
+
+                            Image(systemName: "wand.and.stars")
+                                .font(.title2)
+                                .foregroundColor(.purple)
+                        }
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Generate Playlist Ideas")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(Color(.label))
+
+                            Text("Get personalized themes based on your listening")
+                                .font(.caption)
+                                .foregroundColor(Color(.secondaryLabel))
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(Color(.tertiaryLabel))
+                    }
+                    .padding()
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(12)
+                }
+                .buttonStyle(.plain)
+            } else {
+                VStack(spacing: 12) {
+                    Image(systemName: "sparkles")
+                        .font(.title)
+                        .foregroundColor(.purple)
+
+                    Text("Set up AI Features")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+
+                    Text("Add your OpenAI API key to get personalized AI-generated playlists")
+                        .font(.caption)
+                        .foregroundColor(Color(.secondaryLabel))
+                        .multilineTextAlignment(.center)
+
+                    Text("Settings > AI Features")
+                        .font(.caption)
+                        .foregroundColor(.purple)
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color(.secondarySystemBackground))
+                .cornerRadius(12)
+            }
         }
     }
 }

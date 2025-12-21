@@ -242,6 +242,86 @@ class SpotifyService: ObservableObject {
         }
     }
 
+    func addTracksToPlaylist(playlistId: String, trackUris: [String]) async throws {
+        let urlString = "https://api.spotify.com/v1/playlists/\(playlistId)/tracks"
+        guard let url = URL(string: urlString) else {
+            throw SpotifyError.invalidURL
+        }
+
+        if keychainManager.isTokenExpired() {
+            try await refreshAccessToken()
+        }
+
+        var request = try createAuthenticatedRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body = ["uris": trackUris]
+        request.httpBody = try JSONEncoder().encode(body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SpotifyError.unknown(statusCode: 0, message: "Invalid response")
+        }
+
+        if httpResponse.statusCode == 401 {
+            try await refreshAccessToken()
+            try await addTracksToPlaylist(playlistId: playlistId, trackUris: trackUris)
+            return
+        }
+
+        guard httpResponse.statusCode == 201 else {
+            try handleHTTPError(response: httpResponse, data: data)
+            return
+        }
+    }
+
+    func createPlaylist(userId: String, name: String, description: String = "") async throws -> String {
+        let urlString = "https://api.spotify.com/v1/users/\(userId)/playlists"
+        guard let url = URL(string: urlString) else {
+            throw SpotifyError.invalidURL
+        }
+
+        if keychainManager.isTokenExpired() {
+            try await refreshAccessToken()
+        }
+
+        var request = try createAuthenticatedRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body: [String: Any] = [
+            "name": name,
+            "description": description,
+            "public": false
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SpotifyError.unknown(statusCode: 0, message: "Invalid response")
+        }
+
+        if httpResponse.statusCode == 401 {
+            try await refreshAccessToken()
+            return try await createPlaylist(userId: userId, name: name, description: description)
+        }
+
+        guard httpResponse.statusCode == 201 else {
+            try handleHTTPError(response: httpResponse, data: data)
+            throw SpotifyError.unknown(statusCode: httpResponse.statusCode, message: "Failed to create playlist")
+        }
+
+        struct CreatePlaylistResponse: Codable {
+            let id: String
+        }
+
+        let playlistResponse = try JSONDecoder().decode(CreatePlaylistResponse.self, from: data)
+        return playlistResponse.id
+    }
+
     // MARK: - Search
 
     func searchTracks(query: String, limit: Int = 20) async throws -> [Track] {
