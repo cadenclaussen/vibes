@@ -220,24 +220,20 @@ struct DiscoverView: View {
         }
     }
 
-    // MARK: - AI Playlist Section
+    // MARK: - AI Features Section
 
     private var aiPlaylistSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "sparkles")
                     .foregroundColor(.purple)
-                Text("AI Playlist Ideas")
+                Text("AI Features")
                     .font(.headline)
                 Spacer()
-                NavigationLink(destination: AIPlaylistView()) {
-                    Text("See All")
-                        .font(.caption)
-                        .foregroundColor(.purple)
-                }
             }
 
             if geminiService.isConfigured {
+                // AI Playlist Card
                 NavigationLink(destination: AIPlaylistView()) {
                     HStack(spacing: 16) {
                         ZStack {
@@ -277,6 +273,27 @@ struct DiscoverView: View {
                     .cornerRadius(12)
                 }
                 .buttonStyle(.plain)
+
+                // Friend Blend Section
+                if !viewModel.blendableFriends.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Blend with a Friend")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(Color(.secondaryLabel))
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                ForEach(viewModel.blendableFriends.prefix(8)) { blendable in
+                                    NavigationLink(destination: FriendBlendView(friend: blendable.friend)) {
+                                        BlendFriendCard(blendable: blendable)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                    }
+                }
             } else {
                 VStack(spacing: 12) {
                     Image(systemName: "sparkles")
@@ -287,7 +304,7 @@ struct DiscoverView: View {
                         .font(.subheadline)
                         .fontWeight(.medium)
 
-                    Text("Add your OpenAI API key to get personalized AI-generated playlists")
+                    Text("Add your Gemini API key to get personalized AI-generated playlists and friend blends")
                         .font(.caption)
                         .foregroundColor(Color(.secondaryLabel))
                         .multilineTextAlignment(.center)
@@ -302,6 +319,71 @@ struct DiscoverView: View {
                 .cornerRadius(12)
             }
         }
+    }
+}
+
+// MARK: - Blend Friend Card
+
+struct BlendFriendCard: View {
+    let blendable: BlendableFriend
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [.purple.opacity(0.3), .blue.opacity(0.3)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 70, height: 70)
+
+                if let urlString = blendable.friend.profilePictureURL,
+                   let url = URL(string: urlString) {
+                    AsyncImage(url: url) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Image(systemName: "person.fill")
+                            .font(.title)
+                            .foregroundColor(.purple)
+                    }
+                    .frame(width: 60, height: 60)
+                    .clipShape(Circle())
+                } else {
+                    Image(systemName: "person.fill")
+                        .font(.title)
+                        .foregroundColor(.purple)
+                }
+
+                // Blend icon overlay
+                Circle()
+                    .fill(Color.purple)
+                    .frame(width: 24, height: 24)
+                    .overlay(
+                        Image(systemName: "wand.and.stars")
+                            .font(.caption2)
+                            .foregroundColor(.white)
+                    )
+                    .offset(x: 24, y: 24)
+            }
+
+            Text(blendable.friend.displayName)
+                .font(.caption)
+                .fontWeight(.medium)
+                .lineLimit(1)
+                .foregroundColor(Color(.label))
+
+            if blendable.messageCount > 0 {
+                Text("\(blendable.messageCount) msgs")
+                    .font(.caption2)
+                    .foregroundColor(Color(.secondaryLabel))
+            }
+        }
+        .frame(width: 80)
     }
 }
 

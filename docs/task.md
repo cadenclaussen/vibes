@@ -369,9 +369,27 @@
 - **Failures**: None
 - **Solution**: Made AchievementNotificationService user-specific by storing unlocked achievements with key `unlocked_achievements_\(userId)`. Added setCurrentUser() called from AuthManager's auth state handler. Added first-time detection to skip notifications on initial sign-in (just syncs achievements). For account deletion, added clearUserData() methods to AchievementNotificationService, GeminiService, and LocalAchievementStats. AuthManager.deleteAccount() now calls all cleanup methods: SpotifyService.signOut(), GeminiService.clearUserData(), AchievementNotificationService.clearUserData(), LocalAchievementStats.clearAllData(), and removes recent_searches from UserDefaults.
 
+### 72. Add AI Blend feature to Discover tab
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/DiscoverView.swift, vibes/ViewModels/DiscoverViewModel.swift
+- **Requested**: Add AI Blend feature in the Discover tab's AI Features section. Show horizontal scrolling friend cards sorted by messaging frequency. Users can tap a friend card to create a blend. Combine with existing AI Playlist feature so both are accessible.
+- **Context**: Friend Blend already exists (FriendBlendView) but is only accessible from Chats. Adding to Discover increases discoverability.
+- **Acceptance Criteria**:
+  - [x] Add BlendableFriend model with message count
+  - [x] Add loadBlendableFriends() to DiscoverViewModel sorted by messaging frequency
+  - [x] Rename AI Playlist section to "AI Features"
+  - [x] Add horizontal scrolling friend blend cards
+  - [x] Cards navigate to FriendBlendView
+  - [x] Keep existing AI Playlist navigation
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Added BlendableFriend model with friend profile, message count, and last message date. Created loadBlendableFriends() that queries Firestore for message counts per friend thread and sorts by frequency. Renamed "AI Playlist Ideas" section to "AI Features". Added "Blend with a Friend" subsection with horizontal scrolling BlendFriendCard components (circular profile pics with blend icon overlay, friend name, message count). Cards navigate to existing FriendBlendView. Preserved AI Playlist generation card above blend section.
+
 ## Task Statistics
-- Total Tasks: 71
-- Completed: 69
+- Total Tasks: 72
+- Completed: 70
 - Removed: 2
 - Deferred: 0
 - In Progress: 0

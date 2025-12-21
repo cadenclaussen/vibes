@@ -229,10 +229,7 @@ class GeminiService: ObservableObject {
         }
 
         let blendResult = try JSONDecoder().decode(BlendResult.self, from: responseData)
-
-        // Cache the result
         saveCachedBlend(blendResult, for: user1Profile, user2Profile: user2Profile)
-
         return blendResult
     }
 

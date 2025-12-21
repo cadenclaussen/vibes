@@ -31,12 +31,20 @@ struct RecentlyActiveFriend: Identifiable {
     let lastActiveDate: Date
 }
 
+struct BlendableFriend: Identifiable {
+    let id: String
+    let friend: FriendProfile
+    let messageCount: Int
+    let lastMessageDate: Date?
+}
+
 @MainActor
 class DiscoverViewModel: ObservableObject {
     @Published var newReleases: [Album] = []
     @Published var recommendations: [Track] = []
     @Published var trendingSongs: [TrendingSong] = []
     @Published var recentlyActiveFriends: [RecentlyActiveFriend] = []
+    @Published var blendableFriends: [BlendableFriend] = []
 
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -45,6 +53,7 @@ class DiscoverViewModel: ObservableObject {
     @Published var isLoadingRecommendations = false
     @Published var isLoadingTrending = false
     @Published var isLoadingFriends = false
+    @Published var isLoadingBlendable = false
 
     private let spotifyService = SpotifyService.shared
     private let friendService = FriendService.shared
@@ -58,8 +67,9 @@ class DiscoverViewModel: ObservableObject {
         async let recommendationsTask: () = loadRecommendations()
         async let trendingTask: () = loadTrendingSongs()
         async let friendsTask: () = loadRecentlyActiveFriends()
+        async let blendableTask: () = loadBlendableFriends()
 
-        _ = await (releasesTask, recommendationsTask, trendingTask, friendsTask)
+        _ = await (releasesTask, recommendationsTask, trendingTask, friendsTask, blendableTask)
 
         isLoading = false
     }
@@ -285,5 +295,63 @@ class DiscoverViewModel: ObservableObject {
             print("Failed to load recently active friends: \(error)")
         }
         isLoadingFriends = false
+    }
+
+    func loadBlendableFriends() async {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+
+        isLoadingBlendable = true
+        do {
+            let friends = try await friendService.fetchFriends()
+
+            var friendsWithActivity: [BlendableFriend] = []
+
+            for friend in friends {
+                let threadId = [currentUserId, friend.id].sorted().joined(separator: "_")
+
+                // Get message count and last message date for this thread
+                let countSnapshot = try await db.collection("messageThreads")
+                    .document(threadId)
+                    .collection("messages")
+                    .count
+                    .getAggregation(source: .server)
+
+                let messageCount = Int(truncating: countSnapshot.count)
+
+                // Get most recent message date
+                let lastMessageSnapshot = try await db.collection("messageThreads")
+                    .document(threadId)
+                    .collection("messages")
+                    .order(by: "timestamp", descending: true)
+                    .limit(to: 1)
+                    .getDocuments()
+
+                var lastMessageDate: Date? = nil
+                if let doc = lastMessageSnapshot.documents.first,
+                   let message = try? doc.data(as: Message.self) {
+                    lastMessageDate = message.timestamp
+                }
+
+                friendsWithActivity.append(BlendableFriend(
+                    id: friend.id,
+                    friend: friend,
+                    messageCount: messageCount,
+                    lastMessageDate: lastMessageDate
+                ))
+            }
+
+            // Sort by message count (most active first), then by recent activity
+            blendableFriends = friendsWithActivity.sorted { f1, f2 in
+                if f1.messageCount != f2.messageCount {
+                    return f1.messageCount > f2.messageCount
+                }
+                let date1 = f1.lastMessageDate ?? Date.distantPast
+                let date2 = f2.lastMessageDate ?? Date.distantPast
+                return date1 > date2
+            }
+        } catch {
+            print("Failed to load blendable friends: \(error)")
+        }
+        isLoadingBlendable = false
     }
 }

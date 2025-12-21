@@ -56,6 +56,20 @@ struct PlaylistSuggestion: Codable, Identifiable {
         self.moodTags = moodTags
         self.reasoning = reasoning
     }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = (try? container.decode(String.self, forKey: .id)) ?? UUID().uuidString
+        self.theme = try container.decode(String.self, forKey: .theme)
+        self.description = try container.decode(String.self, forKey: .description)
+        self.suggestedSongs = (try? container.decode([SongSuggestion].self, forKey: .suggestedSongs)) ?? []
+        self.moodTags = (try? container.decode([String].self, forKey: .moodTags)) ?? []
+        self.reasoning = (try? container.decode(String.self, forKey: .reasoning)) ?? ""
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, theme, description, suggestedSongs, moodTags, reasoning
+    }
 }
 
 struct SongSuggestion: Codable, Identifiable {
@@ -78,6 +92,18 @@ struct SongSuggestion: Codable, Identifiable {
         self.trackName = trackName
         self.artistName = artistName
         self.reason = reason
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = (try? container.decode(String.self, forKey: .id)) ?? UUID().uuidString
+        self.trackName = try container.decode(String.self, forKey: .trackName)
+        self.artistName = try container.decode(String.self, forKey: .artistName)
+        self.reason = (try? container.decode(String.self, forKey: .reason)) ?? ""
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, trackName, artistName, reason
     }
 }
 
@@ -109,6 +135,27 @@ struct BlendRecommendation: Codable, Identifiable {
         self.blendScore = blendScore
         self.user1Affinity = user1Affinity
         self.user2Affinity = user2Affinity
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = (try? container.decode(String.self, forKey: .id)) ?? UUID().uuidString
+        self.trackName = try container.decode(String.self, forKey: .trackName)
+        self.artistName = try container.decode(String.self, forKey: .artistName)
+        // Handle blendScore as either Double or Int
+        if let doubleScore = try? container.decode(Double.self, forKey: .blendScore) {
+            self.blendScore = doubleScore
+        } else if let intScore = try? container.decode(Int.self, forKey: .blendScore) {
+            self.blendScore = Double(intScore)
+        } else {
+            self.blendScore = 0.5
+        }
+        self.user1Affinity = (try? container.decode(String.self, forKey: .user1Affinity)) ?? ""
+        self.user2Affinity = (try? container.decode(String.self, forKey: .user2Affinity)) ?? ""
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, trackName, artistName, blendScore, user1Affinity, user2Affinity
     }
 }
 
