@@ -88,33 +88,51 @@ class DiscoverViewModel: ObservableObject {
 
         isLoadingNewReleases = true
         do {
-            // Get user's top artists to personalize new releases
-            let topArtists = try await spotifyService.getTopArtists(timeRange: "medium_term", limit: 20)
+            // Get user's top artists from multiple time ranges for better coverage
+            async let shortTermTask = spotifyService.getTopArtists(timeRange: "short_term", limit: 10)
+            async let mediumTermTask = spotifyService.getTopArtists(timeRange: "medium_term", limit: 10)
+
+            let (shortTerm, mediumTerm) = try await (shortTermTask, mediumTermTask)
+
+            // Combine and deduplicate artists
+            var seenArtistIds = Set<String>()
+            var allArtists: [Artist] = []
+            for artist in shortTerm + mediumTerm {
+                if !seenArtistIds.contains(artist.id) {
+                    seenArtistIds.insert(artist.id)
+                    allArtists.append(artist)
+                }
+            }
 
             // Sync top artists to profile for compatibility calculations
             if let userId = Auth.auth().currentUser?.uid {
-                let artistNames = topArtists.map { $0.name }
+                let artistNames = allArtists.prefix(20).map { $0.name }
                 try? await FirestoreService.shared.syncTopArtistsToProfile(userId: userId, artists: artistNames)
             }
 
             var personalizedReleases: [Album] = []
-            let threeMonthsAgo = Calendar.current.date(byAdding: .month, value: -3, to: Date()) ?? Date()
+            // Extended to 6 months for better results
+            let sixMonthsAgo = Calendar.current.date(byAdding: .month, value: -6, to: Date()) ?? Date()
 
-            // Get recent albums from user's top artists
-            for artist in topArtists.prefix(20) {
+            // Get recent albums from user's top 10 artists
+            for artist in allArtists.prefix(10) {
                 do {
                     let artistAlbums = try await spotifyService.getArtistAlbums(artistId: artist.id, limit: 5)
                     let recentAlbums = artistAlbums.filter { album in
                         if let releaseDate = parseReleaseDate(album.releaseDate) {
-                            return releaseDate >= threeMonthsAgo
+                            return releaseDate >= sixMonthsAgo
                         }
-                        return false // Exclude if we can't parse date
+                        return false
                     }
                     personalizedReleases.append(contentsOf: recentAlbums)
                 } catch {
-                    print("Failed to get albums for \(artist.name): \(error)")
                     continue
                 }
+            }
+
+            // Fall back to Spotify's general new releases if no personalized results
+            if personalizedReleases.isEmpty {
+                personalizedReleases = try await spotifyService.getNewReleases(limit: 20)
             }
 
             // Sort by release date (newest first)
@@ -162,18 +180,37 @@ class DiscoverViewModel: ObservableObject {
 
         isLoadingRecommendations = true
         do {
-            // Get user's top tracks and artists to use as seeds
-            let topTracks = try await spotifyService.getTopTracks(timeRange: "medium_term", limit: 3)
-            let topArtists = try await spotifyService.getTopArtists(timeRange: "medium_term", limit: 2)
+            // Spotify deprecated /recommendations endpoint in Nov 2024
+            // Alternative: Get popular tracks from user's top artists
+            let topArtists = try await spotifyService.getTopArtists(timeRange: "medium_term", limit: 5)
 
-            let trackIds = topTracks.map { $0.id }
-            let artistIds = topArtists.map { $0.id }
+            var popularTracks: [Track] = []
+            var seenTrackIds = Set<String>()
 
-            recommendations = try await spotifyService.getRecommendations(
-                seedTracks: trackIds,
-                seedArtists: artistIds,
-                limit: 10
-            )
+            for artist in topArtists {
+                do {
+                    let artistTracks = try await spotifyService.getArtistTopTracks(artistId: artist.id)
+                    // Take top 3 tracks from each artist, avoiding duplicates
+                    for var track in artistTracks.prefix(3) {
+                        if !seenTrackIds.contains(track.id) {
+                            seenTrackIds.insert(track.id)
+                            // Try iTunes fallback if no Spotify preview
+                            if track.previewUrl == nil {
+                                track.previewUrl = await itunesService.searchPreview(
+                                    trackName: track.name,
+                                    artistName: track.artists.first?.name ?? ""
+                                )
+                            }
+                            popularTracks.append(track)
+                        }
+                    }
+                } catch {
+                    continue
+                }
+            }
+
+            // Shuffle and take first 10
+            recommendations = Array(popularTracks.shuffled().prefix(10))
         } catch {
             print("Failed to load recommendations: \(error)")
         }
@@ -477,6 +514,7 @@ class DiscoverViewModel: ObservableObject {
                         continue
                     }
 
+                    // Try to get preview URL from Spotify or iTunes
                     var previewUrl = track.previewUrl
                     if previewUrl == nil {
                         previewUrl = await itunesService.searchPreview(
@@ -485,11 +523,9 @@ class DiscoverViewModel: ObservableObject {
                         )
                     }
 
-                    // Skip songs without preview
-                    guard previewUrl != nil else {
+                    // Allow songs without preview - they can still be sent/opened in Spotify
+                    if previewUrl == nil {
                         noPreviewCount += 1
-                        print("[AI Recs] No preview for: \(track.name) by \(track.artists.first?.name ?? "Unknown")")
-                        continue
                     }
 
                     resolvedTrackIds.insert(track.id)
@@ -604,6 +640,7 @@ class DiscoverViewModel: ObservableObject {
                     if aiRecommendations.contains(where: { $0.track?.id == track.id }) { continue }
                     if pendingAIRecommendations.contains(where: { $0.track?.id == track.id }) { continue }
 
+                    // Try to get preview URL from Spotify or iTunes
                     var previewUrl = track.previewUrl
                     if previewUrl == nil {
                         previewUrl = await itunesService.searchPreview(
@@ -612,9 +649,7 @@ class DiscoverViewModel: ObservableObject {
                         )
                     }
 
-                    // Skip songs without preview
-                    guard previewUrl != nil else { continue }
-
+                    // Allow songs without preview - they can still be sent/opened in Spotify
                     let resolved = ResolvedAIRecommendation(
                         id: recommendation.id,
                         recommendation: recommendation,

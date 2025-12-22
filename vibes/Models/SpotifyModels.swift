@@ -62,7 +62,7 @@ struct Track: Codable, Identifiable {
     let durationMs: Int
     let explicit: Bool
     let popularity: Int
-    let previewUrl: String?
+    var previewUrl: String?  // Mutable to allow iTunes fallback
     let uri: String
     let externalUrls: ExternalUrls
 

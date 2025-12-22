@@ -15,6 +15,7 @@ struct DiscoverView: View {
     @StateObject private var geminiService = GeminiService.shared
     @Binding var selectedTab: Int
     @Binding var shouldEditProfile: Bool
+    @State private var showPlaylistRecommendations = false
 
     var body: some View {
         NavigationStack {
@@ -68,7 +69,8 @@ struct DiscoverView: View {
                         }
                     }
                 }
-                .padding()
+                .padding(.vertical)
+                .padding(.horizontal, 20)
             }
             .navigationTitle("Discover")
             .toolbar {
@@ -99,6 +101,9 @@ struct DiscoverView: View {
         }
         .onDisappear {
             audioPlayer.stop()
+        }
+        .sheet(isPresented: $showPlaylistRecommendations) {
+            PlaylistRecommendationsView()
         }
     }
 
@@ -222,7 +227,7 @@ struct DiscoverView: View {
                 Text("For You")
                     .font(.headline)
                 Spacer()
-                Text("Based on your listening")
+                Text("Popular from your top artists")
                     .font(.caption)
                     .foregroundColor(Color(.secondaryLabel))
             }
@@ -244,6 +249,7 @@ struct DiscoverView: View {
                 }
                 .padding()
                 .cardStyle()
+                .coachMarkTarget("section_forYou")
             }
         }
     }
@@ -291,6 +297,7 @@ struct DiscoverView: View {
                 }
                 .padding()
                 .cardStyle()
+                .coachMarkTarget("section_aiPicks")
             }
         }
     }
@@ -380,6 +387,48 @@ struct DiscoverView: View {
                 }
                 .buttonStyle(.plain)
 
+                // Grow Your Playlists Card
+                Button {
+                    showPlaylistRecommendations = true
+                } label: {
+                    HStack(spacing: 16) {
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [.green.opacity(0.3), .teal.opacity(0.3)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 60, height: 60)
+
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.green)
+                        }
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Grow Your Playlists")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(Color(.label))
+
+                            Text("Get AI song suggestions for any playlist")
+                                .font(.caption)
+                                .foregroundColor(Color(.secondaryLabel))
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(Color(.tertiaryLabel))
+                    }
+                    .padding()
+                    .cardStyle()
+                }
+                .buttonStyle(.plain)
+
                 // Friend Blend Section
                 if !viewModel.blendableFriends.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
@@ -424,6 +473,7 @@ struct DiscoverView: View {
                 .cardStyle()
             }
         }
+        .coachMarkTarget("section_aiFeatures")
     }
 }
 
