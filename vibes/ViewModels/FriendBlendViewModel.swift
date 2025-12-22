@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import FirebaseAuth
 
 @MainActor
 class FriendBlendViewModel: ObservableObject {
@@ -17,6 +18,8 @@ class FriendBlendViewModel: ObservableObject {
     private let geminiService = GeminiService.shared
     private let spotifyService = SpotifyService.shared
     private let itunesService = iTunesService.shared
+    private let firestoreService = FirestoreService.shared
+    private let authManager = AuthManager.shared
 
     init(friend: FriendProfile) {
         self.friend = friend
@@ -46,7 +49,15 @@ class FriendBlendViewModel: ObservableObject {
         errorMessage = nil
 
         do {
-            // Build current user's profile from Spotify
+            // Get current user's profile for their musicTasteTags
+            guard let userId = authManager.user?.uid else {
+                errorMessage = "Not authenticated"
+                isGenerating = false
+                return
+            }
+            let currentUserProfile = try await firestoreService.getUserProfile(userId: userId)
+
+            // Build current user's profile from Spotify + their musicTasteTags
             async let topArtistsTask = spotifyService.getTopArtists(timeRange: "medium_term", limit: 10)
             async let topTracksTask = spotifyService.getTopTracks(timeRange: "medium_term", limit: 20)
 
@@ -55,13 +66,13 @@ class FriendBlendViewModel: ObservableObject {
             let userProfile = MusicProfile.from(
                 artists: topArtists,
                 tracks: topTracks,
-                recentTracks: []
+                recentTracks: [],
+                tags: currentUserProfile.musicTasteTags
             )
 
-            // Build friend's profile from their music taste tags
-            // Since we don't have direct access to friend's Spotify, we use their music taste tags
+            // Build friend's profile from their favorite artists and music taste tags
             let friendProfile = MusicProfile(
-                topArtists: [],
+                topArtists: friend.favoriteArtists,
                 topTracks: [],
                 genres: friend.musicTasteTags,
                 recentTracks: [],
@@ -76,6 +87,19 @@ class FriendBlendViewModel: ObservableObject {
             )
 
             blendResult = blend
+
+            // Track blend achievement
+            LocalAchievementStats.shared.blendsCreated += 1
+
+            // Check for soulmate secret achievement (90%+ average blend score)
+            if !blend.recommendations.isEmpty {
+                let averageScore = blend.recommendations.reduce(0.0) { $0 + $1.blendScore } / Double(blend.recommendations.count)
+                if averageScore >= 0.9 {
+                    LocalAchievementStats.shared.hasSoulmate = true
+                }
+            }
+
+            LocalAchievementStats.shared.checkLocalAchievements()
 
             // Resolve songs
             await resolveSongs(from: blend.recommendations)

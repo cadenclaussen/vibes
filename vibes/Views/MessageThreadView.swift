@@ -54,7 +54,7 @@ struct MessageThreadView: View {
                     scrollProxy = proxy
                     scrollToBottom()
                 }
-                .onChange(of: viewModel.messages.count) { _ in
+                .onChange(of: viewModel.messages.count) {
                     scrollToBottom()
                 }
             }
@@ -82,6 +82,7 @@ struct MessageThreadView: View {
         }
         .onDisappear {
             viewModel.cleanup()
+            AudioPlayerService.shared.stop()
         }
     }
 
@@ -636,18 +637,11 @@ struct MessageInputBar: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Plus button for song sharing (placeholder)
-            Button {
-                // TODO: Open song search
-            } label: {
-                Image(systemName: "plus.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(.blue)
-            }
-
-            // Text input
-            TextField("Type a message...", text: $text)
-                .textFieldStyle(.roundedBorder)
+            TextField("Message", text: $text)
+                .textFieldStyle(.plain)
+                .padding(12)
+                .background(Color(.tertiarySystemFill))
+                .cornerRadius(20)
                 .submitLabel(.send)
                 .onSubmit {
                     if canSend && !isSending {
@@ -656,23 +650,14 @@ struct MessageInputBar: View {
                 }
                 .disabled(isSending)
 
-            // Send button
             Button(action: onSend) {
                 Image(systemName: "arrow.up.circle.fill")
-                    .font(.title2)
+                    .font(.title)
                     .foregroundColor(canSend ? .blue : .gray)
             }
             .disabled(!canSend || isSending)
         }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-        .background(Color(.systemBackground))
-        .overlay(
-            Rectangle()
-                .fill(Color(.separator))
-                .frame(height: 0.5),
-            alignment: .top
-        )
+        .padding()
     }
 
     private var canSend: Bool {

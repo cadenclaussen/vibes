@@ -92,7 +92,7 @@ class GeminiService: ObservableObject {
             return cached.suggestions
         }
 
-        guard isConfigured, let apiKey = apiKey else {
+        guard isConfigured, apiKey != nil else {
             throw GeminiError.notConfigured
         }
 
@@ -139,7 +139,7 @@ class GeminiService: ObservableObject {
           ]
         }
 
-        Include 5-6 songs per playlist. Keep responses concise.
+        Include exactly 15 songs per playlist. Keep responses concise.
         """
 
         let response = try await makeRequest(prompt: prompt)
@@ -169,7 +169,7 @@ class GeminiService: ObservableObject {
             return cached.blend
         }
 
-        guard isConfigured, let apiKey = apiKey else {
+        guard isConfigured, apiKey != nil else {
             throw GeminiError.notConfigured
         }
 
@@ -231,6 +231,113 @@ class GeminiService: ObservableObject {
         let blendResult = try JSONDecoder().decode(BlendResult.self, from: responseData)
         saveCachedBlend(blendResult, for: user1Profile, user2Profile: user2Profile)
         return blendResult
+    }
+
+    // MARK: - Personalized Recommendations
+
+    private let recommendationsCacheTTL: TimeInterval = 12 * 60 * 60 // 12 hours
+
+    func generatePersonalizedRecommendations(profile: MusicProfile, count: Int = 10, avoidSongs: [String] = []) async throws -> (recommendations: [AIRecommendedSong], refreshReason: String) {
+        // Only use cache for initial load (count >= 10) and no avoid list
+        if count >= 10, avoidSongs.isEmpty, let cached = loadCachedRecommendations(for: profile), !cached.cache.isExpired {
+            return (cached.recommendations, cached.refreshReason)
+        }
+
+        guard isConfigured, apiKey != nil else {
+            throw GeminiError.notConfigured
+        }
+
+        guard canMakeRequest() else {
+            throw GeminiError.dailyLimitReached
+        }
+
+        let songCount = max(3, min(count, 40)) // Between 3 and 40
+        let avoidSection = avoidSongs.isEmpty ? "" : """
+
+        IMPORTANT - Do NOT suggest any of these songs (the user has already dismissed them):
+        \(avoidSongs.joined(separator: "\n"))
+
+        """
+        let prompt = """
+        You are a music discovery AI for the vibes app. Analyze this user's music profile and recommend new songs they would love but might not have discovered yet.
+
+        Rules:
+        1. Suggest REAL songs that exist on Spotify
+        2. Focus on discovery - suggest songs the user probably hasn't heard
+        3. Mix of new releases (last 2 years) and hidden gems (older but underrated)
+        4. Each recommendation should have a clear reason why it fits their taste
+        5. Connect each recommendation to something specific in their profile (artist, genre, or track)
+        6. High match scores (0.85-1.0) for very close matches, lower (0.6-0.84) for exploratory picks
+        \(avoidSection)
+        User Profile:
+        - Top Artists: \(profile.topArtists.joined(separator: ", "))
+        - Top Tracks: \(profile.topTracks.joined(separator: ", "))
+        - Genres: \(profile.genres.joined(separator: ", "))
+        - Recently Played: \(profile.recentTracks.joined(separator: ", "))
+
+        Respond with ONLY valid JSON, no markdown or explanation:
+        {
+          "recommendations": [
+            {
+              "id": "unique-id",
+              "trackName": "string",
+              "artistName": "string",
+              "reason": "brief personal reason why they'd love this (1 sentence)",
+              "matchScore": 0.0-1.0,
+              "basedOn": "Because you like [specific artist/genre/track from their profile]"
+            }
+          ],
+          "refreshReason": "brief summary of what's driving these recommendations"
+        }
+
+        Recommend exactly \(songCount) songs, sorted by match score (highest first).
+        """
+
+        let response = try await makeRequest(prompt: prompt)
+        incrementRequestCount()
+
+        guard let responseData = response.data(using: .utf8) else {
+            throw GeminiError.invalidResponse
+        }
+
+        do {
+            let recommendationsResponse = try JSONDecoder().decode(AIRecommendationsResponse.self, from: responseData)
+            // Cache the result
+            saveCachedRecommendations(recommendationsResponse.recommendations, refreshReason: recommendationsResponse.refreshReason, for: profile)
+            return (recommendationsResponse.recommendations, recommendationsResponse.refreshReason)
+        } catch {
+            print("JSON Decode Error: \(error)")
+            print("Response was: \(response.prefix(500))")
+            throw error
+        }
+    }
+
+    private func loadCachedRecommendations(for profile: MusicProfile) -> CachedAIRecommendations? {
+        let hash = profileHash(profile)
+        let key = "aiRecs_\(hash)"
+
+        guard let data = UserDefaults.standard.data(forKey: key) else {
+            return nil
+        }
+
+        return try? JSONDecoder().decode(CachedAIRecommendations.self, from: data)
+    }
+
+    private func saveCachedRecommendations(_ recommendations: [AIRecommendedSong], refreshReason: String, for profile: MusicProfile) {
+        let hash = profileHash(profile)
+        let key = "aiRecs_\(hash)"
+
+        let cache = CachedRecommendation(
+            timestamp: Date(),
+            profileHash: hash,
+            expiresAt: Date().addingTimeInterval(recommendationsCacheTTL)
+        )
+
+        let cached = CachedAIRecommendations(cache: cache, recommendations: recommendations, refreshReason: refreshReason)
+
+        if let data = try? JSONEncoder().encode(cached) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
     }
 
     // MARK: - API Request
@@ -391,10 +498,16 @@ class GeminiService: ObservableObject {
         }
     }
 
+    func clearRecommendationsCache(for profile: MusicProfile) {
+        let hash = profileHash(profile)
+        let key = "aiRecs_\(hash)"
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+
     func clearCache() {
         let defaults = UserDefaults.standard
         let keys = defaults.dictionaryRepresentation().keys.filter {
-            $0.hasPrefix("playlist_") || $0.hasPrefix("blend_")
+            $0.hasPrefix("playlist_") || $0.hasPrefix("blend_") || $0.hasPrefix("aiRecs_")
         }
         keys.forEach { defaults.removeObject(forKey: $0) }
     }

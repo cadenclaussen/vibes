@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import FirebaseAuth
 
 struct Achievement: Identifiable {
     let id: String
@@ -17,6 +18,8 @@ struct Achievement: Identifiable {
     let isUnlocked: Bool
     let progress: Int
     let isSecret: Bool
+    let isSuperSecret: Bool // Completely hidden until unlocked
+    let showsProgressCount: Bool
 
     var progressPercentage: Double {
         guard requirement > 0 else { return 1.0 }
@@ -30,6 +33,9 @@ struct Achievement: Identifiable {
 
     var displayDescription: String {
         if isSecret && !isUnlocked { return "Hidden achievement" }
+        if showsProgressCount {
+            return "\(description) (\(progress.formatted()) total)"
+        }
         return description
     }
 
@@ -71,8 +77,10 @@ struct AchievementDefinition {
     let category: AchievementCategory
     let requirement: Int
     let isSecret: Bool
+    let isSuperSecret: Bool // Completely hidden until unlocked
+    let showsProgressCount: Bool
 
-    init(id: String, name: String, description: String, icon: String, category: AchievementCategory, requirement: Int, isSecret: Bool = false) {
+    init(id: String, name: String, description: String, icon: String, category: AchievementCategory, requirement: Int, isSecret: Bool = false, isSuperSecret: Bool = false, showsProgressCount: Bool = false) {
         self.id = id
         self.name = name
         self.description = description
@@ -80,6 +88,8 @@ struct AchievementDefinition {
         self.category = category
         self.requirement = requirement
         self.isSecret = isSecret
+        self.isSuperSecret = isSuperSecret
+        self.showsProgressCount = showsProgressCount
     }
 
     static let all: [AchievementDefinition] = [
@@ -138,7 +148,8 @@ struct AchievementDefinition {
             description: "Share 1000 songs",
             icon: "trophy.fill",
             category: .sharing,
-            requirement: 1000
+            requirement: 1000,
+            showsProgressCount: true
         ),
         AchievementDefinition(
             id: "unique_artists_25",
@@ -146,7 +157,8 @@ struct AchievementDefinition {
             description: "Share songs from 25 different artists",
             icon: "person.wave.2.fill",
             category: .sharing,
-            requirement: 25
+            requirement: 25,
+            showsProgressCount: true
         ),
 
         // MARK: - Social achievements (10 total)
@@ -196,7 +208,8 @@ struct AchievementDefinition {
             description: "Have 100 friends",
             icon: "star.circle.fill",
             category: .social,
-            requirement: 100
+            requirement: 100,
+            showsProgressCount: true
         ),
         AchievementDefinition(
             id: "friend_requests_sent_5",
@@ -212,7 +225,8 @@ struct AchievementDefinition {
             description: "Send 25 friend requests",
             icon: "network",
             category: .social,
-            requirement: 25
+            requirement: 25,
+            showsProgressCount: true
         ),
         AchievementDefinition(
             id: "first_blend",
@@ -228,7 +242,8 @@ struct AchievementDefinition {
             description: "Create 10 Friend Blends",
             icon: "arrow.triangle.branch",
             category: .social,
-            requirement: 10
+            requirement: 10,
+            showsProgressCount: true
         ),
 
         // MARK: - Streak achievements (8 total)
@@ -294,7 +309,8 @@ struct AchievementDefinition {
             description: "Maintain a 365-day vibestreak",
             icon: "crown.fill",
             category: .streak,
-            requirement: 365
+            requirement: 365,
+            showsProgressCount: true
         ),
 
         // MARK: - Discovery achievements (10 total)
@@ -328,7 +344,8 @@ struct AchievementDefinition {
             description: "Share 25 playlists",
             icon: "rectangle.stack.fill",
             category: .discovery,
-            requirement: 25
+            requirement: 25,
+            showsProgressCount: true
         ),
         AchievementDefinition(
             id: "genres_3",
@@ -352,7 +369,8 @@ struct AchievementDefinition {
             description: "Have 10 favorite genres",
             icon: "books.vertical.fill",
             category: .discovery,
-            requirement: 10
+            requirement: 10,
+            showsProgressCount: true
         ),
         AchievementDefinition(
             id: "songs_added_10",
@@ -376,7 +394,8 @@ struct AchievementDefinition {
             description: "Add 100 songs to playlists",
             icon: "rectangle.stack.badge.plus",
             category: .discovery,
-            requirement: 100
+            requirement: 100,
+            showsProgressCount: true
         ),
 
         // MARK: - Messaging achievements (10 total)
@@ -426,7 +445,8 @@ struct AchievementDefinition {
             description: "Send 1000 messages",
             icon: "megaphone.fill",
             category: .messaging,
-            requirement: 1000
+            requirement: 1000,
+            showsProgressCount: true
         ),
         AchievementDefinition(
             id: "conversations_3",
@@ -442,7 +462,8 @@ struct AchievementDefinition {
             description: "Chat with 10 different friends",
             icon: "person.2.wave.2.fill",
             category: .messaging,
-            requirement: 10
+            requirement: 10,
+            showsProgressCount: true
         ),
         AchievementDefinition(
             id: "song_messages_25",
@@ -458,7 +479,8 @@ struct AchievementDefinition {
             description: "Send 100 song messages",
             icon: "music.note.tv.fill",
             category: .messaging,
-            requirement: 100
+            requirement: 100,
+            showsProgressCount: true
         ),
 
         // MARK: - Reactions achievements (8 total)
@@ -500,7 +522,8 @@ struct AchievementDefinition {
             description: "Give 500 reactions",
             icon: "sparkles",
             category: .reactions,
-            requirement: 500
+            requirement: 500,
+            showsProgressCount: true
         ),
 
         // MARK: - AI achievements (5 total)
@@ -542,7 +565,8 @@ struct AchievementDefinition {
             description: "Create 50 AI playlists",
             icon: "brain.fill",
             category: .ai,
-            requirement: 50
+            requirement: 50,
+            showsProgressCount: true
         ),
 
         // MARK: - Listening achievements (10 total)
@@ -576,7 +600,8 @@ struct AchievementDefinition {
             description: "Play 500 song previews",
             icon: "headphones.circle.fill",
             category: .listening,
-            requirement: 500
+            requirement: 500,
+            showsProgressCount: true
         ),
         AchievementDefinition(
             id: "artists_viewed_10",
@@ -592,7 +617,8 @@ struct AchievementDefinition {
             description: "View 50 artist profiles",
             icon: "music.mic.circle.fill",
             category: .listening,
-            requirement: 50
+            requirement: 50,
+            showsProgressCount: true
         ),
         AchievementDefinition(
             id: "albums_viewed_10",
@@ -608,7 +634,8 @@ struct AchievementDefinition {
             description: "View 50 albums",
             icon: "square.stack.fill",
             category: .listening,
-            requirement: 50
+            requirement: 50,
+            showsProgressCount: true
         ),
         AchievementDefinition(
             id: "search_queries_25",
@@ -624,7 +651,8 @@ struct AchievementDefinition {
             description: "Search 100 times",
             icon: "magnifyingglass.circle.fill",
             category: .listening,
-            requirement: 100
+            requirement: 100,
+            showsProgressCount: true
         ),
 
         // MARK: - Secret achievements (16 total) - Hidden until unlocked
@@ -635,7 +663,8 @@ struct AchievementDefinition {
             icon: "medal.fill",
             category: .discovery,
             requirement: 50,
-            isSecret: true
+            isSecret: true,
+            showsProgressCount: true
         ),
         AchievementDefinition(
             id: "secret_social_royalty",
@@ -644,7 +673,8 @@ struct AchievementDefinition {
             icon: "crown.fill",
             category: .social,
             requirement: 250,
-            isSecret: true
+            isSecret: true,
+            showsProgressCount: true
         ),
         AchievementDefinition(
             id: "secret_night_owl",
@@ -653,7 +683,8 @@ struct AchievementDefinition {
             icon: "moon.stars.fill",
             category: .listening,
             requirement: 1000,
-            isSecret: true
+            isSecret: true,
+            showsProgressCount: true
         ),
         AchievementDefinition(
             id: "secret_reaction_machine",
@@ -662,7 +693,8 @@ struct AchievementDefinition {
             icon: "bolt.heart.fill",
             category: .reactions,
             requirement: 1000,
-            isSecret: true
+            isSecret: true,
+            showsProgressCount: true
         ),
         AchievementDefinition(
             id: "secret_eternal_vibe",
@@ -671,7 +703,8 @@ struct AchievementDefinition {
             icon: "infinity",
             category: .streak,
             requirement: 500,
-            isSecret: true
+            isSecret: true,
+            showsProgressCount: true
         ),
 
         // Time-based secrets
@@ -780,6 +813,39 @@ struct AchievementDefinition {
             requirement: 1,
             isSecret: true
         ),
+
+        // Super secret achievements - completely hidden until unlocked
+        AchievementDefinition(
+            id: "secret_butterfly_effect",
+            name: "Butterfly Effect",
+            description: "Pass along 5 songs you received from friends",
+            icon: "arrow.triangle.branch",
+            category: .sharing,
+            requirement: 5,
+            isSecret: true,
+            isSuperSecret: true,
+            showsProgressCount: true
+        ),
+        AchievementDefinition(
+            id: "secret_contrarian",
+            name: "The Contrarian",
+            description: "Have an obscure song be your most-played of the month",
+            icon: "hand.thumbsdown.fill",
+            category: .listening,
+            requirement: 1,
+            isSecret: true,
+            isSuperSecret: true
+        ),
+        AchievementDefinition(
+            id: "secret_resurrection",
+            name: "The Resurrection",
+            description: "Re-add a song you removed over 6 months ago",
+            icon: "arrow.counterclockwise.circle.fill",
+            category: .discovery,
+            requirement: 1,
+            isSecret: true,
+            isSuperSecret: true
+        ),
     ]
 }
 
@@ -798,6 +864,13 @@ struct AchievementBadge: View {
                           ? achievement.category.color.opacity(0.2)
                           : Color(.tertiarySystemFill))
                     .frame(width: 60, height: 60)
+
+                // Black outline for secret achievements
+                if achievement.isSecret && achievement.isUnlocked {
+                    Circle()
+                        .stroke(Color.black, lineWidth: 2)
+                        .frame(width: 60, height: 60)
+                }
 
                 if !achievement.isUnlocked && !isHidden {
                     Circle()
@@ -846,6 +919,13 @@ struct AchievementRow: View {
                           : Color(.tertiarySystemFill))
                     .frame(width: 50, height: 50)
 
+                // Black outline for secret achievements
+                if achievement.isSecret && achievement.isUnlocked {
+                    Circle()
+                        .stroke(Color.black, lineWidth: 2)
+                        .frame(width: 50, height: 50)
+                }
+
                 if !achievement.isUnlocked && !isHidden {
                     Circle()
                         .trim(from: 0, to: achievement.progressPercentage)
@@ -862,9 +942,17 @@ struct AchievementRow: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(achievement.displayName)
-                    .font(.headline)
-                    .foregroundColor(achievement.isUnlocked ? .primary : .secondary)
+                HStack(spacing: 4) {
+                    Text(achievement.displayName)
+                        .font(.headline)
+                        .foregroundColor(achievement.isUnlocked ? .primary : .secondary)
+
+                    if achievement.isSecret && achievement.isUnlocked {
+                        Image(systemName: "star.fill")
+                            .font(.caption)
+                            .foregroundColor(.yellow)
+                    }
+                }
 
                 Text(achievement.displayDescription)
                     .font(.caption)
@@ -883,8 +971,17 @@ struct AchievementRow: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
+        .cardStyle()
+        
+        .overlay(
+            // Black outline for the entire row for secret achievements
+            Group {
+                if achievement.isSecret && achievement.isUnlocked {
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.black, lineWidth: 2)
+                }
+            }
+        )
     }
 }
 
@@ -893,8 +990,8 @@ struct AchievementsGridView: View {
     var showAll: Bool = false
 
     var displayedAchievements: [Achievement] {
-        // Show completed achievements only
-        let unlocked = achievements.filter { $0.isUnlocked }
+        // Show completed achievements only (super secret ones only appear when unlocked)
+        let unlocked = achievements.filter { $0.isUnlocked && (!$0.isSuperSecret || $0.isUnlocked) }
         if showAll {
             return unlocked
         }
@@ -920,11 +1017,11 @@ struct AchievementsListView: View {
     @State private var selectedCategory: AchievementCategory?
 
     var filteredAchievements: [Achievement] {
-        var filtered: [Achievement]
+        // Filter out super secret achievements that aren't unlocked
+        var filtered = achievements.filter { !$0.isSuperSecret || $0.isUnlocked }
+
         if let category = selectedCategory {
-            filtered = achievements.filter { $0.category == category }
-        } else {
-            filtered = achievements
+            filtered = filtered.filter { $0.category == category }
         }
         // Sort: incomplete first, completed at bottom
         let locked = filtered.filter { !$0.isUnlocked }
@@ -977,8 +1074,30 @@ struct AchievementsListView: View {
 class LocalAchievementStats {
     static let shared = LocalAchievementStats()
     private let defaults = UserDefaults.standard
+    private var currentUserId: String?
 
-    private enum Keys {
+    // Set current user ID (call on sign-in)
+    func setCurrentUser(_ userId: String?) {
+        currentUserId = userId
+    }
+
+    // User-specific key helper - always uses user-specific keys
+    private func key(_ base: String) -> String {
+        // First check our cached userId
+        if let userId = currentUserId {
+            return "\(base)_\(userId)"
+        }
+        // Fall back to Firebase Auth current user
+        if let firebaseUser = FirebaseAuth.Auth.auth().currentUser?.uid {
+            currentUserId = firebaseUser
+            return "\(base)_\(firebaseUser)"
+        }
+        // No user - return a dummy key that won't match real data
+        // This prevents reading/writing to shared keys
+        return "\(base)_no_user"
+    }
+
+    private enum BaseKeys {
         static let songsAddedToPlaylists = "achievement_songsAddedToPlaylists"
         static let previewPlays = "achievement_previewPlays"
         static let artistsViewed = "achievement_artistsViewed"
@@ -1003,12 +1122,20 @@ class LocalAchievementStats {
         static let hasDeepCut = "achievement_hasDeepCut"
         static let fridaySongsDate = "achievement_fridaySongsDate"
         static let fridaySongsCount = "achievement_fridaySongsCount"
+        // New super secret achievement tracking
+        static let receivedSongTrackIds = "achievement_receivedSongTrackIds"
+        static let songsPassedAlong = "achievement_songsPassedAlong"
+        static let monthlyPlayCounts = "achievement_monthlyPlayCounts"
+        static let monthlyPlayCountsMonth = "achievement_monthlyPlayCountsMonth"
+        static let hasContrarian = "achievement_hasContrarian"
+        static let removedSongs = "achievement_removedSongs"
+        static let hasResurrection = "achievement_hasResurrection"
     }
 
     // Unique artists tracking (stored as array of artist names)
     var uniqueArtistsShared: [String] {
-        get { defaults.stringArray(forKey: Keys.uniqueArtistsShared) ?? [] }
-        set { defaults.set(newValue, forKey: Keys.uniqueArtistsShared) }
+        get { defaults.stringArray(forKey: key(BaseKeys.uniqueArtistsShared)) ?? [] }
+        set { defaults.set(newValue, forKey: key(BaseKeys.uniqueArtistsShared)) }
     }
 
     var uniqueArtistsCount: Int {
@@ -1026,64 +1153,64 @@ class LocalAchievementStats {
     }
 
     var songsAddedToPlaylists: Int {
-        get { defaults.integer(forKey: Keys.songsAddedToPlaylists) }
-        set { defaults.set(newValue, forKey: Keys.songsAddedToPlaylists) }
+        get { defaults.integer(forKey: key(BaseKeys.songsAddedToPlaylists)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.songsAddedToPlaylists)) }
     }
 
     var previewPlays: Int {
-        get { defaults.integer(forKey: Keys.previewPlays) }
-        set { defaults.set(newValue, forKey: Keys.previewPlays) }
+        get { defaults.integer(forKey: key(BaseKeys.previewPlays)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.previewPlays)) }
     }
 
     var artistsViewed: Int {
-        get { defaults.integer(forKey: Keys.artistsViewed) }
-        set { defaults.set(newValue, forKey: Keys.artistsViewed) }
+        get { defaults.integer(forKey: key(BaseKeys.artistsViewed)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.artistsViewed)) }
     }
 
     var albumsViewed: Int {
-        get { defaults.integer(forKey: Keys.albumsViewed) }
-        set { defaults.set(newValue, forKey: Keys.albumsViewed) }
+        get { defaults.integer(forKey: key(BaseKeys.albumsViewed)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.albumsViewed)) }
     }
 
     var searchQueries: Int {
-        get { defaults.integer(forKey: Keys.searchQueries) }
-        set { defaults.set(newValue, forKey: Keys.searchQueries) }
+        get { defaults.integer(forKey: key(BaseKeys.searchQueries)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.searchQueries)) }
     }
 
     var reactionsGiven: Int {
-        get { defaults.integer(forKey: Keys.reactionsGiven) }
-        set { defaults.set(newValue, forKey: Keys.reactionsGiven) }
+        get { defaults.integer(forKey: key(BaseKeys.reactionsGiven)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.reactionsGiven)) }
     }
 
     var aiPlaylistsCreated: Int {
-        get { defaults.integer(forKey: Keys.aiPlaylistsCreated) }
-        set { defaults.set(newValue, forKey: Keys.aiPlaylistsCreated) }
+        get { defaults.integer(forKey: key(BaseKeys.aiPlaylistsCreated)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.aiPlaylistsCreated)) }
     }
 
     var blendsCreated: Int {
-        get { defaults.integer(forKey: Keys.blendsCreated) }
-        set { defaults.set(newValue, forKey: Keys.blendsCreated) }
+        get { defaults.integer(forKey: key(BaseKeys.blendsCreated)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.blendsCreated)) }
     }
 
     var friendRequestsSent: Int {
-        get { defaults.integer(forKey: Keys.friendRequestsSent) }
-        set { defaults.set(newValue, forKey: Keys.friendRequestsSent) }
+        get { defaults.integer(forKey: key(BaseKeys.friendRequestsSent)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.friendRequestsSent)) }
     }
 
     var messagesSent: Int {
-        get { defaults.integer(forKey: Keys.messagesSent) }
-        set { defaults.set(newValue, forKey: Keys.messagesSent) }
+        get { defaults.integer(forKey: key(BaseKeys.messagesSent)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.messagesSent)) }
     }
 
     var songMessagesSent: Int {
-        get { defaults.integer(forKey: Keys.songMessagesSent) }
-        set { defaults.set(newValue, forKey: Keys.songMessagesSent) }
+        get { defaults.integer(forKey: key(BaseKeys.songMessagesSent)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.songMessagesSent)) }
     }
 
     // Conversations tracking (stored as array of friend IDs messaged)
     private var conversationFriendIds: [String] {
-        get { defaults.stringArray(forKey: Keys.conversationsStarted) ?? [] }
-        set { defaults.set(newValue, forKey: Keys.conversationsStarted) }
+        get { defaults.stringArray(forKey: key(BaseKeys.conversationsStarted)) ?? [] }
+        set { defaults.set(newValue, forKey: key(BaseKeys.conversationsStarted)) }
     }
 
     var conversationsCount: Int {
@@ -1100,48 +1227,176 @@ class LocalAchievementStats {
 
     // Secret achievement triggers
     var hasMidnightDrop: Bool {
-        get { defaults.bool(forKey: Keys.hasMidnightDrop) }
-        set { defaults.set(newValue, forKey: Keys.hasMidnightDrop) }
+        get { defaults.bool(forKey: key(BaseKeys.hasMidnightDrop)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.hasMidnightDrop)) }
     }
 
     var hasEarlyBird: Bool {
-        get { defaults.bool(forKey: Keys.hasEarlyBird) }
-        set { defaults.set(newValue, forKey: Keys.hasEarlyBird) }
+        get { defaults.bool(forKey: key(BaseKeys.hasEarlyBird)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.hasEarlyBird)) }
     }
 
     var hasFridayFeeling: Bool {
-        get { defaults.bool(forKey: Keys.hasFridayFeeling) }
-        set { defaults.set(newValue, forKey: Keys.hasFridayFeeling) }
+        get { defaults.bool(forKey: key(BaseKeys.hasFridayFeeling)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.hasFridayFeeling)) }
     }
 
     var hasNewYearsVibe: Bool {
-        get { defaults.bool(forKey: Keys.hasNewYearsVibe) }
-        set { defaults.set(newValue, forKey: Keys.hasNewYearsVibe) }
+        get { defaults.bool(forKey: key(BaseKeys.hasNewYearsVibe)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.hasNewYearsVibe)) }
     }
 
     var hasBoomerang: Bool {
-        get { defaults.bool(forKey: Keys.hasBoomerang) }
-        set { defaults.set(newValue, forKey: Keys.hasBoomerang) }
+        get { defaults.bool(forKey: key(BaseKeys.hasBoomerang)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.hasBoomerang)) }
     }
 
     var hasSameWavelength: Bool {
-        get { defaults.bool(forKey: Keys.hasSameWavelength) }
-        set { defaults.set(newValue, forKey: Keys.hasSameWavelength) }
+        get { defaults.bool(forKey: key(BaseKeys.hasSameWavelength)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.hasSameWavelength)) }
     }
 
     var hasSoulmate: Bool {
-        get { defaults.bool(forKey: Keys.hasSoulmate) }
-        set { defaults.set(newValue, forKey: Keys.hasSoulmate) }
+        get { defaults.bool(forKey: key(BaseKeys.hasSoulmate)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.hasSoulmate)) }
     }
 
     var hasGenreHopper: Bool {
-        get { defaults.bool(forKey: Keys.hasGenreHopper) }
-        set { defaults.set(newValue, forKey: Keys.hasGenreHopper) }
+        get { defaults.bool(forKey: key(BaseKeys.hasGenreHopper)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.hasGenreHopper)) }
     }
 
     var hasDeepCut: Bool {
-        get { defaults.bool(forKey: Keys.hasDeepCut) }
-        set { defaults.set(newValue, forKey: Keys.hasDeepCut) }
+        get { defaults.bool(forKey: key(BaseKeys.hasDeepCut)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.hasDeepCut)) }
+    }
+
+    // MARK: - Butterfly Effect tracking
+    // Track IDs of songs received from friends
+    private var receivedSongTrackIds: Set<String> {
+        get {
+            let arr = defaults.stringArray(forKey: key(BaseKeys.receivedSongTrackIds)) ?? []
+            return Set(arr)
+        }
+        set { defaults.set(Array(newValue), forKey: key(BaseKeys.receivedSongTrackIds)) }
+    }
+
+    // Count of songs passed along (received then shared)
+    var songsPassedAlong: Int {
+        get { defaults.integer(forKey: key(BaseKeys.songsPassedAlong)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.songsPassedAlong)) }
+    }
+
+    // Call when receiving a song message
+    func trackReceivedSong(trackId: String) {
+        var ids = receivedSongTrackIds
+        ids.insert(trackId)
+        receivedSongTrackIds = ids
+    }
+
+    // Call when sending a song - checks if it was received first
+    func checkButterflyEffect(trackId: String) {
+        if receivedSongTrackIds.contains(trackId) {
+            songsPassedAlong += 1
+            checkLocalAchievements()
+        }
+    }
+
+    // MARK: - The Contrarian tracking
+    // Monthly play counts: trackId -> count
+    private var monthlyPlayCounts: [String: Int] {
+        get {
+            guard let data = defaults.data(forKey: key(BaseKeys.monthlyPlayCounts)),
+                  let dict = try? JSONDecoder().decode([String: Int].self, from: data) else {
+                return [:]
+            }
+            return dict
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) {
+                defaults.set(data, forKey: key(BaseKeys.monthlyPlayCounts))
+            }
+        }
+    }
+
+    private var monthlyPlayCountsMonth: Int {
+        get { defaults.integer(forKey: key(BaseKeys.monthlyPlayCountsMonth)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.monthlyPlayCountsMonth)) }
+    }
+
+    var hasContrarian: Bool {
+        get { defaults.bool(forKey: key(BaseKeys.hasContrarian)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.hasContrarian)) }
+    }
+
+    // Track a song play with popularity score (0-100 from Spotify)
+    func trackSongPlay(trackId: String, popularity: Int) {
+        let calendar = Calendar.current
+        let currentMonth = calendar.component(.month, from: Date())
+
+        // Reset counts if new month
+        if monthlyPlayCountsMonth != currentMonth {
+            monthlyPlayCounts = [:]
+            monthlyPlayCountsMonth = currentMonth
+        }
+
+        // Increment play count
+        var counts = monthlyPlayCounts
+        counts[trackId, default: 0] += 1
+        monthlyPlayCounts = counts
+
+        // Check if this song is now the top played AND is obscure (popularity < 20)
+        if let topTrack = counts.max(by: { $0.value < $1.value }),
+           topTrack.key == trackId,
+           topTrack.value >= 10,
+           popularity < 20 {
+            hasContrarian = true
+            checkLocalAchievements()
+        }
+    }
+
+    // MARK: - The Resurrection tracking
+    // Removed songs: trackId -> removal timestamp
+    private var removedSongs: [String: Date] {
+        get {
+            guard let data = defaults.data(forKey: key(BaseKeys.removedSongs)),
+                  let dict = try? JSONDecoder().decode([String: Date].self, from: data) else {
+                return [:]
+            }
+            return dict
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) {
+                defaults.set(data, forKey: key(BaseKeys.removedSongs))
+            }
+        }
+    }
+
+    var hasResurrection: Bool {
+        get { defaults.bool(forKey: key(BaseKeys.hasResurrection)) }
+        set { defaults.set(newValue, forKey: key(BaseKeys.hasResurrection)) }
+    }
+
+    // Call when user removes a song from library/playlist
+    func trackSongRemoved(trackId: String) {
+        var removed = removedSongs
+        removed[trackId] = Date()
+        removedSongs = removed
+    }
+
+    // Call when user adds a song - checks if it was removed 6+ months ago
+    func checkResurrection(trackId: String) {
+        if let removalDate = removedSongs[trackId] {
+            let sixMonthsAgo = Calendar.current.date(byAdding: .month, value: -6, to: Date()) ?? Date()
+            if removalDate < sixMonthsAgo {
+                hasResurrection = true
+                // Remove from tracked list since it's been resurrected
+                var removed = removedSongs
+                removed.removeValue(forKey: trackId)
+                removedSongs = removed
+                checkLocalAchievements()
+            }
+        }
     }
 
     // Helper for Friday Feeling tracking
@@ -1151,17 +1406,17 @@ class LocalAchievementStats {
         guard calendar.component(.weekday, from: now) == 6 else { return } // Friday = 6
 
         let today = calendar.startOfDay(for: now)
-        let storedDate = defaults.object(forKey: Keys.fridaySongsDate) as? Date
+        let storedDate = defaults.object(forKey: key(BaseKeys.fridaySongsDate)) as? Date
 
         if let storedDate = storedDate, calendar.isDate(storedDate, inSameDayAs: today) {
-            let count = defaults.integer(forKey: Keys.fridaySongsCount) + 1
-            defaults.set(count, forKey: Keys.fridaySongsCount)
+            let count = defaults.integer(forKey: key(BaseKeys.fridaySongsCount)) + 1
+            defaults.set(count, forKey: key(BaseKeys.fridaySongsCount))
             if count >= 10 {
                 hasFridayFeeling = true
             }
         } else {
-            defaults.set(today, forKey: Keys.fridaySongsDate)
-            defaults.set(1, forKey: Keys.fridaySongsCount)
+            defaults.set(today, forKey: key(BaseKeys.fridaySongsDate))
+            defaults.set(1, forKey: key(BaseKeys.fridaySongsCount))
         }
     }
 
@@ -1214,8 +1469,152 @@ class LocalAchievementStats {
         hasSoulmate = false
         hasGenreHopper = false
         hasDeepCut = false
-        defaults.removeObject(forKey: Keys.fridaySongsDate)
-        defaults.removeObject(forKey: Keys.fridaySongsCount)
+        defaults.removeObject(forKey: key(BaseKeys.fridaySongsDate))
+        defaults.removeObject(forKey: key(BaseKeys.fridaySongsCount))
+        // New super secret achievements
+        songsPassedAlong = 0
+        defaults.removeObject(forKey: key(BaseKeys.receivedSongTrackIds))
+        defaults.removeObject(forKey: key(BaseKeys.monthlyPlayCounts))
+        monthlyPlayCountsMonth = 0
+        hasContrarian = false
+        defaults.removeObject(forKey: key(BaseKeys.removedSongs))
+        hasResurrection = false
+        // Clear cached Firestore stats
+        cachedSongsShared = 0
+        cachedPlaylistsShared = 0
+        cachedFriendsCount = 0
+        cachedMaxVibestreak = 0
+        cachedReactionsReceived = 0
+        cachedGenresCount = 0
+        cachedIsSpotifyConnected = false
+        cachedIsAIConfigured = false
+        currentUserId = nil
+    }
+
+    // Check for newly unlocked achievements based on local stats
+    @MainActor
+    func checkLocalAchievements() {
+        var stats = AchievementStats()
+        stats.loadLocalStats()
+        stats.loadCachedFirestoreStats()
+        let achievements = stats.buildAchievements()
+        AchievementNotificationService.shared.checkForNewAchievements(achievements)
+    }
+
+    // Proactively load and cache Firestore stats for achievement checking
+    // Call this on app launch/sign-in so achievement banners work properly
+    @MainActor
+    func loadAndCacheFirestoreStats() async {
+        guard let userId = currentUserId ?? FirebaseAuth.Auth.auth().currentUser?.uid else {
+            return
+        }
+
+        do {
+            let firestoreStats = try await FirestoreService.shared.getAchievementStats(userId: userId)
+
+            // Get additional profile data
+            let profile = try? await FirestoreService.shared.getUserProfile(userId: userId)
+            let genresCount = profile?.musicTasteTags.count ?? 0
+            let isSpotifyConnected = SpotifyService.shared.isAuthenticated
+            let isAIConfigured = !(UserDefaults.standard.string(forKey: "gemini_api_key") ?? "").isEmpty
+
+            // Cache all stats
+            cacheFirestoreStats(
+                songsShared: firestoreStats.songsShared,
+                playlistsShared: firestoreStats.playlistsShared,
+                friendsCount: firestoreStats.friendsCount,
+                maxVibestreak: firestoreStats.maxVibestreak,
+                reactionsReceived: firestoreStats.reactionsReceived,
+                genresCount: genresCount,
+                isSpotifyConnected: isSpotifyConnected,
+                isAIConfigured: isAIConfigured
+            )
+
+            // Build achievements and sync with notification service
+            var stats = AchievementStats()
+            stats.songsShared = firestoreStats.songsShared
+            stats.playlistsShared = firestoreStats.playlistsShared
+            stats.friendsCount = firestoreStats.friendsCount
+            stats.maxVibestreak = firestoreStats.maxVibestreak
+            stats.reactionsReceived = firestoreStats.reactionsReceived
+            stats.genresCount = genresCount
+            stats.isSpotifyConnected = isSpotifyConnected
+            stats.isAIConfigured = isAIConfigured
+            stats.loadLocalStats()
+
+            let achievements = stats.buildAchievements()
+            AchievementNotificationService.shared.syncAchievementsOnSignIn(achievements)
+        } catch {
+            print("Failed to load Firestore stats for achievements: \(error)")
+        }
+    }
+
+    // MARK: - Cached Firestore Stats (for complete achievement checking)
+    // These are updated when ProfileView loads achievements from Firestore
+
+    private enum CachedFirestoreKeys {
+        static let songsShared = "cached_firestore_songsShared"
+        static let playlistsShared = "cached_firestore_playlistsShared"
+        static let friendsCount = "cached_firestore_friendsCount"
+        static let maxVibestreak = "cached_firestore_maxVibestreak"
+        static let reactionsReceived = "cached_firestore_reactionsReceived"
+        static let genresCount = "cached_firestore_genresCount"
+        static let isSpotifyConnected = "cached_firestore_isSpotifyConnected"
+        static let isAIConfigured = "cached_firestore_isAIConfigured"
+    }
+
+    var cachedSongsShared: Int {
+        get { defaults.integer(forKey: key(CachedFirestoreKeys.songsShared)) }
+        set { defaults.set(newValue, forKey: key(CachedFirestoreKeys.songsShared)) }
+    }
+
+    var cachedPlaylistsShared: Int {
+        get { defaults.integer(forKey: key(CachedFirestoreKeys.playlistsShared)) }
+        set { defaults.set(newValue, forKey: key(CachedFirestoreKeys.playlistsShared)) }
+    }
+
+    var cachedFriendsCount: Int {
+        get { defaults.integer(forKey: key(CachedFirestoreKeys.friendsCount)) }
+        set { defaults.set(newValue, forKey: key(CachedFirestoreKeys.friendsCount)) }
+    }
+
+    var cachedMaxVibestreak: Int {
+        get { defaults.integer(forKey: key(CachedFirestoreKeys.maxVibestreak)) }
+        set { defaults.set(newValue, forKey: key(CachedFirestoreKeys.maxVibestreak)) }
+    }
+
+    var cachedReactionsReceived: Int {
+        get { defaults.integer(forKey: key(CachedFirestoreKeys.reactionsReceived)) }
+        set { defaults.set(newValue, forKey: key(CachedFirestoreKeys.reactionsReceived)) }
+    }
+
+    var cachedGenresCount: Int {
+        get { defaults.integer(forKey: key(CachedFirestoreKeys.genresCount)) }
+        set { defaults.set(newValue, forKey: key(CachedFirestoreKeys.genresCount)) }
+    }
+
+    var cachedIsSpotifyConnected: Bool {
+        get { defaults.bool(forKey: key(CachedFirestoreKeys.isSpotifyConnected)) }
+        set { defaults.set(newValue, forKey: key(CachedFirestoreKeys.isSpotifyConnected)) }
+    }
+
+    var cachedIsAIConfigured: Bool {
+        get { defaults.bool(forKey: key(CachedFirestoreKeys.isAIConfigured)) }
+        set { defaults.set(newValue, forKey: key(CachedFirestoreKeys.isAIConfigured)) }
+    }
+
+    // Call this when ProfileView loads Firestore data
+    func cacheFirestoreStats(songsShared: Int, playlistsShared: Int, friendsCount: Int,
+                             maxVibestreak: Int, reactionsReceived: Int, genresCount: Int,
+                             isSpotifyConnected: Bool, isAIConfigured: Bool) {
+        cachedSongsShared = songsShared
+        cachedPlaylistsShared = playlistsShared
+        cachedFriendsCount = friendsCount
+        cachedMaxVibestreak = maxVibestreak
+        cachedReactionsReceived = reactionsReceived
+        cachedGenresCount = genresCount
+        cachedIsSpotifyConnected = isSpotifyConnected
+        cachedIsAIConfigured = isAIConfigured
     }
 }
 
@@ -1268,6 +1667,11 @@ struct AchievementStats {
     var hasGenreHopper: Bool = false
     var hasDeepCut: Bool = false
 
+    // New super secret achievements
+    var songsPassedAlong: Int = 0
+    var hasContrarian: Bool = false
+    var hasResurrection: Bool = false
+
     // Load local stats from UserDefaults
     mutating func loadLocalStats() {
         let local = LocalAchievementStats.shared
@@ -1293,6 +1697,23 @@ struct AchievementStats {
         hasSoulmate = local.hasSoulmate
         hasGenreHopper = local.hasGenreHopper
         hasDeepCut = local.hasDeepCut
+        // New super secret achievements
+        songsPassedAlong = local.songsPassedAlong
+        hasContrarian = local.hasContrarian
+        hasResurrection = local.hasResurrection
+    }
+
+    // Load cached Firestore stats (for complete achievement picture)
+    mutating func loadCachedFirestoreStats() {
+        let local = LocalAchievementStats.shared
+        songsShared = local.cachedSongsShared
+        playlistsShared = local.cachedPlaylistsShared
+        friendsCount = local.cachedFriendsCount
+        maxVibestreak = local.cachedMaxVibestreak
+        reactionsReceived = local.cachedReactionsReceived
+        genresCount = local.cachedGenresCount
+        isSpotifyConnected = local.cachedIsSpotifyConnected
+        isAIConfigured = local.cachedIsAIConfigured
     }
 
     // Computed property to count unlocked non-secret achievements
@@ -1400,11 +1821,15 @@ struct AchievementStats {
         if hasGenreHopper { count += 1 }
         if hasDeepCut { count += 1 }
         if achievementsUnlockedCount >= totalNonSecretAchievements { count += 1 } // Completionist
+        // New super secret achievements
+        if songsPassedAlong >= 5 { count += 1 } // Butterfly Effect
+        if hasContrarian { count += 1 } // The Contrarian
+        if hasResurrection { count += 1 } // The Resurrection
         return count
     }
 
     // Total secret achievements excluding Secret Keeper
-    private var totalSecretAchievementsExcludingKeeper: Int { 15 }
+    private var totalSecretAchievementsExcludingKeeper: Int { 18 }
 
     func buildAchievements() -> [Achievement] {
         AchievementDefinition.all.map { def in
@@ -1543,6 +1968,17 @@ struct AchievementStats {
                 progress = secretAchievementsUnlockedCount
                 isUnlocked = secretAchievementsUnlockedCount >= totalSecretAchievementsExcludingKeeper
 
+            // New super secret achievements
+            case "secret_butterfly_effect":
+                progress = songsPassedAlong
+                isUnlocked = songsPassedAlong >= def.requirement
+            case "secret_contrarian":
+                progress = hasContrarian ? 1 : 0
+                isUnlocked = hasContrarian
+            case "secret_resurrection":
+                progress = hasResurrection ? 1 : 0
+                isUnlocked = hasResurrection
+
             default:
                 progress = 0
                 isUnlocked = false
@@ -1557,7 +1993,9 @@ struct AchievementStats {
                 requirement: def.requirement,
                 isUnlocked: isUnlocked,
                 progress: progress,
-                isSecret: def.isSecret
+                isSecret: def.isSecret,
+                isSuperSecret: def.isSuperSecret,
+                showsProgressCount: def.showsProgressCount
             )
         }
     }
@@ -1567,24 +2005,31 @@ struct AchievementStats {
 
 struct AchievementBannerView: View {
     let achievement: Achievement
+    @State private var shimmerOffset: CGFloat = -200
 
     var body: some View {
         HStack(spacing: 16) {
             ZStack {
                 Circle()
-                    .fill(achievement.category.color.opacity(0.2))
+                    .fill(achievement.isSecret ? Color.yellow.opacity(0.3) : achievement.category.color.opacity(0.2))
                     .frame(width: 50, height: 50)
+
+                if achievement.isSecret {
+                    Circle()
+                        .stroke(Color.yellow, lineWidth: 2)
+                        .frame(width: 50, height: 50)
+                }
 
                 Image(systemName: achievement.icon)
                     .font(.title2)
-                    .foregroundColor(achievement.category.color)
+                    .foregroundColor(achievement.isSecret ? .yellow : achievement.category.color)
             }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Achievement Unlocked!")
+                Text(achievement.isSecret ? "Secret Achievement Unlocked!" : "Achievement Unlocked!")
                     .font(.caption)
                     .fontWeight(.medium)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(achievement.isSecret ? .yellow : .secondary)
 
                 Text(achievement.name)
                     .font(.headline)
@@ -1597,21 +2042,45 @@ struct AchievementBannerView: View {
 
             Spacer()
 
-            Image(systemName: "checkmark.circle.fill")
+            Image(systemName: achievement.isSecret ? "star.fill" : "checkmark.circle.fill")
                 .font(.title2)
-                .foregroundColor(.green)
+                .foregroundColor(achievement.isSecret ? .yellow : .green)
         }
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(.ultraThinMaterial)
-                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+                .shadow(color: achievement.isSecret ? .yellow.opacity(0.3) : .black.opacity(0.1), radius: 10, x: 0, y: 5)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(achievement.category.color.opacity(0.3), lineWidth: 1)
+                .stroke(achievement.isSecret ? Color.yellow : achievement.category.color.opacity(0.3), lineWidth: achievement.isSecret ? 2 : 1)
+        )
+        .overlay(
+            // Shimmer effect for secret achievements
+            Group {
+                if achievement.isSecret {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(
+                            LinearGradient(
+                                colors: [.clear, .white.opacity(0.3), .clear],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .offset(x: shimmerOffset)
+                        .mask(RoundedRectangle(cornerRadius: 16))
+                }
+            }
         )
         .padding(.horizontal)
+        .onAppear {
+            if achievement.isSecret {
+                withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                    shimmerOffset = 400
+                }
+            }
+        }
     }
 }
 
@@ -1624,12 +2093,13 @@ struct AchievementBannerOverlay: View {
         VStack {
             if notificationService.isShowingBanner, let achievement = notificationService.currentBanner {
                 AchievementBannerView(achievement: achievement)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 60)
                     .transition(.move(edge: .top).combined(with: .opacity))
-                    .zIndex(1000)
             }
-
             Spacer()
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(.spring(response: 0.5, dampingFraction: 0.8), value: notificationService.isShowingBanner)
     }
 }

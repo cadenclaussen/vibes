@@ -29,6 +29,9 @@ struct AlbumDetailView: View {
         .task {
             await loadTracks()
         }
+        .onDisappear {
+            audioPlayer.stop()
+        }
     }
 
     private var headerSection: some View {
@@ -100,6 +103,7 @@ struct AlbumDetailView: View {
 
         // Track for achievements
         LocalAchievementStats.shared.albumsViewed += 1
+        LocalAchievementStats.shared.checkLocalAchievements()
 
         do {
             tracks = try await spotifyService.getAlbumTracks(albumId: album.id)

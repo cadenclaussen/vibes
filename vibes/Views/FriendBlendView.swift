@@ -38,6 +38,9 @@ struct FriendBlendView: View {
         } message: {
             Text("Your blend playlist has been saved to Spotify!")
         }
+        .onDisappear {
+            audioPlayer.stop()
+        }
     }
 
     private var headerSection: some View {
@@ -188,8 +191,8 @@ struct FriendBlendView: View {
                     }
                 }
             }
-            .background(Color(.secondarySystemBackground))
-            .cornerRadius(12)
+            .cardStyle()
+            
 
             saveButton
         }
@@ -215,7 +218,7 @@ struct FriendBlendView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
             .background(Color.green)
-            .cornerRadius(12)
+            
         }
         .disabled(viewModel.isSavingPlaylist || viewModel.resolvedSongs.filter { $0.isResolved }.isEmpty)
         .padding(.top, 8)
@@ -302,16 +305,13 @@ struct BlendSongRow: View {
                     }
                 }
 
-                // Play button
-                if song.previewUrl != nil {
-                    Button(action: onPlay) {
-                        Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.purple)
-                    }
-                }
             }
             .padding(12)
+            .onTapGesture {
+                if song.previewUrl != nil {
+                    onPlay()
+                }
+            }
 
             if showingDetails {
                 VStack(alignment: .leading, spacing: 8) {

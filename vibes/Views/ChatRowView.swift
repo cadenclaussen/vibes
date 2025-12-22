@@ -61,6 +61,11 @@ struct ChatRowView: View {
                     Spacer()
 
                     HStack(spacing: 8) {
+                        // Compatibility badge
+                        if let compatibility = chat.compatibility, compatibility.score > 0 {
+                            CompatibilityBadge(compatibility: compatibility)
+                        }
+
                         // Vibestreak
                         VibestreakView(streak: chat.vibestreak, size: .small)
 
@@ -129,7 +134,8 @@ struct ChatRowView: View {
             friend: FriendProfile(
                 from: UserProfile(uid: "1", email: "john@test.com", username: "johndoe")
             ),
-            vibestreak: 5
+            vibestreak: 5,
+            compatibility: CompatibilityResult(score: 85, sharedArtists: ["Taylor Swift"], sharedGenres: ["Pop"])
         ))
         Divider()
         ChatRowView(chat: ChatItem(
@@ -141,8 +147,46 @@ struct ChatRowView: View {
             friend: FriendProfile(
                 from: UserProfile(uid: "2", email: "jane@test.com", username: "janesmith")
             ),
-            vibestreak: 0
+            vibestreak: 0,
+            compatibility: CompatibilityResult(score: 45, sharedArtists: [], sharedGenres: ["Rock"])
         ))
     }
-    .background(Color(.secondarySystemBackground))
+    .cardStyle()
+}
+
+// MARK: - Compatibility Badge
+
+struct CompatibilityBadge: View {
+    let compatibility: CompatibilityResult
+
+    private var badgeColor: Color {
+        switch compatibility.level {
+        case .high: return .green
+        case .medium: return .orange
+        case .low: return .gray
+        }
+    }
+
+    private var iconName: String {
+        switch compatibility.level {
+        case .high: return "flame.fill"
+        case .medium: return "star.fill"
+        case .low: return "sparkle"
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: iconName)
+                .font(.system(size: 8))
+            Text("\(compatibility.score)%")
+                .font(.caption2)
+                .fontWeight(.semibold)
+        }
+        .foregroundColor(badgeColor)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(badgeColor.opacity(0.15))
+        .clipShape(Capsule())
+    }
 }

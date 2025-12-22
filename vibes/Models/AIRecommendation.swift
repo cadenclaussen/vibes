@@ -315,3 +315,76 @@ struct ResolvedBlendSong: Identifiable {
         track != nil
     }
 }
+
+// MARK: - AI Personalized Recommendation
+
+struct AIRecommendedSong: Codable, Identifiable {
+    let id: String
+    let trackName: String
+    let artistName: String
+    let reason: String
+    let matchScore: Double
+    let basedOn: String
+
+    var searchQuery: String {
+        "\(trackName) \(artistName)"
+    }
+
+    init(
+        id: String = UUID().uuidString,
+        trackName: String,
+        artistName: String,
+        reason: String,
+        matchScore: Double,
+        basedOn: String
+    ) {
+        self.id = id
+        self.trackName = trackName
+        self.artistName = artistName
+        self.reason = reason
+        self.matchScore = matchScore
+        self.basedOn = basedOn
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = (try? container.decode(String.self, forKey: .id)) ?? UUID().uuidString
+        self.trackName = try container.decode(String.self, forKey: .trackName)
+        self.artistName = try container.decode(String.self, forKey: .artistName)
+        self.reason = (try? container.decode(String.self, forKey: .reason)) ?? ""
+        if let doubleScore = try? container.decode(Double.self, forKey: .matchScore) {
+            self.matchScore = doubleScore
+        } else if let intScore = try? container.decode(Int.self, forKey: .matchScore) {
+            self.matchScore = Double(intScore)
+        } else {
+            self.matchScore = 0.8
+        }
+        self.basedOn = (try? container.decode(String.self, forKey: .basedOn)) ?? ""
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, trackName, artistName, reason, matchScore, basedOn
+    }
+}
+
+struct AIRecommendationsResponse: Codable {
+    let recommendations: [AIRecommendedSong]
+    let refreshReason: String
+}
+
+struct CachedAIRecommendations: Codable {
+    let cache: CachedRecommendation
+    let recommendations: [AIRecommendedSong]
+    let refreshReason: String
+}
+
+struct ResolvedAIRecommendation: Identifiable {
+    let id: String
+    let recommendation: AIRecommendedSong
+    let track: Track?
+    let previewUrl: String?
+
+    var isResolved: Bool {
+        track != nil
+    }
+}

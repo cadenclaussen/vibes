@@ -12,10 +12,31 @@ struct ChatsView: View {
     @EnvironmentObject var authManager: AuthManager
     @StateObject private var viewModel = ChatsViewModel()
     @State private var showingAddFriend = false
+    @State private var showingCreateGroup = false
     @State private var navigationPath = NavigationPath()
     @State private var selectedFriendForBlend: FriendProfile?
+    @State private var searchText = ""
     @Binding var selectedTab: Int
     @Binding var shouldEditProfile: Bool
+
+    private var filteredChats: [ChatItem] {
+        if searchText.isEmpty {
+            return viewModel.allChats
+        }
+        let query = searchText.lowercased()
+        return viewModel.allChats.filter { chat in
+            chat.friend.displayName.lowercased().contains(query) ||
+            chat.friend.username.lowercased().contains(query)
+        }
+    }
+
+    private var filteredGroups: [GroupThread] {
+        if searchText.isEmpty {
+            return viewModel.groupThreads
+        }
+        let query = searchText.lowercased()
+        return viewModel.groupThreads.filter { $0.name.lowercased().contains(query) }
+    }
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -30,21 +51,37 @@ struct ChatsView: View {
                         )
                     }
                 }
+                .navigationDestination(for: GroupThread.self) { group in
+                    if let currentUserId = authManager.user?.uid {
+                        GroupThreadView(group: group, currentUserId: currentUserId)
+                    }
+                }
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
                         SettingsMenu(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
                     }
                     ToolbarItem(placement: .topBarLeading) {
-                        Button {
-                            showingAddFriend = true
-                        } label: {
-                            Image(systemName: "person.badge.plus")
-                                .imageScale(.large)
+                        HStack(spacing: 16) {
+                            Button {
+                                showingAddFriend = true
+                            } label: {
+                                Image(systemName: "person.badge.plus")
+                                    .imageScale(.large)
+                            }
+                            Button {
+                                showingCreateGroup = true
+                            } label: {
+                                Image(systemName: "person.3.fill")
+                                    .imageScale(.large)
+                            }
                         }
                     }
                 }
                 .sheet(isPresented: $showingAddFriend) {
                     AddFriendView(viewModel: viewModel.friendsViewModel)
+                }
+                .sheet(isPresented: $showingCreateGroup) {
+                    CreateGroupView()
                 }
                 .sheet(item: $selectedFriendForBlend) { friend in
                     NavigationStack {
@@ -75,14 +112,43 @@ struct ChatsView: View {
         } else {
             ScrollView {
                 VStack(spacing: 16) {
-                    nowPlayingSection
-                    notificationsSection
-                    pendingRequestsSection
+                    searchBar
+                    if searchText.isEmpty {
+                        nowPlayingSection
+                        notificationsSection
+                        pendingRequestsSection
+                    }
+                    groupsSection
                     chatsSection
                 }
                 .padding()
             }
         }
+    }
+
+    private var searchBar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.secondary)
+
+            TextField("Search friends...", text: $searchText)
+                .textFieldStyle(.plain)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                    HapticService.lightImpact()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding(12)
+        .background(Color(.tertiarySystemFill))
+        .cornerRadius(10)
     }
 
     private var notificationsSection: some View {
@@ -116,8 +182,7 @@ struct ChatsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 12)
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
+        .cardStyle()
     }
 
     private func notificationRow(_ notification: FriendNotification) -> some View {
@@ -168,8 +233,7 @@ struct ChatsView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 12)
-                .background(Color(.secondarySystemBackground))
-                .cornerRadius(12)
+                .cardStyle()
             }
         }
     }
@@ -246,23 +310,25 @@ struct ChatsView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 12)
-            .background(Color(.secondarySystemBackground))
-            .cornerRadius(12)
+            .cardStyle()
         }
     }
 
     private var chatsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Conversations")
+            Text(searchText.isEmpty ? "Conversations" : "Results")
                 .font(.headline)
                 .padding(.horizontal)
 
             if viewModel.allChats.isEmpty {
                 emptyStateView(text: "No conversations yet. Add friends to start chatting!")
+            } else if filteredChats.isEmpty {
+                emptyStateView(text: "No friends matching \"\(searchText)\"")
             } else {
                 VStack(spacing: 0) {
-                    ForEach(viewModel.allChats) { chat in
+                    ForEach(filteredChats) { chat in
                         Button {
+                            searchText = ""
                             navigationPath.append(chat.friend)
                         } label: {
                             ChatRowView(chat: chat)
@@ -277,7 +343,7 @@ struct ChatsView: View {
                             }
                         }
 
-                        if chat.id != viewModel.allChats.last?.id {
+                        if chat.id != filteredChats.last?.id {
                             Divider()
                                 .padding(.leading, 64)
                         }
@@ -287,8 +353,66 @@ struct ChatsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 12)
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
+        .cardStyle()
+    }
+
+    @ViewBuilder
+    private var groupsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "person.3.fill")
+                    .foregroundColor(.purple)
+                Text("Groups")
+                    .font(.headline)
+
+                Spacer()
+
+                Button {
+                    showingCreateGroup = true
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundColor(.purple)
+                }
+            }
+            .padding(.horizontal)
+
+            if filteredGroups.isEmpty {
+                if searchText.isEmpty {
+                    VStack(spacing: 8) {
+                        Text("No groups yet")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                        Text("Tap + to create a group chat")
+                            .font(.caption)
+                            .foregroundColor(Color(.tertiaryLabel))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                } else {
+                    emptyStateView(text: "No groups matching \"\(searchText)\"")
+                }
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(filteredGroups) { group in
+                        Button {
+                            searchText = ""
+                            navigationPath.append(group)
+                        } label: {
+                            GroupRowView(group: group, currentUserId: authManager.user?.uid ?? "")
+                        }
+                        .buttonStyle(.plain)
+
+                        if group.id != filteredGroups.last?.id {
+                            Divider()
+                                .padding(.leading, 64)
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 12)
+        .cardStyle()
     }
 
     private func emptyStateView(text: String) -> some View {
@@ -415,6 +539,7 @@ struct ChatItem: Identifiable {
     let unreadCount: Int
     let friend: FriendProfile
     let vibestreak: Int
+    let compatibility: CompatibilityResult?
 
     var displayTime: String {
         let calendar = Calendar.current
@@ -428,6 +553,102 @@ struct ChatItem: Identifiable {
             let formatter = DateFormatter()
             formatter.dateFormat = "MM/dd"
             return formatter.string(from: timestamp)
+        }
+    }
+}
+
+// MARK: - Group Row View
+
+struct GroupRowView: View {
+    let group: GroupThread
+    let currentUserId: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Group avatar
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [.purple.opacity(0.6), .blue.opacity(0.6)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 50, height: 50)
+
+                Image(systemName: "person.3.fill")
+                    .foregroundColor(.white)
+                    .font(.system(size: 18))
+            }
+
+            // Content
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(group.name)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+
+                    Spacer()
+
+                    Text(displayTime)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                HStack {
+                    if let senderName = group.lastMessageSenderName, !group.lastMessageContent.isEmpty {
+                        Text("\(senderName): \(group.lastMessageContent)")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    } else {
+                        Text("No messages yet")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
+
+                    if unreadCount > 0 {
+                        Text(unreadCount > 99 ? "99+" : "\(unreadCount)")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.purple)
+                            .clipShape(Capsule())
+                    }
+                }
+            }
+
+            Image(systemName: "chevron.right")
+                .foregroundColor(.secondary)
+                .imageScale(.small)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
+    }
+
+    private var unreadCount: Int {
+        group.unreadCount(for: currentUserId)
+    }
+
+    private var displayTime: String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(group.lastMessageTimestamp) {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "h:mm a"
+            return formatter.string(from: group.lastMessageTimestamp)
+        } else if calendar.isDateInYesterday(group.lastMessageTimestamp) {
+            return "Yesterday"
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MM/dd"
+            return formatter.string(from: group.lastMessageTimestamp)
         }
     }
 }

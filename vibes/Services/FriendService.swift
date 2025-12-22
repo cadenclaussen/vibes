@@ -30,9 +30,8 @@ class FriendService {
         print("📊 Found \(snapshot.documents.count) documents")
         for doc in snapshot.documents {
             print("   - Document ID: \(doc.documentID)")
-            if let data = doc.data() as? [String: Any] {
-                print("   - Username in doc: \(data["username"] ?? "nil")")
-            }
+            let data = doc.data()
+            print("   - Username in doc: \(data["username"] ?? "nil")")
         }
 
         guard let targetUser = snapshot.documents.first else {
@@ -41,9 +40,8 @@ class FriendService {
             let allUsers = try await usersRef.getDocuments()
             print("📋 Total users in collection: \(allUsers.documents.count)")
             for doc in allUsers.documents.prefix(5) {
-                if let data = doc.data() as? [String: Any] {
-                    print("   - User: \(data["username"] ?? "no username")")
-                }
+                let data = doc.data()
+                print("   - User: \(data["username"] ?? "no username")")
             }
 
             throw NSError(domain: "FriendService", code: 404, userInfo: [NSLocalizedDescriptionKey: "User not found"])

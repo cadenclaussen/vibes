@@ -13,6 +13,7 @@ struct FriendProfile: Codable, Identifiable, Hashable {
     let displayName: String
     let profilePictureURL: String?
     let musicTasteTags: [String]
+    let favoriteArtists: [String]
     let vibestreak: Int
     let streakLastUpdated: Date?
     let friendshipId: String?
@@ -78,6 +79,7 @@ struct FriendProfile: Codable, Identifiable, Hashable {
         self.displayName = userProfile.displayName
         self.profilePictureURL = userProfile.profilePictureURL
         self.musicTasteTags = userProfile.musicTasteTags
+        self.favoriteArtists = userProfile.favoriteArtists
         self.vibestreak = vibestreak
         self.streakLastUpdated = streakLastUpdated
         self.friendshipId = friendshipId

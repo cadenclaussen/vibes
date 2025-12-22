@@ -30,12 +30,15 @@ class AuthManager: ObservableObject {
             self?.user = user
             self?.isAuthenticated = user != nil
 
-            // Update achievement notification service with current user
+            // Update achievement services with current user
             AchievementNotificationService.shared.setCurrentUser(user?.uid)
+            LocalAchievementStats.shared.setCurrentUser(user?.uid)
 
             if let userId = user?.uid {
                 Task {
                     await self?.checkSpotifyLink(userId: userId)
+                    // Proactively load and cache Firestore stats for achievement checking
+                    await LocalAchievementStats.shared.loadAndCacheFirestoreStats()
                 }
             }
         }

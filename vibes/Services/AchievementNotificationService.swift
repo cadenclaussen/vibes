@@ -78,13 +78,13 @@ class AchievementNotificationService: ObservableObject {
                 }
             }
 
-            // Update stored unlocked achievements
+            // Store current unlocked set (not union - allows re-earning after data reset)
             previouslyUnlockedIds = currentlyUnlocked
 
             // Start processing queue if not already
             processQueue()
         } else {
-            // Update stored achievements even if no new ones
+            // Store current unlocked set
             previouslyUnlockedIds = currentlyUnlocked
         }
     }

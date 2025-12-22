@@ -64,13 +64,20 @@ class MessageThreadViewModel: ObservableObject {
                 print("  - ID: \(msg.id ?? "nil"), text: \(msg.textContent ?? "no-text"), sender: \(msg.senderId)")
             }
 
+            // Track received songs for Butterfly Effect achievement
+            for msg in messages where msg.senderId != self.currentUserId {
+                if msg.messageType == .song, let trackId = msg.spotifyTrackId {
+                    LocalAchievementStats.shared.trackReceivedSong(trackId: trackId)
+                }
+            }
+
             // Update is already on main thread from FirestoreService
             self.messages = messages
             self.isLoading = false
 
             // Mark messages as read
             Task {
-                try? await self.markMessagesAsRead()
+                await self.markMessagesAsRead()
             }
         }
         print("✅ Message listener set up for thread: \(threadId)")
@@ -137,6 +144,7 @@ class MessageThreadViewModel: ObservableObject {
             // Track for achievements
             LocalAchievementStats.shared.messagesSent += 1
             LocalAchievementStats.shared.trackConversation(with: otherUserId)
+            LocalAchievementStats.shared.checkLocalAchievements()
 
             isSending = false
         } catch {
@@ -180,6 +188,9 @@ class MessageThreadViewModel: ObservableObject {
             LocalAchievementStats.shared.messagesSent += 1
             LocalAchievementStats.shared.songMessagesSent += 1
             LocalAchievementStats.shared.trackConversation(with: otherUserId)
+            // Check Butterfly Effect - passing along received songs
+            LocalAchievementStats.shared.checkButterflyEffect(trackId: trackId)
+            LocalAchievementStats.shared.checkLocalAchievements()
 
             isSending = false
         } catch {
@@ -195,6 +206,7 @@ class MessageThreadViewModel: ObservableObject {
             try await firestoreService.addReaction(messageId: messageId, threadId: threadId, userId: currentUserId, reaction: emoji)
             // Track for achievements
             LocalAchievementStats.shared.reactionsGiven += 1
+            LocalAchievementStats.shared.checkLocalAchievements()
         } catch {
             errorMessage = "Failed to add reaction: \(error.localizedDescription)"
         }
@@ -205,6 +217,7 @@ class MessageThreadViewModel: ObservableObject {
             try await firestoreService.addReaction(messageId: messageId, threadId: threadId, userId: currentUserId, reaction: emoji)
             // Track for achievements
             LocalAchievementStats.shared.reactionsGiven += 1
+            LocalAchievementStats.shared.checkLocalAchievements()
         } catch {
             errorMessage = "Failed to add reaction: \(error.localizedDescription)"
         }

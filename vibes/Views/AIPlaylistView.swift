@@ -38,6 +38,9 @@ struct AIPlaylistView: View {
         } message: {
             Text("Your playlist has been saved to Spotify!")
         }
+        .onDisappear {
+            audioPlayer.stop()
+        }
     }
 
     private var headerSection: some View {
@@ -175,7 +178,7 @@ struct AIPlaylistView: View {
                                     .padding(.vertical, 4)
                                     .background(Color.purple.opacity(0.15))
                                     .foregroundColor(.purple)
-                                    .cornerRadius(12)
+                                    
                             }
                         }
                     }
@@ -205,8 +208,8 @@ struct AIPlaylistView: View {
                             }
                         }
                     }
-                    .background(Color(.secondarySystemBackground))
-                    .cornerRadius(12)
+                    .cardStyle()
+                    
 
                     saveButton
                 }
@@ -228,7 +231,7 @@ struct AIPlaylistView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
             .background(Color.green)
-            .cornerRadius(12)
+            
         }
         .disabled(viewModel.isSavingPlaylist || viewModel.resolvedSongs.filter { $0.isResolved }.isEmpty)
         .padding(.top, 8)
@@ -260,6 +263,7 @@ struct AIPlaylistView: View {
                             if viewModel.savedPlaylistUrl != nil {
                                 // Track for achievements
                                 LocalAchievementStats.shared.aiPlaylistsCreated += 1
+                                LocalAchievementStats.shared.checkLocalAchievements()
                             }
                             showingSaveSheet = false
                         }
@@ -385,20 +389,19 @@ struct ResolvedSongRow: View {
 
             Spacer()
 
-            // Play button
-            if song.previewUrl != nil {
-                Button(action: onPlay) {
-                    Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(.purple)
-                }
-            } else if song.track == nil {
+            // Show X if track not found
+            if song.track == nil {
                 Image(systemName: "xmark.circle")
                     .foregroundColor(Color(.tertiaryLabel))
             }
         }
         .padding(12)
         .contentShape(Rectangle())
+        .onTapGesture {
+            if song.previewUrl != nil {
+                onPlay()
+            }
+        }
         .contextMenu {
             if let track = song.track {
                 Button {

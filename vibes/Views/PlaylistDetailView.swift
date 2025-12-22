@@ -29,6 +29,9 @@ struct PlaylistDetailView: View {
         .task {
             await loadTracks()
         }
+        .onDisappear {
+            audioPlayer.stop()
+        }
     }
 
     private var headerSection: some View {

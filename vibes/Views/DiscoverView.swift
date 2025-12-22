@@ -29,12 +29,19 @@ struct DiscoverView: View {
                             recentlyActiveSection
                         }
 
-                        if !viewModel.newReleases.isEmpty {
+                        // Show New Releases if we have data OR if still loading
+                        if !viewModel.newReleases.isEmpty || viewModel.isLoadingNewReleases {
                             newReleasesSection
                         }
 
-                        if !viewModel.recommendations.isEmpty {
+                        // Show For You if we have data OR if still loading
+                        if !viewModel.recommendations.isEmpty || viewModel.isLoadingRecommendations {
                             forYouSection
+                        }
+
+                        // AI-Powered Recommendations section
+                        if !viewModel.aiRecommendations.isEmpty || viewModel.isLoadingAIRecommendations {
+                            aiRecommendationsSection
                         }
 
                         // AI Playlist Ideas section
@@ -42,14 +49,21 @@ struct DiscoverView: View {
                             aiPlaylistSection
                         }
 
-                        if !viewModel.trendingSongs.isEmpty {
+                        if !viewModel.trendingSongs.isEmpty || viewModel.isLoadingTrending {
                             trendingSection
                         }
 
-                        if viewModel.recentlyActiveFriends.isEmpty &&
+                        // Only show empty state if nothing is loading and everything is empty
+                        let nothingLoading = !viewModel.isLoadingNewReleases &&
+                                           !viewModel.isLoadingRecommendations &&
+                                           !viewModel.isLoadingTrending &&
+                                           !viewModel.isLoadingAIRecommendations
+                        if nothingLoading &&
+                           viewModel.recentlyActiveFriends.isEmpty &&
                            viewModel.newReleases.isEmpty &&
                            viewModel.recommendations.isEmpty &&
-                           viewModel.trendingSongs.isEmpty {
+                           viewModel.trendingSongs.isEmpty &&
+                           viewModel.aiRecommendations.isEmpty {
                             emptyStateSection
                         }
                     }
@@ -68,6 +82,23 @@ struct DiscoverView: View {
         }
         .task {
             await viewModel.loadAllData()
+        }
+        .onChange(of: spotifyService.isAuthenticated) { _, isAuthenticated in
+            if isAuthenticated {
+                Task {
+                    await viewModel.loadAllData()
+                }
+            }
+        }
+        .onChange(of: geminiService.isConfigured) { _, isConfigured in
+            if isConfigured {
+                Task {
+                    await viewModel.loadAIRecommendations()
+                }
+            }
+        }
+        .onDisappear {
+            audioPlayer.stop()
         }
     }
 
@@ -161,13 +192,22 @@ struct DiscoverView: View {
             Text("New Releases")
                 .font(.headline)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(viewModel.newReleases) { album in
-                        NavigationLink(destination: AlbumDetailView(album: album)) {
-                            NewReleaseCard(album: album)
+            if viewModel.isLoadingNewReleases && viewModel.newReleases.isEmpty {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+                .frame(height: 180)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(viewModel.newReleases) { album in
+                            NavigationLink(destination: AlbumDetailView(album: album)) {
+                                NewReleaseCard(album: album)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -187,14 +227,71 @@ struct DiscoverView: View {
                     .foregroundColor(Color(.secondaryLabel))
             }
 
-            VStack(spacing: 8) {
-                ForEach(viewModel.recommendations) { track in
-                    RecommendationRow(track: track)
+            if viewModel.isLoadingRecommendations && viewModel.recommendations.isEmpty {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+                .frame(height: 100)
+                .padding()
+                .cardStyle()
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(viewModel.recommendations) { track in
+                        RecommendationRow(track: track)
+                    }
+                }
+                .padding()
+                .cardStyle()
+            }
+        }
+    }
+
+    // MARK: - AI Recommendations Section
+
+    private var aiRecommendationsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "sparkles")
+                    .foregroundColor(.purple)
+                Text("AI Picks For You")
+                    .font(.headline)
+                Spacer()
+                if viewModel.isLoadingAIRecommendations {
+                    ProgressView()
+                        .scaleEffect(0.8)
                 }
             }
-            .padding()
-            .background(Color(.secondarySystemBackground))
-            .cornerRadius(12)
+
+            if !viewModel.aiRecommendationsReason.isEmpty {
+                Text(viewModel.aiRecommendationsReason)
+                    .font(.caption)
+                    .foregroundColor(Color(.secondaryLabel))
+            }
+
+            if viewModel.aiRecommendations.isEmpty && viewModel.isLoadingAIRecommendations {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                        .padding()
+                    Spacer()
+                }
+                .frame(height: 100)
+                .cardStyle()
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(viewModel.aiRecommendations) { resolved in
+                        AIRecommendationRow(resolved: resolved) {
+                            withAnimation {
+                                viewModel.dismissAIRecommendation(resolved)
+                            }
+                        }
+                    }
+                }
+                .padding()
+                .cardStyle()
+            }
         }
     }
 
@@ -209,14 +306,24 @@ struct DiscoverView: View {
                     .foregroundColor(.orange)
             }
 
-            VStack(spacing: 8) {
-                ForEach(viewModel.trendingSongs) { song in
-                    TrendingSongRow(song: song)
+            if viewModel.isLoadingTrending && viewModel.trendingSongs.isEmpty {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
                 }
+                .frame(height: 100)
+                .padding()
+                .cardStyle()
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(viewModel.trendingSongs) { song in
+                        TrendingSongRow(song: song)
+                    }
+                }
+                .padding()
+                .cardStyle()
             }
-            .padding()
-            .background(Color(.secondarySystemBackground))
-            .cornerRadius(12)
         }
     }
 
@@ -269,8 +376,7 @@ struct DiscoverView: View {
                             .foregroundColor(Color(.tertiaryLabel))
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
-                    .cornerRadius(12)
+                    .cardStyle()
                 }
                 .buttonStyle(.plain)
 
@@ -315,8 +421,7 @@ struct DiscoverView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(Color(.secondarySystemBackground))
-                .cornerRadius(12)
+                .cardStyle()
             }
         }
     }
@@ -731,6 +836,161 @@ struct TrendingSongRow: View {
                 albumArtUrl: song.albumArtUrl,
                 onAdded: {}
             )
+        }
+    }
+}
+
+struct AIRecommendationRow: View {
+    let resolved: ResolvedAIRecommendation
+    let onDismiss: () -> Void
+    @ObservedObject var audioPlayer = AudioPlayerService.shared
+    @ObservedObject var spotifyService = SpotifyService.shared
+    @State private var showFriendPicker = false
+    @State private var showPlaylistPicker = false
+
+    private var track: Track? {
+        resolved.track
+    }
+
+    private var trackUri: String {
+        guard let track = track else { return "" }
+        return "spotify:track:\(track.id)"
+    }
+
+    private var isPlaying: Bool {
+        guard let track = track else { return false }
+        return audioPlayer.currentTrackId == track.id && audioPlayer.isPlaying
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                if let imageUrl = track?.album.images.first?.url,
+                   let url = URL(string: imageUrl) {
+                    AsyncImage(url: url) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Color(.tertiarySystemBackground)
+                    }
+                    .frame(width: 50, height: 50)
+                    .cornerRadius(6)
+                } else {
+                    Image(systemName: "music.note")
+                        .frame(width: 50, height: 50)
+                        .background(Color(.tertiarySystemBackground))
+                        .cornerRadius(6)
+                }
+
+                // Play overlay
+                if resolved.previewUrl != nil {
+                    Circle()
+                        .fill(Color.black.opacity(0.5))
+                        .frame(width: 30, height: 30)
+
+                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(.white)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(track?.name ?? resolved.recommendation.trackName)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+
+                Text(track?.artists.map { $0.name }.joined(separator: ", ") ?? resolved.recommendation.artistName)
+                    .font(.caption)
+                    .foregroundColor(Color(.secondaryLabel))
+                    .lineLimit(1)
+
+                // Show AI reason
+                Text(resolved.recommendation.basedOn)
+                    .font(.caption2)
+                    .foregroundColor(.purple)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            // Match score indicator
+            ZStack {
+                Circle()
+                    .fill(Color.purple.opacity(0.2))
+                    .frame(width: 32, height: 32)
+
+                Text("\(Int(resolved.recommendation.matchScore * 100))%")
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundColor(.purple)
+            }
+
+            // Dismiss button
+            Button {
+                HapticService.lightImpact()
+                // Stop audio if this song is currently playing
+                if isPlaying {
+                    audioPlayer.stop()
+                }
+                onDismiss()
+            } label: {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(.green)
+            }
+            .buttonStyle(.plain)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if let previewUrl = resolved.previewUrl, let track = track {
+                audioPlayer.playUrl(previewUrl, trackId: track.id)
+            }
+        }
+        .contextMenu {
+            if let track = track {
+                Button {
+                    HapticService.lightImpact()
+                    showFriendPicker = true
+                } label: {
+                    Label("Send to Friend", systemImage: "paperplane")
+                }
+
+                if spotifyService.isAuthenticated {
+                    Button {
+                        HapticService.lightImpact()
+                        showPlaylistPicker = true
+                    } label: {
+                        Label("Add to Playlist", systemImage: "plus.circle")
+                    }
+                }
+
+                Button {
+                    HapticService.lightImpact()
+                    if let url = URL(string: "https://open.spotify.com/track/\(track.id)") {
+                        UIApplication.shared.open(url)
+                    }
+                } label: {
+                    Label("Open in Spotify", systemImage: "arrow.up.right")
+                }
+            }
+        }
+        .sheet(isPresented: $showFriendPicker) {
+            if let track = track {
+                FriendPickerView(track: track, previewUrl: resolved.previewUrl)
+            }
+        }
+        .sheet(isPresented: $showPlaylistPicker) {
+            if let track = track {
+                PlaylistPickerView(
+                    trackUri: trackUri,
+                    trackName: track.name,
+                    artistName: track.artists.map { $0.name }.joined(separator: ", "),
+                    albumArtUrl: track.album.images.first?.url,
+                    onAdded: {}
+                )
+            }
         }
     }
 }

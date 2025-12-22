@@ -3,6 +3,7 @@ import SwiftUI
 struct SearchView: View {
     @StateObject private var viewModel = SearchViewModel()
     @ObservedObject var spotifyService = SpotifyService.shared
+    @ObservedObject var audioPlayer = AudioPlayerService.shared
     @Binding var selectedTab: Int
     @Binding var shouldEditProfile: Bool
     @Binding var navigateToFriend: FriendProfile?
@@ -20,6 +21,9 @@ struct SearchView: View {
                 }
             }
             .navigationTitle("Search")
+            .onDisappear {
+                audioPlayer.stop()
+            }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     SettingsMenu(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
@@ -71,7 +75,7 @@ struct SearchView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Color(.secondarySystemBackground))
+        .cardStyle()
     }
 
     private var searchTypeSelector: some View {

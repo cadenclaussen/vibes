@@ -45,6 +45,11 @@ class DiscoverViewModel: ObservableObject {
     @Published var trendingSongs: [TrendingSong] = []
     @Published var recentlyActiveFriends: [RecentlyActiveFriend] = []
     @Published var blendableFriends: [BlendableFriend] = []
+    @Published var aiRecommendations: [ResolvedAIRecommendation] = []
+    @Published var aiRecommendationsReason: String = ""
+    private var pendingAIRecommendations: [ResolvedAIRecommendation] = []
+    private var dismissedTrackIds: Set<String> = []
+    private var dismissedSongNames: [String] = [] // "trackName by artistName" for Gemini
 
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -54,9 +59,12 @@ class DiscoverViewModel: ObservableObject {
     @Published var isLoadingTrending = false
     @Published var isLoadingFriends = false
     @Published var isLoadingBlendable = false
+    @Published var isLoadingAIRecommendations = false
 
     private let spotifyService = SpotifyService.shared
     private let friendService = FriendService.shared
+    private let geminiService = GeminiService.shared
+    private let itunesService = iTunesService.shared
     private lazy var db = Firestore.firestore()
 
     func loadAllData() async {
@@ -68,8 +76,9 @@ class DiscoverViewModel: ObservableObject {
         async let trendingTask: () = loadTrendingSongs()
         async let friendsTask: () = loadRecentlyActiveFriends()
         async let blendableTask: () = loadBlendableFriends()
+        async let aiRecsTask: () = loadAIRecommendations()
 
-        _ = await (releasesTask, recommendationsTask, trendingTask, friendsTask, blendableTask)
+        _ = await (releasesTask, recommendationsTask, trendingTask, friendsTask, blendableTask, aiRecsTask)
 
         isLoading = false
     }
@@ -80,20 +89,26 @@ class DiscoverViewModel: ObservableObject {
         isLoadingNewReleases = true
         do {
             // Get user's top artists to personalize new releases
-            let topArtists = try await spotifyService.getTopArtists(timeRange: "medium_term", limit: 5)
+            let topArtists = try await spotifyService.getTopArtists(timeRange: "medium_term", limit: 20)
+
+            // Sync top artists to profile for compatibility calculations
+            if let userId = Auth.auth().currentUser?.uid {
+                let artistNames = topArtists.map { $0.name }
+                try? await FirestoreService.shared.syncTopArtistsToProfile(userId: userId, artists: artistNames)
+            }
 
             var personalizedReleases: [Album] = []
-            let oneYearAgo = Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? Date()
+            let threeMonthsAgo = Calendar.current.date(byAdding: .month, value: -3, to: Date()) ?? Date()
 
-            // Get recent albums from user's top artists (limit API calls)
-            for artist in topArtists.prefix(5) {
+            // Get recent albums from user's top artists
+            for artist in topArtists.prefix(20) {
                 do {
                     let artistAlbums = try await spotifyService.getArtistAlbums(artistId: artist.id, limit: 5)
                     let recentAlbums = artistAlbums.filter { album in
                         if let releaseDate = parseReleaseDate(album.releaseDate) {
-                            return releaseDate >= oneYearAgo
+                            return releaseDate >= threeMonthsAgo
                         }
-                        return true // Include if we can't parse date
+                        return false // Exclude if we can't parse date
                     }
                     personalizedReleases.append(contentsOf: recentAlbums)
                 } catch {
@@ -353,5 +368,288 @@ class DiscoverViewModel: ObservableObject {
             print("Failed to load blendable friends: \(error)")
         }
         isLoadingBlendable = false
+    }
+
+    func loadAIRecommendations() async {
+        guard spotifyService.isAuthenticated && geminiService.isConfigured else { return }
+        guard !isLoadingAIRecommendations else { return } // Prevent concurrent loads
+
+        // Skip if we already have enough songs (don't replace on refresh)
+        let currentTotal = aiRecommendations.count + pendingAIRecommendations.count
+        if currentTotal >= 10 {
+            print("[AI Recs] Already have \(currentTotal) songs, skipping load")
+            return
+        }
+
+        // Load dismissed songs for Gemini
+        loadDismissedTrackIds()
+
+        isLoadingAIRecommendations = true
+        do {
+            // Build music profile from Spotify data
+            async let topArtistsTask = spotifyService.getTopArtists(timeRange: "medium_term", limit: 10)
+            async let topTracksTask = spotifyService.getTopTracks(timeRange: "medium_term", limit: 20)
+            async let recentHistoryTask = spotifyService.getRecentlyPlayed(limit: 20)
+
+            let (topArtists, topTracks, recentHistory) = try await (topArtistsTask, topTracksTask, recentHistoryTask)
+
+            // Extract tracks from play history
+            let recentTracks = recentHistory.map { $0.track }
+
+            let profile = MusicProfile.from(
+                artists: topArtists,
+                tracks: topTracks,
+                recentTracks: recentTracks
+            )
+
+            // If we have some songs already, just add more - don't replace
+            if aiRecommendations.count > 0 {
+                print("[AI Recs] Have \(aiRecommendations.count) songs, adding more")
+                let neededCount = 10 - currentTotal
+                let (recommendations, _) = try await geminiService.generatePersonalizedRecommendations(
+                    profile: profile,
+                    count: neededCount + 15,
+                    avoidSongs: dismissedSongNames
+                )
+                await resolveAndAddToPending(from: recommendations)
+            } else {
+                // First load - request many songs upfront to avoid needing retries
+                await loadAIRecommendationsWithRetry(profile: profile)
+            }
+
+            print("[AI Recs] Final count: \(aiRecommendations.count) visible, \(pendingAIRecommendations.count) pending")
+        } catch {
+            print("Failed to load AI recommendations: \(error)")
+        }
+        isLoadingAIRecommendations = false
+    }
+
+    private func loadAIRecommendationsWithRetry(profile: MusicProfile, retryCount: Int = 0) async {
+        let maxRetries = 3
+
+        do {
+            let (recommendations, reason) = try await geminiService.generatePersonalizedRecommendations(
+                profile: profile,
+                count: 40,
+                avoidSongs: dismissedSongNames
+            )
+            print("[AI Recs] Gemini returned \(recommendations.count) recommendations")
+            aiRecommendationsReason = reason
+
+            // Resolve songs to Spotify tracks
+            await resolveSongs(from: recommendations)
+
+            // If all were dismissed/filtered and we haven't retried too many times, try again
+            if aiRecommendations.isEmpty && pendingAIRecommendations.isEmpty && retryCount < maxRetries {
+                print("[AI Recs] All recommendations filtered out, retrying (\(retryCount + 1)/\(maxRetries))...")
+                await loadAIRecommendationsWithRetry(profile: profile, retryCount: retryCount + 1)
+            }
+        } catch {
+            print("Failed to load AI recommendations: \(error)")
+        }
+    }
+
+    private func resolveSongs(from recommendations: [AIRecommendedSong]) async {
+        // Load dismissed track IDs
+        loadDismissedTrackIds()
+
+        var resolved: [ResolvedAIRecommendation] = []
+        var resolvedTrackIds = Set<String>() // Track IDs already added to avoid duplicates
+        var notFoundCount = 0
+        var dismissedCount = 0
+        var noPreviewCount = 0
+        var duplicateCount = 0
+
+        for recommendation in recommendations {
+            do {
+                let tracks = try await spotifyService.searchTracks(query: recommendation.searchQuery, limit: 1)
+
+                if let track = tracks.first {
+                    // Skip if already dismissed
+                    if dismissedTrackIds.contains(track.id) {
+                        dismissedCount += 1
+                        continue
+                    }
+
+                    // Skip if already added (duplicate)
+                    if resolvedTrackIds.contains(track.id) {
+                        duplicateCount += 1
+                        continue
+                    }
+
+                    var previewUrl = track.previewUrl
+                    if previewUrl == nil {
+                        previewUrl = await itunesService.searchPreview(
+                            trackName: track.name,
+                            artistName: track.artists.first?.name ?? ""
+                        )
+                    }
+
+                    // Skip songs without preview
+                    guard previewUrl != nil else {
+                        noPreviewCount += 1
+                        print("[AI Recs] No preview for: \(track.name) by \(track.artists.first?.name ?? "Unknown")")
+                        continue
+                    }
+
+                    resolvedTrackIds.insert(track.id)
+                    resolved.append(ResolvedAIRecommendation(
+                        id: recommendation.id,
+                        recommendation: recommendation,
+                        track: track,
+                        previewUrl: previewUrl
+                    ))
+                } else {
+                    notFoundCount += 1
+                    print("[AI Recs] Spotify couldn't find: \(recommendation.searchQuery)")
+                }
+            } catch {
+                notFoundCount += 1
+                continue
+            }
+        }
+
+        print("[AI Recs] Resolved: \(resolved.count), Not found: \(notFoundCount), Dismissed: \(dismissedCount), No preview: \(noPreviewCount), Duplicates: \(duplicateCount)")
+
+        // Show first 5, keep rest as pending
+        let visibleCount = 5
+        aiRecommendations = Array(resolved.prefix(visibleCount))
+        pendingAIRecommendations = Array(resolved.dropFirst(visibleCount))
+    }
+
+    func dismissAIRecommendation(_ recommendation: ResolvedAIRecommendation) {
+        // Add to dismissed set
+        if let track = recommendation.track {
+            dismissedTrackIds.insert(track.id)
+            // Also save song name for Gemini
+            let songName = "\(track.name) by \(track.artists.first?.name ?? "Unknown")"
+            dismissedSongNames.append(songName)
+            saveDismissedTrackIds()
+            // Track for The Resurrection achievement (dismissed songs can be resurrected)
+            LocalAchievementStats.shared.trackSongRemoved(trackId: track.id)
+        }
+
+        // Remove from visible list
+        aiRecommendations.removeAll { $0.id == recommendation.id }
+
+        // Add from pending if available
+        if !pendingAIRecommendations.isEmpty {
+            let next = pendingAIRecommendations.removeFirst()
+            aiRecommendations.append(next)
+        }
+
+        // Fetch more if total songs (visible + pending) drops below 8
+        let totalSongs = aiRecommendations.count + pendingAIRecommendations.count
+        if totalSongs < 8 && !isLoadingAIRecommendations {
+            Task {
+                await fetchMoreRecommendations()
+            }
+        }
+    }
+
+    private func fetchMoreRecommendations() async {
+        guard spotifyService.isAuthenticated && geminiService.isConfigured else { return }
+        guard !isLoadingAIRecommendations else { return }
+
+        // Calculate how many we need to reach 10 total
+        let currentTotal = aiRecommendations.count + pendingAIRecommendations.count
+        let neededCount = 10 - currentTotal
+        guard neededCount > 0 else { return }
+
+        // Load dismissed songs for Gemini
+        loadDismissedTrackIds()
+
+        isLoadingAIRecommendations = true
+        do {
+            async let topArtistsTask = spotifyService.getTopArtists(timeRange: "medium_term", limit: 10)
+            async let topTracksTask = spotifyService.getTopTracks(timeRange: "medium_term", limit: 20)
+            async let recentHistoryTask = spotifyService.getRecentlyPlayed(limit: 20)
+
+            let (topArtists, topTracks, recentHistory) = try await (topArtistsTask, topTracksTask, recentHistoryTask)
+            let recentTracks = recentHistory.map { $0.track }
+
+            let profile = MusicProfile.from(
+                artists: topArtists,
+                tracks: topTracks,
+                recentTracks: recentTracks
+            )
+
+            // Request only the number we need (plus buffer for songs without previews)
+            let (recommendations, _) = try await geminiService.generatePersonalizedRecommendations(
+                profile: profile,
+                count: neededCount + 7,
+                avoidSongs: dismissedSongNames
+            )
+
+            // Resolve and add to pending
+            await resolveAndAddToPending(from: recommendations)
+        } catch {
+            print("Failed to fetch more AI recommendations: \(error)")
+        }
+        isLoadingAIRecommendations = false
+    }
+
+    private func resolveAndAddToPending(from recommendations: [AIRecommendedSong]) async {
+        for recommendation in recommendations {
+            // Stop if we have 10 total
+            let totalCount = aiRecommendations.count + pendingAIRecommendations.count
+            if totalCount >= 10 { break }
+
+            do {
+                let tracks = try await spotifyService.searchTracks(query: recommendation.searchQuery, limit: 1)
+
+                if let track = tracks.first {
+                    // Skip if already dismissed or already in lists
+                    if dismissedTrackIds.contains(track.id) { continue }
+                    if aiRecommendations.contains(where: { $0.track?.id == track.id }) { continue }
+                    if pendingAIRecommendations.contains(where: { $0.track?.id == track.id }) { continue }
+
+                    var previewUrl = track.previewUrl
+                    if previewUrl == nil {
+                        previewUrl = await itunesService.searchPreview(
+                            trackName: track.name,
+                            artistName: track.artists.first?.name ?? ""
+                        )
+                    }
+
+                    // Skip songs without preview
+                    guard previewUrl != nil else { continue }
+
+                    let resolved = ResolvedAIRecommendation(
+                        id: recommendation.id,
+                        recommendation: recommendation,
+                        track: track,
+                        previewUrl: previewUrl
+                    )
+
+                    // Add directly to visible if under 5, otherwise to pending
+                    if aiRecommendations.count < 5 {
+                        aiRecommendations.append(resolved)
+                    } else {
+                        pendingAIRecommendations.append(resolved)
+                    }
+                }
+            } catch {
+                continue
+            }
+        }
+    }
+
+    private func loadDismissedTrackIds() {
+        if let saved = UserDefaults.standard.array(forKey: "dismissedAIRecommendations") as? [String] {
+            dismissedTrackIds = Set(saved)
+        }
+        if let savedNames = UserDefaults.standard.array(forKey: "dismissedAISongNames") as? [String] {
+            dismissedSongNames = savedNames
+        }
+    }
+
+    private func saveDismissedTrackIds() {
+        // Keep only last 100 dismissed tracks
+        let toSave = Array(dismissedTrackIds.suffix(100))
+        UserDefaults.standard.set(toSave, forKey: "dismissedAIRecommendations")
+        // Keep only last 50 song names for Gemini (to avoid huge prompts)
+        let namesToSave = Array(dismissedSongNames.suffix(50))
+        UserDefaults.standard.set(namesToSave, forKey: "dismissedAISongNames")
     }
 }

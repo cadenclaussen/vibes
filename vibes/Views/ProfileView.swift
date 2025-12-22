@@ -31,6 +31,7 @@ enum SettingsTab: String, CaseIterable {
 struct ProfileView: View {
     @StateObject private var viewModel = ProfileViewModel()
     @StateObject private var spotifyService = SpotifyService.shared
+    @ObservedObject var audioPlayer = AudioPlayerService.shared
     @EnvironmentObject var authManager: AuthManager
     @Binding var shouldEditProfile: Bool
     @State private var showingGenrePicker = false
@@ -86,6 +87,7 @@ struct ProfileView: View {
                     await viewModel.updateProfile()
                 }
             }
+            audioPlayer.stop()
         }
     }
 
@@ -103,6 +105,13 @@ struct ProfileView: View {
             topArtists = try await artists
             topTracks = try await tracks
             recentlyPlayed = try await recent
+
+            // Sync top artists to profile for compatibility calculations
+            // Use medium_term data as the best representation of taste
+            if selectedTimeRange == .mediumTerm, let userId = authManager.user?.uid {
+                let artistNames = topArtists.map { $0.name }
+                try? await FirestoreService.shared.syncTopArtistsToProfile(userId: userId, artists: artistNames)
+            }
 
             await fetchItunesPreviews()
         } catch {
@@ -369,8 +378,8 @@ struct ProfileView: View {
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
+        .cardStyle()
+        
     }
 
     private func infoRow(label: String, value: String) -> some View {
@@ -443,8 +452,8 @@ struct ProfileView: View {
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
+        .cardStyle()
+        
     }
 
     private var aiFeaturesSection: some View {
@@ -507,8 +516,8 @@ struct ProfileView: View {
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
+        .cardStyle()
+        
     }
 
     private func genresSection(_ profile: UserProfile) -> some View {
@@ -524,8 +533,8 @@ struct ProfileView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
+        .cardStyle()
+        
     }
 
     private func displayGenresView(_ profile: UserProfile) -> some View {
@@ -633,8 +642,8 @@ struct ProfileView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
+        .cardStyle()
+        
         .sheet(isPresented: $showingAllAchievements) {
             NavigationStack {
                 AchievementsListView(achievements: achievements)
@@ -657,21 +666,49 @@ struct ProfileView: View {
     private func loadAchievements(_ profile: UserProfile) async {
         var stats = AchievementStats()
 
-        stats.genresCount = profile.musicTasteTags.count
-        stats.isSpotifyConnected = spotifyService.isAuthenticated
-        stats.isAIConfigured = !(UserDefaults.standard.string(forKey: "gemini_api_key") ?? "").isEmpty
+        let genresCount = profile.musicTasteTags.count
+        let isSpotifyConnected = spotifyService.isAuthenticated
+        let isAIConfigured = !(UserDefaults.standard.string(forKey: "gemini_api_key") ?? "").isEmpty
+
+        stats.genresCount = genresCount
+        stats.isSpotifyConnected = isSpotifyConnected
+        stats.isAIConfigured = isAIConfigured
 
         // Load actual stats from Firestore
+        var songsShared = 0
+        var playlistsShared = 0
+        var friendsCount = 0
+        var maxVibestreak = 0
+        var reactionsReceived = 0
+
         do {
             let firestoreStats = try await FirestoreService.shared.getAchievementStats(userId: profile.uid)
-            stats.songsShared = firestoreStats.songsShared
-            stats.playlistsShared = firestoreStats.playlistsShared
-            stats.friendsCount = firestoreStats.friendsCount
-            stats.maxVibestreak = firestoreStats.maxVibestreak
-            stats.reactionsReceived = firestoreStats.reactionsReceived
+            songsShared = firestoreStats.songsShared
+            playlistsShared = firestoreStats.playlistsShared
+            friendsCount = firestoreStats.friendsCount
+            maxVibestreak = firestoreStats.maxVibestreak
+            reactionsReceived = firestoreStats.reactionsReceived
+
+            stats.songsShared = songsShared
+            stats.playlistsShared = playlistsShared
+            stats.friendsCount = friendsCount
+            stats.maxVibestreak = maxVibestreak
+            stats.reactionsReceived = reactionsReceived
         } catch {
             print("Failed to load achievement stats: \(error)")
         }
+
+        // Cache Firestore stats for future local achievement checks
+        LocalAchievementStats.shared.cacheFirestoreStats(
+            songsShared: songsShared,
+            playlistsShared: playlistsShared,
+            friendsCount: friendsCount,
+            maxVibestreak: maxVibestreak,
+            reactionsReceived: reactionsReceived,
+            genresCount: genresCount,
+            isSpotifyConnected: isSpotifyConnected,
+            isAIConfigured: isAIConfigured
+        )
 
         // Load local stats (playlist adds, preview plays, etc.)
         stats.loadLocalStats()
@@ -698,8 +735,8 @@ struct ProfileView: View {
             .pickerStyle(.menu)
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
+        .cardStyle()
+        
     }
 
     private var statsLoadingSection: some View {
@@ -733,8 +770,8 @@ struct ProfileView: View {
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
+        .cardStyle()
+        
     }
 
     private var topArtistsSection: some View {
@@ -763,8 +800,8 @@ struct ProfileView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
+        .cardStyle()
+        
     }
 
     private var topTracksSection: some View {
@@ -792,8 +829,8 @@ struct ProfileView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
+        .cardStyle()
+        
     }
 
     private var recentlyPlayedSection: some View {
@@ -823,8 +860,8 @@ struct ProfileView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
+        .cardStyle()
+        
     }
 
     // MARK: - Error Section
@@ -835,8 +872,8 @@ struct ProfileView: View {
             .foregroundColor(.red)
             .frame(maxWidth: .infinity)
             .padding()
-            .background(Color(.secondarySystemBackground))
-            .cornerRadius(12)
+            .cardStyle()
+            
     }
 
 }

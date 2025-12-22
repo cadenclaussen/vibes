@@ -72,7 +72,7 @@ struct PlaylistPickerView: View {
             Spacer()
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .cardStyle()
     }
 
     private var albumPlaceholder: some View {
@@ -190,6 +190,10 @@ struct PlaylistPickerView: View {
             // Track for achievements
             LocalAchievementStats.shared.songsAddedToPlaylists += 1
             LocalAchievementStats.shared.checkTimeBasedAchievements()
+            // Check The Resurrection achievement (re-adding a removed song)
+            let trackId = trackUri.replacingOccurrences(of: "spotify:track:", with: "")
+            LocalAchievementStats.shared.checkResurrection(trackId: trackId)
+            LocalAchievementStats.shared.checkLocalAchievements()
 
             isAdding = false
             // Brief delay to show success state before dismissing

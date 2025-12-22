@@ -14,6 +14,7 @@ import FirebaseFirestore
 class ChatsViewModel: ObservableObject {
     @Published var friends: [FriendProfile] = []
     @Published var dmThreads: [MessageThread] = []
+    @Published var groupThreads: [GroupThread] = []
     @Published var pendingRequests: [(friendship: Friendship, profile: FriendProfile)] = []
     @Published var notifications: [FriendNotification] = []
     @Published var isLoading = false
@@ -22,8 +23,12 @@ class ChatsViewModel: ObservableObject {
     let friendsViewModel = FriendsViewModel()
     private let firestoreService = FirestoreService.shared
     private let friendService = FriendService.shared
+    private let compatibilityService = CompatibilityService.shared
 
     private var dmListener: ListenerRegistration?
+    private var groupListener: ListenerRegistration?
+    private var currentUserArtists: [String] = []
+    private var currentUserGenres: [String] = []
 
     var friendsNowPlaying: [FriendProfile] {
         friends.filter { $0.isCurrentlyPlaying }
@@ -49,6 +54,14 @@ class ChatsViewModel: ObservableObject {
                 unreadCount = 0
             }
 
+            // Calculate compatibility
+            let compatibility = compatibilityService.calculateCompatibility(
+                userArtists: currentUserArtists,
+                userGenres: currentUserGenres,
+                friendArtists: friend.favoriteArtists,
+                friendGenres: friend.musicTasteTags
+            )
+
             chats.append(ChatItem(
                 id: "dm_\(friend.id)",
                 name: friend.displayName,
@@ -56,7 +69,8 @@ class ChatsViewModel: ObservableObject {
                 timestamp: thread?.lastMessageTimestamp ?? Date.distantPast,
                 unreadCount: unreadCount,
                 friend: friend,
-                vibestreak: friend.activeVibestreak
+                vibestreak: friend.activeVibestreak,
+                compatibility: compatibility
             ))
         }
 
@@ -70,12 +84,24 @@ class ChatsViewModel: ObservableObject {
     func loadData() async {
         isLoading = true
 
+        await loadCurrentUserProfile()
         await loadFriends()
         await loadPendingRequests()
         await loadNotifications()
         setupListeners()
 
         isLoading = false
+    }
+
+    private func loadCurrentUserProfile() async {
+        guard let userId = currentUserId else { return }
+        do {
+            let profile = try await firestoreService.getUserProfile(userId: userId)
+            currentUserArtists = profile.favoriteArtists
+            currentUserGenres = profile.musicTasteTags
+        } catch {
+            print("Failed to load current user profile: \(error.localizedDescription)")
+        }
     }
 
     private func loadFriends() async {
@@ -108,6 +134,11 @@ class ChatsViewModel: ObservableObject {
         dmListener?.remove()
         dmListener = firestoreService.listenToThreads(userId: userId) { [weak self] threads in
             self?.dmThreads = threads
+        }
+
+        groupListener?.remove()
+        groupListener = firestoreService.listenToGroups(userId: userId) { [weak self] groups in
+            self?.groupThreads = groups
         }
     }
 
@@ -143,5 +174,6 @@ class ChatsViewModel: ObservableObject {
 
     deinit {
         dmListener?.remove()
+        groupListener?.remove()
     }
 }

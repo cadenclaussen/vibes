@@ -2,7 +2,7 @@
 //  ContentView.swift
 //  vibes
 //
-//  Created by Caden Claussen on 11/22/25.
+//  Created by Caden Claussen on 11/22/25. 
 //
 
 import SwiftUI
@@ -23,14 +23,14 @@ struct ContentView: View {
 }
 
 struct MainTabView: View {
-    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @AppStorage("hasCompletedTutorial") private var hasCompletedTutorial = false
     @State private var selectedTab = 0
     @State private var shouldEditProfile = false
     @State private var navigateToFriend: FriendProfile?
 
     var body: some View {
-        if !hasCompletedOnboarding {
-            OnboardingView(hasCompletedOnboarding: $hasCompletedOnboarding)
+        if !hasCompletedTutorial {
+            TutorialView(hasCompletedTutorial: $hasCompletedTutorial)
         } else {
             mainContent
         }

@@ -416,6 +416,13 @@ class FirestoreService {
         try db.collection("users").document(userId).setData(from: updatedProfile, merge: true)
     }
 
+    func syncTopArtistsToProfile(userId: String, artists: [String]) async throws {
+        try await db.collection("users").document(userId).updateData([
+            "favoriteArtists": artists,
+            "updatedAt": Timestamp()
+        ])
+    }
+
     func updatePrivacySettings(userId: String, settings: UserProfile.PrivacySettings) async throws {
         try await db.collection("users").document(userId).updateData([
             "privacySettings": [
@@ -647,5 +654,255 @@ class FirestoreService {
         stats.reactionsReceived = reactionsCount
 
         return stats
+    }
+
+    // MARK: - Group Threads
+
+    func createGroup(name: String, creatorId: String, participantIds: [String]) async throws -> String {
+        let allParticipants = ([creatorId] + participantIds).uniqued().sorted()
+
+        // Check if a group with these exact participants already exists
+        if let existingGroupId = try await findExistingGroup(participantIds: allParticipants) {
+            throw GroupError.alreadyExists(groupId: existingGroupId)
+        }
+
+        let groupData: [String: Any] = [
+            "name": name,
+            "creatorId": creatorId,
+            "participantIds": allParticipants,
+            "lastMessageTimestamp": Timestamp(),
+            "lastMessageContent": "",
+            "lastMessageType": "text",
+            "lastMessageSenderId": NSNull(),
+            "lastMessageSenderName": NSNull(),
+            "unreadCounts": Dictionary(uniqueKeysWithValues: allParticipants.map { ($0, 0) }),
+            "createdAt": Timestamp()
+        ]
+
+        let docRef = try await db.collection("groupThreads").addDocument(data: groupData)
+        return docRef.documentID
+    }
+
+    enum GroupError: LocalizedError {
+        case alreadyExists(groupId: String)
+        case notAuthorized
+
+        var errorDescription: String? {
+            switch self {
+            case .alreadyExists:
+                return "A group with these members already exists"
+            case .notAuthorized:
+                return "Only the group creator can perform this action"
+            }
+        }
+    }
+
+    func findExistingGroup(participantIds: [String]) async throws -> String? {
+        let sortedIds = participantIds.sorted()
+
+        // Query groups that contain the first participant
+        guard let firstId = sortedIds.first else { return nil }
+
+        let snapshot = try await db.collection("groupThreads")
+            .whereField("participantIds", arrayContains: firstId)
+            .getDocuments()
+
+        // Check each group to see if participants match exactly
+        for doc in snapshot.documents {
+            if let groupParticipants = doc.data()["participantIds"] as? [String] {
+                if groupParticipants.sorted() == sortedIds {
+                    return doc.documentID
+                }
+            }
+        }
+
+        return nil
+    }
+
+    func updateGroupName(groupId: String, newName: String, requesterId: String) async throws {
+        let doc = try await db.collection("groupThreads").document(groupId).getDocument()
+
+        guard let creatorId = doc.data()?["creatorId"] as? String,
+              creatorId == requesterId else {
+            throw GroupError.notAuthorized
+        }
+
+        try await db.collection("groupThreads").document(groupId).updateData([
+            "name": newName
+        ])
+    }
+
+    func deleteGroup(groupId: String, requesterId: String) async throws {
+        let doc = try await db.collection("groupThreads").document(groupId).getDocument()
+
+        guard let creatorId = doc.data()?["creatorId"] as? String,
+              creatorId == requesterId else {
+            throw GroupError.notAuthorized
+        }
+
+        // Delete all messages in the group
+        let messagesSnapshot = try await db.collection("groupThreads")
+            .document(groupId)
+            .collection("messages")
+            .getDocuments()
+
+        for messageDoc in messagesSnapshot.documents {
+            try await messageDoc.reference.delete()
+        }
+
+        // Delete the group document
+        try await db.collection("groupThreads").document(groupId).delete()
+    }
+
+    func listenToGroups(userId: String, completion: @escaping ([GroupThread]) -> Void) -> ListenerRegistration {
+        return db.collection("groupThreads")
+            .whereField("participantIds", arrayContains: userId)
+            .order(by: "lastMessageTimestamp", descending: true)
+            .addSnapshotListener { snapshot, error in
+                if let error = error {
+                    print("Error listening to groups: \(error.localizedDescription)")
+                    // If index is missing, try without ordering
+                    completion([])
+                    return
+                }
+                guard let documents = snapshot?.documents else {
+                    completion([])
+                    return
+                }
+                let groups = documents.compactMap { doc -> GroupThread? in
+                    do {
+                        return try doc.data(as: GroupThread.self)
+                    } catch {
+                        print("Error decoding group: \(error)")
+                        return nil
+                    }
+                }
+                print("Loaded \(groups.count) groups for user \(userId)")
+                completion(groups)
+            }
+    }
+
+    func listenToGroupMessages(groupId: String, completion: @escaping ([GroupMessage]) -> Void) -> ListenerRegistration {
+        return db.collection("groupThreads").document(groupId).collection("messages")
+            .order(by: "timestamp", descending: false)
+            .addSnapshotListener { snapshot, error in
+                guard let documents = snapshot?.documents else {
+                    completion([])
+                    return
+                }
+                let messages = documents.compactMap { doc -> GroupMessage? in
+                    try? doc.data(as: GroupMessage.self)
+                }
+                completion(messages)
+            }
+    }
+
+    func sendGroupMessage(groupId: String, senderId: String, senderName: String, content: String) async throws {
+        let messageData: [String: Any] = [
+            "groupId": groupId,
+            "senderId": senderId,
+            "senderName": senderName,
+            "messageType": "text",
+            "textContent": content,
+            "reactions": [:],
+            "timestamp": Timestamp()
+        ]
+
+        try await db.collection("groupThreads").document(groupId).collection("messages").addDocument(data: messageData)
+
+        // Update group thread metadata and increment unread counts for other participants
+        let groupDoc = try await db.collection("groupThreads").document(groupId).getDocument()
+        guard let group = try? groupDoc.data(as: GroupThread.self) else { return }
+
+        var newUnreadCounts = group.unreadCounts
+        for participantId in group.participantIds where participantId != senderId {
+            newUnreadCounts[participantId, default: 0] += 1
+        }
+
+        try await db.collection("groupThreads").document(groupId).updateData([
+            "lastMessageTimestamp": Timestamp(),
+            "lastMessageContent": content,
+            "lastMessageType": "text",
+            "lastMessageSenderId": senderId,
+            "lastMessageSenderName": senderName,
+            "unreadCounts": newUnreadCounts
+        ])
+    }
+
+    func sendGroupSongMessage(
+        groupId: String,
+        senderId: String,
+        senderName: String,
+        trackId: String,
+        title: String,
+        artist: String,
+        albumArtUrl: String?,
+        previewUrl: String?,
+        caption: String?
+    ) async throws {
+        let messageData: [String: Any] = [
+            "groupId": groupId,
+            "senderId": senderId,
+            "senderName": senderName,
+            "messageType": "song",
+            "spotifyTrackId": trackId,
+            "songTitle": title,
+            "songArtist": artist,
+            "albumArtUrl": albumArtUrl ?? NSNull(),
+            "previewUrl": previewUrl ?? NSNull(),
+            "caption": caption ?? NSNull(),
+            "reactions": [:],
+            "timestamp": Timestamp()
+        ]
+
+        try await db.collection("groupThreads").document(groupId).collection("messages").addDocument(data: messageData)
+
+        // Update group thread metadata
+        let groupDoc = try await db.collection("groupThreads").document(groupId).getDocument()
+        guard let group = try? groupDoc.data(as: GroupThread.self) else { return }
+
+        var newUnreadCounts = group.unreadCounts
+        for participantId in group.participantIds where participantId != senderId {
+            newUnreadCounts[participantId, default: 0] += 1
+        }
+
+        let preview = caption?.isEmpty == false ? "\(title): \"\(caption!)\"" : title
+
+        try await db.collection("groupThreads").document(groupId).updateData([
+            "lastMessageTimestamp": Timestamp(),
+            "lastMessageContent": preview,
+            "lastMessageType": "song",
+            "lastMessageSenderId": senderId,
+            "lastMessageSenderName": senderName,
+            "unreadCounts": newUnreadCounts
+        ])
+    }
+
+    func markGroupMessagesAsRead(groupId: String, userId: String) async throws {
+        try await db.collection("groupThreads").document(groupId).updateData([
+            "unreadCounts.\(userId)": 0
+        ])
+    }
+
+    func getGroupParticipants(participantIds: [String]) async throws -> [FriendProfile] {
+        var profiles: [FriendProfile] = []
+        for userId in participantIds {
+            do {
+                let userProfile = try await getUserProfile(userId: userId)
+                let friendProfile = FriendProfile(from: userProfile)
+                profiles.append(friendProfile)
+            } catch {
+                print("Failed to fetch profile for \(userId): \(error)")
+            }
+        }
+        return profiles
+    }
+}
+
+// Helper extension
+extension Sequence where Element: Hashable {
+    func uniqued() -> [Element] {
+        var seen = Set<Element>()
+        return filter { seen.insert($0).inserted }
     }
 }

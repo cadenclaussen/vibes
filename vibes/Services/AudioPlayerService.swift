@@ -32,10 +32,10 @@ class AudioPlayerService: ObservableObject {
         guard let urlString = track.previewUrl else {
             return
         }
-        playUrl(urlString, trackId: track.id)
+        playUrl(urlString, trackId: track.id, popularity: track.popularity)
     }
 
-    func playUrl(_ urlString: String, trackId: String) {
+    func playUrl(_ urlString: String, trackId: String, popularity: Int? = nil) {
         guard let url = URL(string: urlString) else {
             return
         }
@@ -76,6 +76,11 @@ class AudioPlayerService: ObservableObject {
 
         // Track for achievements
         LocalAchievementStats.shared.previewPlays += 1
+        // Track for The Contrarian achievement (obscure song most-played of month)
+        if let pop = popularity {
+            LocalAchievementStats.shared.trackSongPlay(trackId: trackId, popularity: pop)
+        }
+        LocalAchievementStats.shared.checkLocalAchievements()
     }
 
     func togglePlayPause() {
@@ -102,8 +107,9 @@ class AudioPlayerService: ObservableObject {
     private func addTimeObserver() {
         let interval = CMTime(seconds: 0.1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         timeObserver = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-            Task { @MainActor in
-                guard let self = self,
+            guard let self else { return }
+            Task { @MainActor [weak self] in
+                guard let self,
                       let duration = self.player?.currentItem?.duration,
                       duration.seconds.isFinite else { return }
 

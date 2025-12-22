@@ -113,26 +113,72 @@ struct FriendPickerView: View {
         }
     }
 
+    @ViewBuilder
     private var sendButton: some View {
-        Button {
-            sendToSelectedFriends()
-        } label: {
-            HStack {
-                if isSending {
-                    ProgressView()
-                        .tint(.white)
-                } else {
-                    Text(selectedCount == 0 ? "Select Friends" : "Send to \(selectedCount) Friend\(selectedCount == 1 ? "" : "s")")
+        if selectedCount > 1 {
+            // Two buttons for multiple friends
+            VStack(spacing: 12) {
+                Button {
+                    sendToSelectedFriendsIndividually()
+                } label: {
+                    HStack {
+                        if isSending {
+                            ProgressView()
+                                .tint(.white)
+                        } else {
+                            Text("Send to \(selectedCount) Friends Individually")
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(isSending ? Color.gray : Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
                 }
+                .disabled(isSending)
+
+                Button {
+                    sendToGroupChat()
+                } label: {
+                    HStack {
+                        if isSending {
+                            ProgressView()
+                                .tint(.white)
+                        } else {
+                            Text("Send to \(selectedCount) Friends in a Group Chat")
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(isSending ? Color.gray : Color.green)
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
+                }
+                .disabled(isSending)
             }
-            .frame(maxWidth: .infinity)
             .padding()
-            .background(selectedCount > 0 && !isSending ? Color.blue : Color.gray)
-            .foregroundColor(.white)
-            .cornerRadius(12)
+        } else {
+            // Single button for 0 or 1 friend
+            Button {
+                sendToSelectedFriendsIndividually()
+            } label: {
+                HStack {
+                    if isSending {
+                        ProgressView()
+                            .tint(.white)
+                    } else {
+                        Text(selectedCount == 0 ? "Select Friends" : "Send to 1 Friend")
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(selectedCount > 0 && !isSending ? Color.blue : Color.gray)
+                .foregroundColor(.white)
+                .cornerRadius(12)
+            }
+            .disabled(selectedCount == 0 || isSending)
+            .padding()
         }
-        .disabled(selectedCount == 0 || isSending)
-        .padding()
     }
 
     @ViewBuilder
@@ -276,7 +322,7 @@ struct FriendPickerView: View {
         }
     }
 
-    private func sendToSelectedFriends() {
+    private func sendToSelectedFriendsIndividually() {
         guard let currentUserId = currentUserId else {
             errorMessage = "Not logged in"
             return
@@ -371,11 +417,18 @@ struct FriendPickerView: View {
                             LocalAchievementStats.shared.trackArtistShared(artistName)
                             LocalAchievementStats.shared.trackSongSharedOnFriday()
                             LocalAchievementStats.shared.checkTimeBasedAchievements()
+                            // Check Butterfly Effect - passing along received songs
+                            LocalAchievementStats.shared.checkButterflyEffect(trackId: track.id)
                         }
                     }
                 } catch {
                     print("Failed to send to \(friend.username): \(error)")
                 }
+            }
+
+            // Check for achievements after all sends
+            if successCount > 0 {
+                LocalAchievementStats.shared.checkLocalAchievements()
             }
 
             let itemName: String
@@ -398,6 +451,97 @@ struct FriendPickerView: View {
                 if selectedFriendProfiles.count == 1, let friend = lastSentFriend {
                     onSent?(friend)
                 }
+            }
+        }
+    }
+
+    private func sendToGroupChat() {
+        guard let currentUserId = currentUserId else {
+            errorMessage = "Not logged in"
+            return
+        }
+
+        let selectedFriendProfiles = viewModel.friends.filter { selectedFriends.contains($0.id) }
+        guard !selectedFriendProfiles.isEmpty else { return }
+
+        isSending = true
+        errorMessage = nil
+
+        Task {
+            do {
+                // Get current user's display name
+                let currentUserProfile = try await FirestoreService.shared.getUserProfile(userId: currentUserId)
+                let senderName = currentUserProfile.displayName
+
+                // All participants include current user and selected friends
+                let allParticipantIds = [currentUserId] + selectedFriendProfiles.map { $0.id }
+
+                // Try to find existing group or create new one
+                var groupId: String
+                if let existingGroupId = try await FirestoreService.shared.findExistingGroup(participantIds: allParticipantIds) {
+                    groupId = existingGroupId
+                } else {
+                    // Create new group with auto-generated name
+                    let friendNames = selectedFriendProfiles.map { $0.displayName }
+                    let groupName = friendNames.joined(separator: ", ")
+                    groupId = try await FirestoreService.shared.createGroup(
+                        name: groupName,
+                        creatorId: currentUserId,
+                        participantIds: selectedFriendProfiles.map { $0.id }
+                    )
+                }
+
+                // Send the content to the group
+                switch content {
+                case .track(let track, let previewUrl):
+                    try await FirestoreService.shared.sendGroupSongMessage(
+                        groupId: groupId,
+                        senderId: currentUserId,
+                        senderName: senderName,
+                        trackId: track.id,
+                        title: track.name,
+                        artist: track.artists.map { $0.name }.joined(separator: ", "),
+                        albumArtUrl: track.album.images.first?.url,
+                        previewUrl: previewUrl,
+                        caption: nil
+                    )
+
+                    // Track achievements
+                    LocalAchievementStats.shared.songMessagesSent += 1
+                    LocalAchievementStats.shared.messagesSent += 1
+                    let artistName = track.artists.first?.name ?? ""
+                    LocalAchievementStats.shared.trackArtistShared(artistName)
+                    LocalAchievementStats.shared.trackSongSharedOnFriday()
+                    LocalAchievementStats.shared.checkTimeBasedAchievements()
+                    LocalAchievementStats.shared.checkButterflyEffect(trackId: track.id)
+
+                case .playlist(let playlist):
+                    // Send playlist as a text message with link for now
+                    let playlistMessage = "Shared playlist: \(playlist.name) (\(playlist.tracks.total) tracks)"
+                    try await FirestoreService.shared.sendGroupMessage(
+                        groupId: groupId,
+                        senderId: currentUserId,
+                        senderName: senderName,
+                        content: playlistMessage
+                    )
+                }
+
+                LocalAchievementStats.shared.checkLocalAchievements()
+
+                HapticService.success()
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                dismiss()
+
+            } catch FirestoreService.GroupError.alreadyExists {
+                // This shouldn't happen since we check for existing group first
+                HapticService.error()
+                errorMessage = "Group already exists"
+                isSending = false
+            } catch {
+                HapticService.error()
+                errorMessage = "Failed to send to group"
+                isSending = false
+                print("Group send error: \(error)")
             }
         }
     }

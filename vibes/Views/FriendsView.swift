@@ -104,7 +104,7 @@ struct FriendsView: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(Color.red)
-                        .cornerRadius(12)
+                        
                 }
             }
             .padding(.horizontal)
@@ -121,8 +121,8 @@ struct FriendsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 12)
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
+        .cardStyle()
+        
     }
 
     private func notificationRow(_ notification: FriendNotification) -> some View {
@@ -173,8 +173,8 @@ struct FriendsView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 12)
-                .background(Color(.secondarySystemBackground))
-                .cornerRadius(12)
+                .cardStyle()
+                
             }
         }
     }
@@ -241,8 +241,8 @@ struct FriendsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 12)
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
+        .cardStyle()
+        
     }
 
     private func friendRow(_ friend: FriendProfile) -> some View {

@@ -79,6 +79,7 @@ class SearchViewModel: ObservableObject {
 
         // Track for achievements
         LocalAchievementStats.shared.searchQueries += 1
+        LocalAchievementStats.shared.checkLocalAchievements()
 
         searchTask?.cancel()
         searchTask = Task {

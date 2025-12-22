@@ -37,6 +37,9 @@ struct ArtistDetailView: View {
         .task {
             await loadData()
         }
+        .onDisappear {
+            audioPlayer.stop()
+        }
     }
 
     private var headerSection: some View {
@@ -103,8 +106,8 @@ struct ArtistDetailView: View {
                         }
                     }
                 }
-                .background(Color(.secondarySystemBackground))
-                .cornerRadius(12)
+                .cardStyle()
+                
                 .padding(.horizontal, 16)
             }
         }
@@ -147,6 +150,7 @@ struct ArtistDetailView: View {
     private func loadData() async {
         // Track for achievements
         LocalAchievementStats.shared.artistsViewed += 1
+        LocalAchievementStats.shared.checkLocalAchievements()
 
         async let tracksTask: () = loadTopTracks()
         async let albumsTask: () = loadAlbums()
