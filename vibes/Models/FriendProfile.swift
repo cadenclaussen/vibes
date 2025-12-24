@@ -50,6 +50,15 @@ struct FriendProfile: Codable, Identifiable, Hashable {
         return 0
     }
 
+    // Returns true if both users have messaged each other today (streak incremented today)
+    var vibestreakCompletedToday: Bool {
+        guard let lastUpdated = streakLastUpdated else { return false }
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let lastUpdateDay = calendar.startOfDay(for: lastUpdated)
+        return lastUpdateDay == today
+    }
+
     var lastSeenText: String? {
         guard !isOnline else { return nil }
         guard let lastSeen = lastSeen else { return nil }

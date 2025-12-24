@@ -336,12 +336,299 @@
 - **Failures**: None
 - **Solution**: Added LocalAchievementStats.shared.messagesSent += 1 and checkLocalAchievements() call after successfully sending a group message in GroupThreadView.swift:523-525.
 
+### 103. Songs in group chats can't be played
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Views/GroupThreadView.swift:349-461
+- **Requested**: Can't play songs that are in group chats
+- **Context**: GroupMessageBubble's songBubble view only shows album art, title, and artist - no play button like the DM SongMessageBubbleView has
+- **Acceptance Criteria**:
+  - [x] Add AudioPlayerService integration to GroupMessageBubble
+  - [x] Add play button to songBubble
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Added @ObservedObject audioPlayer, trackId/isCurrentTrack/isPlaying/hasPreview computed properties, and playButton view to GroupMessageBubble. Updated songBubble to include play button with proper styling for both sender and receiver states.
+
+### 105. Interactive in-app tutorial with coach marks
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Services/CoachMarksService.swift (new), vibes/Views/Components/CoachMarksOverlay.swift (new), vibes/ContentView.swift, vibes/Views/DiscoverView.swift, vibes/Views/ChatsView.swift, vibes/Views/ProfileView.swift
+- **Requested**: Replace or augment the current standalone tutorial with an interactive in-app tutorial that overlays the real app UI. The tutorial should highlight actual buttons and UI elements, showing users exactly where to tap and how to navigate. Users should be able to see and interact with the real interface while being guided step-by-step.
+- **Context**: The current tutorial is informative but doesn't show users the actual app. An interactive walkthrough with coach marks/tooltips pointing to real UI elements will be more effective for teaching users how to use the app.
+- **Acceptance Criteria**:
+  - [x] Create coach marks/tooltip overlay system
+  - [x] Highlight actual UI elements (buttons, tabs, etc.)
+  - [x] Step-by-step walkthrough of key features
+  - [x] Allow users to tap highlighted elements to progress
+  - [x] Persist tutorial progress so users can resume
+  - [x] Option to restart tutorial from Settings
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Created CoachMarksService singleton with 4 tutorial steps: Add Friends, Create Groups, Settings Menu, and AI Playlists & Blends. Created CoachMarksOverlay with SpotlightView (semi-transparent overlay with transparent cutout using blendMode) and CoachMarkTooltip (callout bubble with Back/Next/Skip). Added coachMarkTarget() modifier for view position tracking via PreferenceKey. Coach marks start automatically after slideshow tutorial completes. Updated ProfileView "Replay Tutorial" to reset both slideshow and coach marks.
+
+### 104. Add context menu to group chat song messages
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/GroupThreadView.swift:349-570, vibes/Services/FirestoreService.swift:177-182, vibes/Models/GroupThread.swift:44
+- **Requested**: Group chat songs should have context menu with react, send to friend, add to playlist, and open in Spotify options like DM song messages
+- **Context**: DM SongMessageBubbleView has full context menu, GroupMessageBubble only has play button
+- **Acceptance Criteria**:
+  - [x] Add context menu with reaction options
+  - [x] Add "Send to Friend" option with FriendPickerView sheet
+  - [x] Add "Add to Playlist" option with PlaylistPickerView sheet
+  - [x] Add "Open in Spotify" option
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Added SpotifyService, state variables, trackUri/trackForSharing computed properties to GroupMessageBubble. Added context menu with React submenu, Send to Friend, Add to Playlist, and Open in Spotify options. Added sheet presentations for PlaylistPickerView and FriendPickerView. Added addGroupReaction() to FirestoreService. Added reaction display below song bubbles. Made reactions field default to empty dict in GroupMessage model.
+
+### 109. Change New Releases to use top 10 artists instead of top 20
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/ViewModels/DiscoverViewModel.swift:97,124
+- **Requested**: Change new releases to check top 10 artists on Spotify, not top 3 (currently using top 20)
+- **Context**: User wants a smaller, more focused set of top artists for new releases
+- **Acceptance Criteria**:
+  - [x] Change getTopArtists limit from 20 to 10
+  - [x] Change prefix from 20 to 10
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Changed getTopArtists limit from 15 to 10 for both short_term and medium_term time ranges, and changed prefix from 20 to 10 when iterating through artists to fetch albums.
+
+### 108. Vibestreak visual indicator for daily completion status
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/Components/VibestreakView.swift, vibes/Models/FriendProfile.swift, vibes/Views/ChatRowView.swift
+- **Requested**: When a vibestreak has already been completed today (both users have sent a message to each other), make the symbol red. Otherwise, leave it gray and don't fill it in until both people have sent a message, incrementing the vibestreak for that day.
+- **Context**: Users need visual feedback on whether they've completed their daily vibestreak interaction
+- **Acceptance Criteria**:
+  - [x] Add `vibestreakCompletedToday` computed property to FriendProfile
+  - [x] Update VibestreakView to accept `completedToday` parameter
+  - [x] Show red filled flame when completed today
+  - [x] Show gray outline flame when not completed today
+  - [x] Pass completion status through ChatItem to VibestreakView
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Added `vibestreakCompletedToday` computed property to FriendProfile and MessageThreadViewModel that checks if `streakLastUpdated` is today. Updated VibestreakView and VibestreakBadgeView to accept `completedToday` parameter - when true shows red filled flame, when false shows gray outline flame. Added `vibestreakCompletedToday` field to ChatItem and passed it through ChatsViewModel and ChatRowView.
+
+### 110. Increase Discover header left padding
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/DiscoverView.swift:72-73
+- **Requested**: Move the Discover header to the right a little bit, it's pushed up against the edge too much
+- **Context**: UI polish - content needs more breathing room from the left edge
+- **Acceptance Criteria**:
+  - [x] Increase horizontal padding on Discover content
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Changed `.padding()` to `.padding(.vertical)` and `.padding(.horizontal, 20)` to increase horizontal spacing from 16pt to 20pt.
+
+### 107. AI Playlist Recommendations with checkmark system
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/PlaylistRecommendationsView.swift, vibes/ViewModels/PlaylistRecommendationsViewModel.swift, vibes/Services/GeminiService.swift, vibes/Views/DiscoverView.swift
+- **Requested**: Create AI feature where user can select an existing playlist and get 5 song recommendations to add. Songs must have 30-second iTunes previews (if not, find alternatives that do). Include checkmark system - when user checks a song it gets added to playlist. Once all 5 are checked or dismissed, generate new batch of 5.
+- **Context**: Extends AI recommendation system to help grow existing playlists
+- **Acceptance Criteria**:
+  - [x] Playlist picker to select from user's existing playlists
+  - [x] Generate 5 AI recommendations based on playlist content
+  - [x] Ensure all recommendations have iTunes preview URLs
+  - [x] Checkmark button to add song to playlist
+  - [x] Dismiss option to skip a song
+  - [x] Auto-generate new batch when all 5 processed
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Created PlaylistRecommendationsView with playlist selection and recommendation cards. PlaylistRecommendationsViewModel manages state with visible (5) and pending (10) recommendation pools. Added generatePlaylistRecommendations() to GeminiService that analyzes playlist content. Added "Grow Your Playlists" card in DiscoverView's AI Features section. Songs filtered to only include those with iTunes preview URLs. Checkmark adds to Spotify playlist, X dismisses. Auto-fetches more when pool runs low.
+
+### 106. Swipe gesture to navigate between tabs
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/ContentView.swift
+- **Requested**: Add swipe gestures so swiping right moves to the previous tab and swiping left moves to the next tab
+- **Context**: Improves navigation UX by allowing gesture-based tab switching
+- **Acceptance Criteria**:
+  - [x] Swipe left to go to next tab
+  - [x] Swipe right to go to previous tab
+  - [x] Respect tab bounds (0-3)
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Replaced standard TabView with horizontal ScrollView using `.scrollTargetBehavior(.paging)` and `.scrollPosition(id:)` for smooth swipe animations. Created CustomTabBar component with pill-shaped selection indicator. Uses GeometryReader for full-width pages and ScrollViewReader for programmatic tab changes.
+
+### 113. Remove interactive coach marks tutorial, keep only slideshow
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Services/CoachMarksService.swift, vibes/Views/Components/CoachMarksOverlay.swift, vibes/ContentView.swift, vibes/Views/ChatsView.swift, vibes/Views/ProfileView.swift, vibes/Views/DiscoverView.swift
+- **Requested**: Remove the whole part of the tutorial where you are actually in the app, just keep the slideshow part of the tutorial
+- **Context**: User wants to remove the interactive coach marks overlay and keep only the TutorialView slideshow
+- **Acceptance Criteria**:
+  - [x] Delete CoachMarksService.swift
+  - [x] Delete CoachMarksOverlay.swift
+  - [x] Remove coach mark references from ContentView.swift
+  - [x] Remove coach mark targets from ChatsView.swift, DiscoverView.swift
+  - [x] Update ProfileView.swift "Replay Tutorial" to only reset slideshow
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Deleted CoachMarksService.swift and CoachMarksOverlay.swift. Removed @StateObject coachMarksService, overlayPreferenceValue, and onAppear coach marks startup from ContentView.swift. Removed .coachMarkTarget() modifiers from ChatsView.swift (3 locations) and DiscoverView.swift (2 locations). Removed CoachMarksService.shared.hasCompletedCoachMarks reset from ProfileView.swift "Replay Tutorial" button.
+
+### 112. iTunes preview sometimes plays wrong song version (remix or different song)
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Services/iTunesService.swift:24-125
+- **Requested**: Sometimes when playing a song it plays a preview from the remix or a whole different song entirely
+- **Context**: The iTunes search matching logic allows partial matches and doesn't penalize/filter remix versions when the original was requested
+- **Acceptance Criteria**:
+  - [x] Add remix/version detection to filter out wrong versions
+  - [x] Prefer exact track name matches over partial matches
+  - [x] Skip results that are remixes when original was requested
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Added `isRemixOrAlternateVersion()` function that detects remix/alternate version indicators (remix, mix, edit, version, bootleg, live, acoustic, etc.). If the search query is NOT a remix but a result IS a remix, that result is skipped. Also added +2 bonus score for matching original versions when original was requested.
+
+### 111. Always show AI Picks For You title
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Views/DiscoverView.swift:48-50, 283-304
+- **Requested**: Always show the "AI Picks For You" title even when there are no songs showing up
+- **Context**: When all AI recommendations are dismissed, the entire section disappears. User wants the title to always be visible.
+- **Acceptance Criteria**:
+  - [x] AI Picks section title always visible when Gemini is configured
+  - [x] Show empty state message when no recommendations
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Changed condition from `!viewModel.aiRecommendations.isEmpty || viewModel.isLoadingAIRecommendations` to `geminiService.isConfigured`. Added empty state card with "No recommendations right now" message when aiRecommendations is empty and not loading.
+
+### 114. Fix missing Firebase SPM packages in Xcode
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes.xcodeproj
+- **Requested**: Xcode shows 4 errors: Missing package product 'FirebaseAuth', 'FirebaseFirestore', 'FirebaseStorage', 'FirebaseMessaging'
+- **Context**: Swift Package Manager dependencies need to be resolved
+- **Acceptance Criteria**:
+  - [x] Resolve SPM packages
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Ran `xcodebuild -resolvePackageDependencies` to resolve the SPM package graph. All Firebase packages resolved successfully and build succeeded.
+
+### 115. Fix GroupThread decoding error for missing lastMessageType
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Models/GroupThread.swift:18
+- **Requested**: Fix decoding error "No value associated with key lastMessageType" when loading group chats from Firestore
+- **Context**: GroupThread.lastMessageType is non-optional but some Firestore documents don't have this field
+- **Acceptance Criteria**:
+  - [x] Make lastMessageType optional with default value
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Added custom init(from decoder:) that uses decodeIfPresent with "text" as default for lastMessageType. Also added memberwise init since providing custom init removes the auto-generated one.
+
+### 116. Fix profile and friends failing to load due to missing Firestore fields
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Models/User.swift:11-118
+- **Requested**: Profile shows "Failed to load profile" and friends list shows empty even though user has conversations and friends. This happens because UserProfile has many non-optional fields (spotifyLinked, favoriteArtists, favoriteSongs, favoriteAlbums, musicTasteTags, pinnedSongs, createdAt, updatedAt, privacySettings) and if any Firestore document is missing these fields, decoding fails completely.
+- **Context**: Firestore documents may have been created before certain fields were added to the model, or may have been partially updated. The Codable decoder fails when required fields are missing.
+- **Acceptance Criteria**:
+  - [x] Add custom init(from decoder:) to UserProfile with defaults for missing fields
+  - [x] Profile loads successfully even with incomplete Firestore data
+  - [x] Friends list populates correctly
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Added custom `init(from decoder:)` to both `UserProfile` and `PrivacySettings` that uses `decodeIfPresent` with default values for all fields that might be missing in Firestore documents. Non-optional fields now default to: spotifyLinked=false, arrays=[], dates=Date(), privacySettings=PrivacySettings(). Also made PrivacySettings decode with defaults for its fields.
+
+### 118. Split AchievementsView.swift into smaller files
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/Components/AchievementsView.swift, vibes/Models/, vibes/Services/
+- **Requested**: Code cleanup - split the massive AchievementsView.swift file (2145 lines) into smaller, more maintainable pieces
+- **Context**: File was 2145 lines containing models, data, logic, and views all mixed together
+- **Acceptance Criteria**:
+  - [x] Create Achievement.swift with Achievement, AchievementCategory, AchievementDefinition
+  - [x] Create AchievementDefinitions.swift with all achievement definitions
+  - [x] Create LocalAchievementStats.swift with stats tracking and AchievementStats
+  - [x] Keep only views in AchievementsView.swift
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Split into 4 files: Achievement.swift (103 lines - models), AchievementDefinitions.swift (766 lines - data), LocalAchievementStats.swift (860 lines - logic), AchievementsView.swift (371 lines - views only)
+
+### 117. Fix context menu usability and reactions interaction
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Views/MessageThreadView.swift, vibes/Views/GroupThreadView.swift
+- **Requested**: The menus are really hard to click on - user wants to be able to click anywhere in the row, not just the icon. The reactions list is not working well.
+- **Context**: Currently the React option is a submenu requiring two taps. Reactions display is not interactive.
+- **Acceptance Criteria**:
+  - [x] Make reaction options directly in context menu (not a submenu)
+  - [x] Make reactions tappable to toggle user's own reaction
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Flattened the reaction Menu submenu into direct Button items in the context menu for both DM (SongMessageBubbleView, PlaylistMessageBubbleView) and group chat (GroupMessageBubble) song messages. Updated ReactionsDisplayView to accept currentUserId and onReactionTapped callback, making each reaction pill tappable to add that reaction. Added visual highlighting (blue background and border) when the current user has reacted with that emoji.
+
+### 119. Nearby concerts for top Spotify artists
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/DiscoverView.swift, vibes/Services/TicketmasterService.swift (new), vibes/ViewModels/DiscoverViewModel.swift, vibes/Views/ConcertSettingsView.swift (new)
+- **Requested**: Add feature to show upcoming concerts near the user for their top 10-20 Spotify artists. Use Ticketmaster API to search for events. Display concerts on the Discover page with date, venue, and ticket link.
+- **Context**: Helps users discover live music from artists they already love
+- **Acceptance Criteria**:
+  - [x] Create TicketmasterService to fetch events
+  - [x] Get user's top artists from Spotify
+  - [x] Search for concerts near user's location
+  - [x] Filter by upcoming events (60 days ahead)
+  - [x] Display concerts section on Discover page
+  - [x] Include venue, date, and link to buy tickets
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Created TicketmasterService.swift with Ticketmaster Discovery API integration. Added Ticketmaster API key storage to KeychainManager. Created ConcertSettingsView for API key and city configuration. Added concertsSection to DiscoverView with ConcertCard for horizontal scrolling. Added loadUpcomingConcerts() to DiscoverViewModel that searches for concerts from user's top 20 Spotify artists. Added concertFeaturesSection to ProfileView settings.
+
+### 120. Code cleanup - Split ProfileView and DiscoverView
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/ProfileView.swift, vibes/Views/DiscoverView.swift, vibes/Views/Components/
+- **Requested**: Code cleanup - split large view files into smaller, more maintainable pieces
+- **Context**: ProfileView was 1305 lines, DiscoverView was 1207 lines - both containing many helper views
+- **Acceptance Criteria**:
+  - [x] Extract ProfileView helper views (TopArtistCell, TopTrackRow, RecentlyPlayedCell)
+  - [x] Extract DiscoverView helper views (ConcertCard, BlendFriendCard, RecentlyActiveFriendCard, NewReleaseCard, RecommendationRow, TrendingSongRow, AIRecommendationRow)
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Created ProfileHelperViews.swift (328 lines) and DiscoverHelperViews.swift (679 lines). ProfileView reduced from 1305 to 986 lines. DiscoverView reduced from 1207 to 531 lines.
+
+### 121. Code cleanup - Split SearchView
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/SearchView.swift, vibes/Views/Components/SearchHelperViews.swift
+- **Requested**: Code cleanup - split SearchView helper views into separate file
+- **Context**: SearchView was 802 lines with helper row views mixed in
+- **Acceptance Criteria**:
+  - [x] Extract TrackRow, ArtistRow, AlbumRow, PlaylistRow, SoundWaveBar
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Created SearchHelperViews.swift (439 lines). SearchView reduced from 802 to 371 lines (54% reduction).
+
 ## Task Statistics
-- Total Tasks: 102
-- Completed: 97
+- Total Tasks: 121
+- Completed: 111
 - Removed: 2
 - Abandoned: 1
-- In Progress: 1
+- In Progress: 0
 - Pending: 0
 
 ---

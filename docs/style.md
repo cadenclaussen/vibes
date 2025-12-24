@@ -484,6 +484,89 @@ Color(.link)              // Links
 - Show error states with clear messaging
 - Use navigation patterns described in Navigation section
 
+### Song Row Interaction Pattern
+
+Every song displayed anywhere in the app MUST follow this consistent interaction pattern:
+
+1. **Tap to Play**: The entire row is tappable to play/pause the song preview
+   - Show play button overlay on album art when preview is available
+   - Toggle between play/pause icons based on playback state
+   - If no preview URL available, tap should still work (open in Spotify or show unavailable message)
+
+2. **Long Press for Context Menu**: Hold anywhere on the row to show a context menu with exactly 3 options:
+   - **Send to Friend** - Opens friend picker to share the song
+   - **Add to Playlist** - Opens playlist picker to add song to a Spotify playlist
+   - **Open in Spotify** - Opens the song in the Spotify app
+
+```swift
+// Example song row implementation
+HStack(spacing: 12) {
+    // Album art with play overlay
+    ZStack {
+        AsyncImage(url: albumArtUrl) { image in
+            image.resizable().aspectRatio(contentMode: .fill)
+        } placeholder: {
+            Color(.tertiarySystemBackground)
+        }
+        .frame(width: 50, height: 50)
+        .cornerRadius(6)
+
+        if hasPreview {
+            Circle()
+                .fill(Color.black.opacity(0.5))
+                .frame(width: 30, height: 30)
+            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                .font(.system(size: 12))
+                .foregroundColor(.white)
+        }
+    }
+
+    VStack(alignment: .leading, spacing: 2) {
+        Text(trackName)
+            .font(.subheadline)
+            .fontWeight(.medium)
+            .lineLimit(1)
+        Text(artistName)
+            .font(.caption)
+            .foregroundColor(Color(.secondaryLabel))
+            .lineLimit(1)
+    }
+
+    Spacer()
+}
+.contentShape(Rectangle())  // Make entire row tappable
+.onTapGesture {
+    playPreview()
+}
+.contextMenu {
+    Button {
+        showFriendPicker = true
+    } label: {
+        Label("Send to Friend", systemImage: "paperplane")
+    }
+
+    Button {
+        showPlaylistPicker = true
+    } label: {
+        Label("Add to Playlist", systemImage: "plus.circle")
+    }
+
+    Button {
+        openInSpotify()
+    } label: {
+        Label("Open in Spotify", systemImage: "arrow.up.right")
+    }
+}
+```
+
+This pattern applies to ALL song displays including:
+- Discover tab (New Releases, For You, AI Picks, Trending)
+- Search results
+- Message threads
+- Playlist views
+- Album detail views
+- Any other location where songs appear
+
 ## Testing
 
 - Write unit tests for ViewModels and business logic

@@ -43,6 +43,12 @@ struct PlaylistRecommendationsView: View {
         .task {
             await viewModel.loadPlaylists()
         }
+        .onAppear {
+            audioPlayer.stop()
+        }
+        .onDisappear {
+            audioPlayer.stop()
+        }
     }
 
     // MARK: - Playlist Selection
@@ -190,16 +196,26 @@ struct PlaylistRecommendationsView: View {
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
-            Button("Try Again") {
-                Task {
-                    if viewModel.selectedPlaylist != nil {
-                        await viewModel.selectPlaylist(viewModel.selectedPlaylist!)
-                    } else {
-                        await viewModel.loadPlaylists()
+            if viewModel.cooldownSeconds > 0 {
+                Text("Try again in \(viewModel.cooldownSeconds)s")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 10)
+                    .background(Color(.tertiarySystemFill))
+                    .cornerRadius(8)
+            } else {
+                Button("Try Again") {
+                    Task {
+                        if viewModel.selectedPlaylist != nil {
+                            await viewModel.selectPlaylist(viewModel.selectedPlaylist!)
+                        } else {
+                            await viewModel.loadPlaylists()
+                        }
                     }
                 }
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
             Spacer()
         }
     }

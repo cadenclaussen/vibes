@@ -29,6 +29,9 @@ struct AlbumDetailView: View {
         .task {
             await loadTracks()
         }
+        .onAppear {
+            audioPlayer.stop()
+        }
         .onDisappear {
             audioPlayer.stop()
         }

@@ -73,7 +73,7 @@ struct MessageThreadView: View {
                 VStack(spacing: 2) {
                     Text("@\(friendUsername)")
                         .font(.headline)
-                    VibestreakView(streak: viewModel.activeVibestreak, size: .small)
+                    VibestreakView(streak: viewModel.activeVibestreak, completedToday: viewModel.vibestreakCompletedToday, size: .small)
                 }
             }
         }
@@ -309,15 +309,13 @@ struct SongMessageBubbleView: View {
                 }
             }
             .contextMenu {
-                // Reaction options
-                Menu {
-                    Button { addReaction("🔥") } label: { Text("🔥 Fire") }
-                    Button { addReaction("❤️") } label: { Text("❤️ Love") }
-                    Button { addReaction("💯") } label: { Text("💯 100") }
-                    Button { addReaction("😐") } label: { Text("😐 Meh") }
-                } label: {
-                    Label("React", systemImage: "face.smiling")
-                }
+                // Reaction options - directly accessible
+                Button { addReaction("🔥") } label: { Label("🔥 Fire", systemImage: "flame") }
+                Button { addReaction("❤️") } label: { Label("❤️ Love", systemImage: "heart") }
+                Button { addReaction("💯") } label: { Label("💯 100", systemImage: "hand.thumbsup") }
+                Button { addReaction("😐") } label: { Label("😐 Meh", systemImage: "face.smiling") }
+
+                Divider()
 
                 if trackForSharing != nil {
                     Button {
@@ -352,7 +350,14 @@ struct SongMessageBubbleView: View {
 
             // Reactions display
             if !reactionsList.isEmpty {
-                ReactionsDisplayView(reactions: reactionsList, isFromCurrentUser: isFromCurrentUser)
+                ReactionsDisplayView(
+                    reactions: reactionsList,
+                    isFromCurrentUser: isFromCurrentUser,
+                    currentUserId: currentUserId,
+                    onReactionTapped: { emoji in
+                        addReaction(emoji)
+                    }
+                )
             }
 
             // Timestamp
@@ -544,19 +549,22 @@ struct PlaylistMessageBubbleView: View {
                 }
             }
             .contextMenu {
-                Menu {
-                    Button { addReaction("🔥") } label: { Text("🔥 Fire") }
-                    Button { addReaction("❤️") } label: { Text("❤️ Love") }
-                    Button { addReaction("💯") } label: { Text("💯 100") }
-                    Button { addReaction("😐") } label: { Text("😐 Meh") }
-                } label: {
-                    Label("React", systemImage: "face.smiling")
-                }
+                Button { addReaction("🔥") } label: { Label("🔥 Fire", systemImage: "flame") }
+                Button { addReaction("❤️") } label: { Label("❤️ Love", systemImage: "heart") }
+                Button { addReaction("💯") } label: { Label("💯 100", systemImage: "hand.thumbsup") }
+                Button { addReaction("😐") } label: { Label("😐 Meh", systemImage: "face.smiling") }
             }
 
             // Reactions display
             if !reactionsList.isEmpty {
-                ReactionsDisplayView(reactions: reactionsList, isFromCurrentUser: isFromCurrentUser)
+                ReactionsDisplayView(
+                    reactions: reactionsList,
+                    isFromCurrentUser: isFromCurrentUser,
+                    currentUserId: currentUserId,
+                    onReactionTapped: { emoji in
+                        addReaction(emoji)
+                    }
+                )
             }
 
             // Timestamp
@@ -761,32 +769,48 @@ struct ReactionPickerView: View {
 struct ReactionsDisplayView: View {
     let reactions: [(userId: String, emoji: String)]
     let isFromCurrentUser: Bool
+    var currentUserId: String? = nil
+    var onReactionTapped: ((String) -> Void)? = nil
 
-    private var groupedReactions: [(emoji: String, count: Int)] {
+    private var groupedReactions: [(emoji: String, count: Int, hasUserReacted: Bool)] {
         var counts: [String: Int] = [:]
+        var userReactions: Set<String> = []
         for reaction in reactions {
             counts[reaction.emoji, default: 0] += 1
+            if reaction.userId == currentUserId {
+                userReactions.insert(reaction.emoji)
+            }
         }
-        return counts.map { (emoji: $0.key, count: $0.value) }
+        return counts.map { (emoji: $0.key, count: $0.value, hasUserReacted: userReactions.contains($0.key)) }
             .sorted { $0.count > $1.count }
     }
 
     var body: some View {
         HStack(spacing: 4) {
             ForEach(groupedReactions, id: \.emoji) { reaction in
-                HStack(spacing: 2) {
-                    Text(reaction.emoji)
-                        .font(.caption)
-                    if reaction.count > 1 {
-                        Text("\(reaction.count)")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                Button {
+                    HapticService.selectionChanged()
+                    onReactionTapped?(reaction.emoji)
+                } label: {
+                    HStack(spacing: 2) {
+                        Text(reaction.emoji)
+                            .font(.caption)
+                        if reaction.count > 1 {
+                            Text("\(reaction.count)")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
                     }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(reaction.hasUserReacted ? Color.blue.opacity(0.2) : Color(.systemGray5))
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(reaction.hasUserReacted ? Color.blue : Color.clear, lineWidth: 1)
+                    )
                 }
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(Color(.systemGray5))
-                .clipShape(Capsule())
+                .buttonStyle(.plain)
                 .transition(.scale.combined(with: .opacity))
             }
         }

@@ -48,14 +48,16 @@ struct ProfileView: View {
     @State private var trackToAddToPlaylist: Track?
     @State private var previewUrlForSend: String?
     @State private var showingAISettings = false
+    @State private var showingConcertSettings = false
     @State private var iTunesPreviews: [String: String] = [:]
     @State private var selectedSettingsTab: SettingsTab = .profile
+    @AppStorage("hasCompletedTutorial") private var hasCompletedTutorial = true
     private let itunesService = iTunesService.shared
 
     var body: some View {
         NavigationStack {
             contentView
-                .navigationTitle("Settings")
+                .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     if viewModel.profile != nil {
                         toolbarContent
@@ -193,12 +195,13 @@ struct ProfileView: View {
 
     private func profileContent(_ profile: UserProfile) -> some View {
         VStack(spacing: 0) {
-            settingsTabPicker
-                .padding(.horizontal)
-                .padding(.top, 8)
-
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(alignment: .leading, spacing: 24) {
+                    Text("Settings")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+
+                    settingsTabPicker
                     switch selectedSettingsTab {
                     case .achievements:
                         achievementsTabContent(profile)
@@ -212,7 +215,8 @@ struct ProfileView: View {
                         errorSection(error)
                     }
                 }
-                .padding()
+                .padding(.vertical)
+                .padding(.horizontal, 20)
             }
         }
         .background(Color(.systemBackground))
@@ -236,6 +240,9 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showingAISettings) {
             AISettingsView()
+        }
+        .sheet(isPresented: $showingConcertSettings) {
+            ConcertSettingsView()
         }
     }
 
@@ -316,12 +323,43 @@ struct ProfileView: View {
             profileHeader(profile)
             spotifySection
             aiFeaturesSection
+            concertFeaturesSection
             if spotifyService.isAuthenticated {
                 musicPersonalitySection
             }
             genresSection(profile)
             infoSection(profile)
+            supportSection
         }
+    }
+
+    private var supportSection: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Image(systemName: "questionmark.circle")
+                    .foregroundColor(.blue)
+                Text("Support")
+                    .font(.headline)
+                Spacer()
+            }
+
+            Button {
+                HapticService.lightImpact()
+                hasCompletedTutorial = false
+            } label: {
+                HStack {
+                    Image(systemName: "play.circle")
+                    Text("Replay Tutorial")
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(Color(.tertiaryLabel))
+                }
+                .foregroundColor(.primary)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .cardStyle()
     }
 
     private func profileHeader(_ profile: UserProfile) -> some View {
@@ -517,7 +555,71 @@ struct ProfileView: View {
         .frame(maxWidth: .infinity)
         .padding()
         .cardStyle()
-        
+
+    }
+
+    private var concertFeaturesSection: some View {
+        let ticketmasterService = TicketmasterService.shared
+
+        return VStack(spacing: 12) {
+            HStack {
+                Image(systemName: "ticket.fill")
+                    .foregroundColor(.orange)
+                Text("Concert Discovery")
+                    .font(.headline)
+
+                Spacer()
+
+                if ticketmasterService.isConfigured && !ticketmasterService.userCity.isEmpty {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                }
+            }
+
+            if ticketmasterService.isConfigured && !ticketmasterService.userCity.isEmpty {
+                HStack {
+                    Text("Location")
+                        .font(.caption)
+                        .foregroundColor(Color(.secondaryLabel))
+                    Text(ticketmasterService.userCity)
+                        .font(.caption)
+                        .foregroundColor(Color(.label))
+                    Spacer()
+                }
+
+                Button {
+                    showingConcertSettings = true
+                } label: {
+                    Text("Manage Concert Settings")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Text("Find concerts from your top artists near you")
+                    .font(.caption)
+                    .foregroundColor(Color(.secondaryLabel))
+
+                Button {
+                    showingConcertSettings = true
+                } label: {
+                    HStack {
+                        Image(systemName: "ticket.fill")
+                        Text("Set Up Concerts")
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(Color.orange)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .cardStyle()
+
     }
 
     private func genresSection(_ profile: UserProfile) -> some View {
@@ -876,324 +978,6 @@ struct ProfileView: View {
             
     }
 
-}
-
-// MARK: - Helper Views
-
-struct TopArtistCell: View {
-    let artist: Artist
-
-    var body: some View {
-        VStack(spacing: 6) {
-            if let imageUrl = artist.images?.first?.url,
-               let url = URL(string: imageUrl) {
-                AsyncImage(url: url) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Color(.tertiarySystemBackground)
-                }
-                .frame(width: 80, height: 80)
-                .clipShape(Circle())
-            } else {
-                Image(systemName: "music.mic")
-                    .font(.title)
-                    .foregroundColor(Color(.tertiaryLabel))
-                    .frame(width: 80, height: 80)
-                    .background(Color(.tertiarySystemBackground))
-                    .clipShape(Circle())
-            }
-
-            Text(artist.name)
-                .font(.caption)
-                .fontWeight(.medium)
-                .lineLimit(1)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
-
-struct TopTrackRow: View {
-    let rank: Int
-    let track: Track
-    var previewUrl: String?
-    var onSendTapped: ((Track) -> Void)?
-    var onAddToPlaylistTapped: ((Track) -> Void)?
-    @ObservedObject var audioPlayer = AudioPlayerService.shared
-    @State private var showNoPreviewAlert = false
-
-    // Use rank + track.id for unique identifier to handle duplicates
-    private var uniqueTrackId: String {
-        "top-\(rank)-\(track.id)"
-    }
-
-    private var isCurrentTrack: Bool {
-        audioPlayer.currentTrackId == uniqueTrackId
-    }
-
-    private var isPlaying: Bool {
-        isCurrentTrack && audioPlayer.isPlaying
-    }
-
-    private var hasPreview: Bool {
-        previewUrl != nil
-    }
-
-    private var spotifyUrl: URL? {
-        URL(string: "https://open.spotify.com/track/\(track.id)")
-    }
-
-    var body: some View {
-        Button {
-            HapticService.lightImpact()
-            if let url = previewUrl {
-                audioPlayer.playUrl(url, trackId: uniqueTrackId)
-            } else {
-                showNoPreviewAlert = true
-            }
-        } label: {
-            HStack(spacing: 12) {
-                Text("\(rank)")
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .foregroundColor(Color(.secondaryLabel))
-                    .frame(width: 20)
-
-                albumArtView
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(track.name)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .lineLimit(1)
-                    Text(track.artists.map { $0.name }.joined(separator: ", "))
-                        .font(.caption)
-                        .foregroundColor(Color(.secondaryLabel))
-                        .lineLimit(1)
-                }
-
-                Spacer()
-            }
-            .contentShape(Rectangle())
-            .opacity(hasPreview ? 1.0 : 0.5)
-        }
-        .buttonStyle(.plain)
-        .contextMenu {
-            Button {
-                HapticService.lightImpact()
-                onSendTapped?(track)
-            } label: {
-                Label("Send to Friend", systemImage: "paperplane")
-            }
-
-            Button {
-                HapticService.lightImpact()
-                onAddToPlaylistTapped?(track)
-            } label: {
-                Label("Add to Playlist", systemImage: "plus.circle")
-            }
-
-            if let url = spotifyUrl {
-                Button {
-                    HapticService.lightImpact()
-                    UIApplication.shared.open(url)
-                } label: {
-                    Label("Open in Spotify", systemImage: "arrow.up.right")
-                }
-            }
-        }
-        .alert("No Preview Available", isPresented: $showNoPreviewAlert) {
-            if let url = spotifyUrl {
-                Button("Open in Spotify") {
-                    UIApplication.shared.open(url)
-                }
-            }
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("This track doesn't have a preview. Open it in Spotify to listen.")
-        }
-    }
-
-    private var albumArtView: some View {
-        ZStack {
-            if let imageUrl = track.album.images.first?.url,
-               let url = URL(string: imageUrl) {
-                AsyncImage(url: url) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Color(.tertiarySystemBackground)
-                }
-            } else {
-                Image(systemName: "music.note")
-                    .foregroundColor(Color(.tertiaryLabel))
-            }
-
-            if hasPreview {
-                Color.black.opacity(isCurrentTrack ? 0.4 : 0)
-                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                    .foregroundColor(.white)
-                    .font(.system(size: 16))
-                    .opacity(isCurrentTrack ? 1 : 0)
-            }
-
-            if isCurrentTrack {
-                GeometryReader { geometry in
-                    Rectangle()
-                        .fill(Color.green)
-                        .frame(width: geometry.size.width * audioPlayer.playbackProgress, height: 2)
-                }
-                .frame(height: 2)
-                .frame(maxHeight: .infinity, alignment: .bottom)
-            }
-        }
-        .frame(width: 40, height: 40)
-        .cornerRadius(4)
-        .clipped()
-    }
-}
-
-struct RecentlyPlayedCell: View {
-    let playHistory: PlayHistory
-    let index: Int
-    var previewUrl: String?
-    var onSendTapped: ((Track) -> Void)?
-    var onAddToPlaylistTapped: ((Track) -> Void)?
-    @ObservedObject var audioPlayer = AudioPlayerService.shared
-    @State private var showNoPreviewAlert = false
-
-    private var track: Track {
-        playHistory.track
-    }
-
-    // Use index for unique identifier to handle same song played multiple times
-    private var uniqueTrackId: String {
-        "recent-\(index)-\(track.id)"
-    }
-
-    private var isCurrentTrack: Bool {
-        audioPlayer.currentTrackId == uniqueTrackId
-    }
-
-    private var isPlaying: Bool {
-        isCurrentTrack && audioPlayer.isPlaying
-    }
-
-    private var hasPreview: Bool {
-        previewUrl != nil
-    }
-
-    private var spotifyUrl: URL? {
-        URL(string: "https://open.spotify.com/track/\(track.id)")
-    }
-
-    var body: some View {
-        Button {
-            HapticService.lightImpact()
-            if let url = previewUrl {
-                audioPlayer.playUrl(url, trackId: uniqueTrackId)
-            } else {
-                showNoPreviewAlert = true
-            }
-        } label: {
-            VStack(spacing: 6) {
-                albumArtView
-
-                VStack(spacing: 2) {
-                    Text(track.name)
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .lineLimit(1)
-                    Text(track.artists.first?.name ?? "")
-                        .font(.caption2)
-                        .foregroundColor(Color(.secondaryLabel))
-                        .lineLimit(1)
-                }
-            }
-            .frame(width: 80)
-            .contentShape(Rectangle())
-            .opacity(hasPreview ? 1.0 : 0.5)
-        }
-        .buttonStyle(.plain)
-        .contextMenu {
-            Button {
-                HapticService.lightImpact()
-                onSendTapped?(track)
-            } label: {
-                Label("Send to Friend", systemImage: "paperplane")
-            }
-
-            Button {
-                HapticService.lightImpact()
-                onAddToPlaylistTapped?(track)
-            } label: {
-                Label("Add to Playlist", systemImage: "plus.circle")
-            }
-
-            if let url = spotifyUrl {
-                Button {
-                    HapticService.lightImpact()
-                    UIApplication.shared.open(url)
-                } label: {
-                    Label("Open in Spotify", systemImage: "arrow.up.right")
-                }
-            }
-        }
-        .alert("No Preview Available", isPresented: $showNoPreviewAlert) {
-            if let url = spotifyUrl {
-                Button("Open in Spotify") {
-                    UIApplication.shared.open(url)
-                }
-            }
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("This track doesn't have a preview. Open it in Spotify to listen.")
-        }
-    }
-
-    private var albumArtView: some View {
-        ZStack {
-            if let imageUrl = track.album.images.first?.url,
-               let url = URL(string: imageUrl) {
-                AsyncImage(url: url) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Color(.tertiarySystemBackground)
-                }
-            } else {
-                Image(systemName: "music.note")
-                    .font(.title)
-                    .foregroundColor(Color(.tertiaryLabel))
-                    .background(Color(.tertiarySystemBackground))
-            }
-
-            if hasPreview {
-                Color.black.opacity(isCurrentTrack ? 0.4 : 0)
-                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                    .foregroundColor(.white)
-                    .font(.system(size: 24))
-                    .opacity(isCurrentTrack ? 1 : 0)
-            }
-
-            if isCurrentTrack {
-                GeometryReader { geometry in
-                    Rectangle()
-                        .fill(Color.green)
-                        .frame(width: geometry.size.width * audioPlayer.playbackProgress, height: 3)
-                }
-                .frame(height: 3)
-                .frame(maxHeight: .infinity, alignment: .bottom)
-            }
-        }
-        .frame(width: 80, height: 80)
-        .cornerRadius(8)
-        .clipped()
-    }
 }
 
 #Preview {

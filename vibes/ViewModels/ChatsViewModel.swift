@@ -70,6 +70,7 @@ class ChatsViewModel: ObservableObject {
                 unreadCount: unreadCount,
                 friend: friend,
                 vibestreak: friend.activeVibestreak,
+                vibestreakCompletedToday: friend.vibestreakCompletedToday,
                 compatibility: compatibility
             ))
         }

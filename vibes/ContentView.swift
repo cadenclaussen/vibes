@@ -38,33 +38,99 @@ struct MainTabView: View {
 
     private var mainContent: some View {
         ZStack {
-            TabView(selection: $selectedTab) {
-                DiscoverView(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
-                    .tabItem {
-                        Label("Discover", systemImage: "waveform.circle.fill")
-                    }
-                    .tag(0)
+            VStack(spacing: 0) {
+                GeometryReader { geometry in
+                    ScrollViewReader { proxy in
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 0) {
+                                DiscoverView(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
+                                    .frame(width: geometry.size.width)
+                                    .id(0)
 
-                SearchView(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile, navigateToFriend: $navigateToFriend)
-                    .tabItem {
-                        Label("Search", systemImage: "magnifyingglass")
-                    }
-                    .tag(1)
+                                SearchView(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile, navigateToFriend: $navigateToFriend)
+                                    .frame(width: geometry.size.width)
+                                    .id(1)
 
-                ChatsView(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
-                    .tabItem {
-                        Label("Chats", systemImage: "bubble.left.and.bubble.right.fill")
-                    }
-                    .tag(2)
+                                ChatsView(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
+                                    .frame(width: geometry.size.width)
+                                    .id(2)
 
-                ProfileView(shouldEditProfile: $shouldEditProfile)
-                    .tabItem {
-                        Label("Settings", systemImage: "gearshape.fill")
+                                ProfileView(shouldEditProfile: $shouldEditProfile)
+                                    .frame(width: geometry.size.width)
+                                    .id(3)
+                            }
+                            .scrollTargetLayout()
+                        }
+                        .scrollTargetBehavior(.viewAligned)
+                        .scrollPosition(id: Binding(
+                            get: { selectedTab },
+                            set: { if let newValue = $0 { selectedTab = newValue } }
+                        ))
+                        .onChange(of: selectedTab) { _, newValue in
+                            AudioPlayerService.shared.stop()
+                            withAnimation(.smooth(duration: 0.3)) {
+                                proxy.scrollTo(newValue, anchor: .center)
+                            }
+                        }
                     }
-                    .tag(3)
+                }
+
+                CustomTabBar(selectedTab: $selectedTab)
             }
+            .ignoresSafeArea(.keyboard)
 
             AchievementBannerOverlay()
+        }
+    }
+}
+
+struct CustomTabBar: View {
+    @Binding var selectedTab: Int
+
+    private let tabs: [(icon: String, label: String)] = [
+        ("waveform.circle.fill", "Discover"),
+        ("magnifyingglass", "Search"),
+        ("bubble.left.and.bubble.right.fill", "Chats"),
+        ("gearshape.fill", "Settings")
+    ]
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(0..<tabs.count, id: \.self) { index in
+                tabButton(index: index)
+            }
+        }
+        .padding(.top, 8)
+        .padding(.bottom, 2)
+        .background(
+            Color(.systemBackground)
+                .shadow(color: .black.opacity(0.1), radius: 8, y: -4)
+                .ignoresSafeArea()
+        )
+    }
+
+    private func tabButton(index: Int) -> some View {
+        let isSelected = selectedTab == index
+        return Button {
+            withAnimation(.smooth(duration: 0.35)) {
+                selectedTab = index
+            }
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: tabs[index].icon)
+                    .font(.system(size: 18, weight: isSelected ? .semibold : .regular))
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
+                    )
+                Text(tabs[index].label)
+                    .font(.caption2)
+                    .fontWeight(isSelected ? .semibold : .regular)
+            }
+            .foregroundColor(isSelected ? .accentColor : .gray)
+            .frame(maxWidth: .infinity)
         }
     }
 }

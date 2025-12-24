@@ -18,8 +18,10 @@ class PlaylistRecommendationsViewModel: ObservableObject {
     @Published var isLoadingRecommendations = false
     @Published var isAddingSongId: String?
     @Published var errorMessage: String?
+    @Published var cooldownSeconds: Int = 0
 
     private var pendingRecommendations: [PlaylistRecommendation] = []
+    private var cooldownTimer: Timer?
     private var shownSongNames: [String] = []
     private var playlistTrackNames: [String] = []
 
@@ -106,11 +108,42 @@ class PlaylistRecommendationsViewModel: ObservableObject {
             )
 
             await resolveSongs(from: aiRecs)
+        } catch let error as GeminiError {
+            if case .rateLimitWithRetry(let seconds) = error {
+                errorMessage = "AI rate limit reached (20/min). Please wait."
+                startCooldown(seconds: seconds + 5) // Add buffer
+            } else if case .rateLimitExceeded = error {
+                errorMessage = "Too many requests. Please wait a moment."
+                startCooldown(seconds: 60)
+            } else if case .dailyLimitReached = error {
+                errorMessage = "Daily AI limit reached (50/day). Try again tomorrow."
+            } else {
+                errorMessage = "AI recommendation failed: \(error.localizedDescription)"
+            }
         } catch {
             errorMessage = "AI recommendation failed: \(error.localizedDescription)"
         }
 
         isLoadingRecommendations = false
+    }
+
+    private func startCooldown(seconds: Int) {
+        cooldownSeconds = seconds
+        cooldownTimer?.invalidate()
+        cooldownTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
+            Task { @MainActor in
+                guard let self = self else {
+                    timer.invalidate()
+                    return
+                }
+                if self.cooldownSeconds > 0 {
+                    self.cooldownSeconds -= 1
+                } else {
+                    timer.invalidate()
+                    self.cooldownTimer = nil
+                }
+            }
+        }
     }
 
     private func resolveSongs(from aiRecs: [AIRecommendedSong]) async {

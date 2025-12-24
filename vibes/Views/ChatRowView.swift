@@ -67,7 +67,7 @@ struct ChatRowView: View {
                         }
 
                         // Vibestreak
-                        VibestreakView(streak: chat.vibestreak, size: .small)
+                        VibestreakView(streak: chat.vibestreak, completedToday: chat.vibestreakCompletedToday, size: .small)
 
                         // Unread badge
                         if chat.unreadCount > 0 {
@@ -135,6 +135,7 @@ struct ChatRowView: View {
                 from: UserProfile(uid: "1", email: "john@test.com", username: "johndoe")
             ),
             vibestreak: 5,
+            vibestreakCompletedToday: true,
             compatibility: CompatibilityResult(score: 85, sharedArtists: ["Taylor Swift"], sharedGenres: ["Pop"])
         ))
         Divider()
@@ -147,7 +148,8 @@ struct ChatRowView: View {
             friend: FriendProfile(
                 from: UserProfile(uid: "2", email: "jane@test.com", username: "janesmith")
             ),
-            vibestreak: 0,
+            vibestreak: 7,
+            vibestreakCompletedToday: false,
             compatibility: CompatibilityResult(score: 45, sharedArtists: [], sharedGenres: ["Rock"])
         ))
     }

@@ -43,6 +43,15 @@ class MessageThreadViewModel: ObservableObject {
         return 0
     }
 
+    // Returns true if both users have messaged each other today
+    var vibestreakCompletedToday: Bool {
+        guard let lastUpdated = streakLastUpdated else { return false }
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let lastUpdateDay = calendar.startOfDay(for: lastUpdated)
+        return lastUpdateDay == today
+    }
+
     init(threadId: String, otherUserId: String, currentUserId: String) {
         self.threadId = threadId
         self.otherUserId = otherUserId

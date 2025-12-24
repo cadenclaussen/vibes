@@ -36,24 +36,32 @@ class iTunesService {
             let normalizedTrackName = normalizeTrackName(trackName)
             // Extract all artist names (handles "featuring", "ft.", "&", etc.)
             let artistNames = extractArtistNames(artistName)
+            // Check if user is searching for a remix/alternate version
+            let searchIsRemix = isRemixOrAlternateVersion(trackName)
 
             var bestMatch: (track: iTunesTrack, score: Int)?
 
             for track in result.results {
-                let itunesTrack = normalizeTrackName(track.trackName)
+                let itunesTrackNormalized = normalizeTrackName(track.trackName)
                 let itunesArtists = extractArtistNames(track.artistName)
+                let resultIsRemix = isRemixOrAlternateVersion(track.trackName)
+
+                // If user wants the original, skip remix versions
+                if !searchIsRemix && resultIsRemix {
+                    continue
+                }
 
                 // Calculate match score
                 var score = 0
 
                 // Track name must match well (exact or cleaned match)
-                let trackMatches = itunesTrack == normalizedTrackName ||
-                    itunesTrack.hasPrefix(normalizedTrackName + " ") ||
-                    normalizedTrackName.hasPrefix(itunesTrack + " ") ||
-                    (itunesTrack.contains(normalizedTrackName) && normalizedTrackName.count >= 4)
+                let trackMatches = itunesTrackNormalized == normalizedTrackName ||
+                    itunesTrackNormalized.hasPrefix(normalizedTrackName + " ") ||
+                    normalizedTrackName.hasPrefix(itunesTrackNormalized + " ") ||
+                    (itunesTrackNormalized.contains(normalizedTrackName) && normalizedTrackName.count >= 4)
 
                 if !trackMatches {
-                    continue // Skip if track name doesn't match
+                    continue
                 }
                 score += 10
 
@@ -73,12 +81,17 @@ class iTunesService {
                 }
 
                 if !artistMatched {
-                    continue // Skip if no artist matches
+                    continue
                 }
 
                 // Prefer exact track name matches
-                if itunesTrack == normalizedTrackName {
+                if itunesTrackNormalized == normalizedTrackName {
                     score += 3
+                }
+
+                // Bonus for matching the original when that's what was requested
+                if !searchIsRemix && !resultIsRemix {
+                    score += 2
                 }
 
                 // Update best match if this is better
@@ -93,6 +106,22 @@ class iTunesService {
             print("iTunes search failed: \(error)")
             return nil
         }
+    }
+
+    private func isRemixOrAlternateVersion(_ name: String) -> Bool {
+        let lowercased = name.lowercased()
+        let remixPatterns = [
+            "remix", "mix", "edit", "version", "bootleg", "rework",
+            "vip", "flip", "mashup", "mash-up", "cover", "acoustic",
+            "live", "instrumental", "acapella", "a cappella", "extended",
+            "radio edit", "club mix", "dub mix", "stripped"
+        ]
+        for pattern in remixPatterns {
+            if lowercased.contains(pattern) {
+                return true
+            }
+        }
+        return false
     }
 
     private func normalizeTrackName(_ name: String) -> String {

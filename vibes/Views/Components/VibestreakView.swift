@@ -72,6 +72,7 @@ enum StreakTier {
 
 struct VibestreakView: View {
     let streak: Int
+    var completedToday: Bool = false
     var size: StreakSize = .medium
 
     enum StreakSize {
@@ -108,6 +109,24 @@ struct VibestreakView: View {
         StreakTier(days: streak)
     }
 
+    // When completed today, show red; otherwise show gray
+    private var displayColor: Color {
+        if completedToday {
+            return .red
+        } else {
+            return Color(.systemGray)
+        }
+    }
+
+    // When completed today, use filled icon; otherwise use outline
+    private var displayIconName: String {
+        if completedToday {
+            return "flame.fill"
+        } else {
+            return "flame"
+        }
+    }
+
     var body: some View {
         if streak > 0 {
             HStack(spacing: 3) {
@@ -116,7 +135,7 @@ struct VibestreakView: View {
                     .font(size.fontSize)
                     .fontWeight(.semibold)
             }
-            .foregroundColor(tier.color)
+            .foregroundColor(displayColor)
             .padding(size.padding)
             .background(backgroundView)
         }
@@ -124,17 +143,19 @@ struct VibestreakView: View {
 
     @ViewBuilder
     private var streakIcon: some View {
-        if tier == .legendary {
+        // For legendary tier with completed today, keep the animation
+        if tier == .legendary && completedToday {
             AnimatedFlameIcon(size: size.iconSize)
+                .foregroundColor(.red)
         } else {
-            Image(systemName: tier.iconName)
+            Image(systemName: displayIconName)
                 .font(size.iconSize)
         }
     }
 
     @ViewBuilder
     private var backgroundView: some View {
-        if let glowColor = tier.glowColor {
+        if completedToday, let glowColor = tier.glowColor {
             Capsule()
                 .fill(glowColor)
         }
@@ -164,40 +185,57 @@ struct AnimatedFlameIcon: View {
 struct VibestreakBadgeView: View {
     let streak: Int
     let friendName: String?
+    var completedToday: Bool = false
 
     private var tier: StreakTier {
         StreakTier(days: streak)
+    }
+
+    private var displayColor: Color {
+        if completedToday {
+            return .red
+        } else {
+            return Color(.systemGray)
+        }
+    }
+
+    private var displayIconName: String {
+        if completedToday {
+            return "flame.fill"
+        } else {
+            return "flame"
+        }
     }
 
     var body: some View {
         VStack(spacing: 8) {
             ZStack {
                 Circle()
-                    .fill(tier.color.opacity(0.2))
+                    .fill(displayColor.opacity(0.2))
                     .frame(width: 80, height: 80)
 
-                if tier == .legendary {
+                if tier == .legendary && completedToday {
                     Circle()
-                        .stroke(tier.color, lineWidth: 3)
+                        .stroke(displayColor, lineWidth: 3)
                         .frame(width: 80, height: 80)
                         .scaleEffect(1.1)
                         .opacity(0.5)
                 }
 
                 VStack(spacing: 2) {
-                    if tier == .legendary {
+                    if tier == .legendary && completedToday {
                         AnimatedFlameIcon(size: .title)
-                            .foregroundColor(tier.color)
+                            .foregroundColor(.red)
                     } else {
-                        Image(systemName: tier.iconName)
+                        Image(systemName: displayIconName)
                             .font(.title)
-                            .foregroundColor(tier.color)
+                            .foregroundColor(displayColor)
                     }
 
                     Text("\(streak)")
                         .font(.title2)
                         .fontWeight(.bold)
-                        .foregroundColor(tier.color)
+                        .foregroundColor(displayColor)
                 }
             }
 
@@ -210,7 +248,7 @@ struct VibestreakBadgeView: View {
             Text(tierLabel)
                 .font(.caption2)
                 .fontWeight(.medium)
-                .foregroundColor(tier.color)
+                .foregroundColor(displayColor)
                 .textCase(.uppercase)
         }
     }
@@ -229,40 +267,49 @@ struct VibestreakBadgeView: View {
 
 #Preview {
     VStack(spacing: 20) {
-        Text("Streak Tiers").font(.headline)
+        Text("Not Completed Today (Gray)").font(.headline)
 
         HStack(spacing: 16) {
             VStack {
-                VibestreakView(streak: 3, size: .small)
+                VibestreakView(streak: 3, completedToday: false, size: .small)
                 Text("Starter").font(.caption2)
             }
             VStack {
-                VibestreakView(streak: 14, size: .small)
+                VibestreakView(streak: 14, completedToday: false, size: .small)
                 Text("Bronze").font(.caption2)
             }
             VStack {
-                VibestreakView(streak: 45, size: .small)
+                VibestreakView(streak: 45, completedToday: false, size: .small)
                 Text("Silver").font(.caption2)
             }
+        }
+
+        Divider()
+
+        Text("Completed Today (Red)").font(.headline)
+
+        HStack(spacing: 16) {
             VStack {
-                VibestreakView(streak: 150, size: .small)
-                Text("Gold").font(.caption2)
+                VibestreakView(streak: 3, completedToday: true, size: .small)
+                Text("Starter").font(.caption2)
             }
             VStack {
-                VibestreakView(streak: 400, size: .small)
+                VibestreakView(streak: 14, completedToday: true, size: .small)
+                Text("Bronze").font(.caption2)
+            }
+            VStack {
+                VibestreakView(streak: 400, completedToday: true, size: .small)
                 Text("Legendary").font(.caption2)
             }
         }
 
         Divider()
 
-        Text("Medium Size").font(.headline)
-        VibestreakView(streak: 100, size: .medium)
-
-        Divider()
-
-        Text("Large Badge").font(.headline)
-        VibestreakBadgeView(streak: 365, friendName: "John")
+        Text("Large Badges").font(.headline)
+        HStack(spacing: 20) {
+            VibestreakBadgeView(streak: 30, friendName: "John", completedToday: false)
+            VibestreakBadgeView(streak: 30, friendName: "Jane", completedToday: true)
+        }
     }
     .padding()
 }

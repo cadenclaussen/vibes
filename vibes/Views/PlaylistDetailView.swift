@@ -29,6 +29,9 @@ struct PlaylistDetailView: View {
         .task {
             await loadTracks()
         }
+        .onAppear {
+            audioPlayer.stop()
+        }
         .onDisappear {
             audioPlayer.stop()
         }

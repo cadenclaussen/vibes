@@ -38,6 +38,9 @@ struct FriendBlendView: View {
         } message: {
             Text("Your blend playlist has been saved to Spotify!")
         }
+        .onAppear {
+            audioPlayer.stop()
+        }
         .onDisappear {
             audioPlayer.stop()
         }

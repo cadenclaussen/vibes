@@ -174,6 +174,13 @@ class FirestoreService {
         ])
     }
 
+    func addGroupReaction(groupId: String, messageId: String, userId: String, emoji: String) async throws {
+        let messageRef = db.collection("groups").document(groupId).collection("messages").document(messageId)
+        try await messageRef.updateData([
+            "reactions.\(emoji)": FieldValue.arrayUnion([userId])
+        ])
+    }
+
     // MARK: - Friendships
 
     func sendFriendRequest(from userId: String, to friendId: String) async throws {

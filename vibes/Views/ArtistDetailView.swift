@@ -37,6 +37,9 @@ struct ArtistDetailView: View {
         .task {
             await loadData()
         }
+        .onAppear {
+            audioPlayer.stop()
+        }
         .onDisappear {
             audioPlayer.stop()
         }

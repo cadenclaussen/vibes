@@ -20,7 +20,7 @@ struct GroupThreadView: View {
     @Environment(\.dismiss) private var dismiss
 
     private var isCreator: Bool {
-        group.creatorId == currentUserId
+        group.creatorId == currentUserId && currentUserId.isEmpty == false
     }
 
     init(group: GroupThread, currentUserId: String) {
@@ -29,7 +29,7 @@ struct GroupThreadView: View {
         _viewModel = StateObject(wrappedValue: GroupThreadViewModel(
             groupId: group.id ?? "",
             currentUserId: currentUserId,
-            creatorId: group.creatorId,
+            creatorId: group.creatorId ?? "",
             participantIds: group.participantIds,
             createdAt: group.createdAt
         ))
@@ -44,7 +44,9 @@ struct GroupThreadView: View {
                         ForEach(viewModel.messages) { message in
                             GroupMessageBubble(
                                 message: message,
-                                isFromCurrentUser: message.senderId == currentUserId
+                                isFromCurrentUser: message.senderId == currentUserId,
+                                groupId: group.id ?? "",
+                                currentUserId: currentUserId
                             )
                             .id(message.id)
                         }
@@ -97,6 +99,10 @@ struct GroupThreadView: View {
         }
         .task {
             await viewModel.markAsRead()
+        }
+        .onDisappear {
+            viewModel.cleanup()
+            AudioPlayerService.shared.stop()
         }
         .sheet(isPresented: $showingGroupInfo) {
             GroupInfoView(
@@ -349,6 +355,62 @@ struct GroupInfoView: View {
 struct GroupMessageBubble: View {
     let message: GroupMessage
     let isFromCurrentUser: Bool
+    let groupId: String
+    let currentUserId: String
+
+    @ObservedObject var audioPlayer = AudioPlayerService.shared
+    @ObservedObject var spotifyService = SpotifyService.shared
+    @State private var showPlaylistPicker = false
+    @State private var showFriendPicker = false
+
+    private var trackId: String {
+        message.id ?? message.spotifyTrackId ?? UUID().uuidString
+    }
+
+    private var isCurrentTrack: Bool {
+        audioPlayer.currentTrackId == trackId
+    }
+
+    private var isPlaying: Bool {
+        isCurrentTrack && audioPlayer.isPlaying
+    }
+
+    private var hasPreview: Bool {
+        message.previewUrl != nil
+    }
+
+    private var trackUri: String? {
+        guard let spotifyTrackId = message.spotifyTrackId else { return nil }
+        return "spotify:track:\(spotifyTrackId)"
+    }
+
+    private var trackForSharing: Track? {
+        guard let spotifyTrackId = message.spotifyTrackId else { return nil }
+        let album = Album(
+            id: "",
+            name: "",
+            images: message.albumArtUrl.map { [SpotifyImage(url: $0, height: nil, width: nil)] } ?? [],
+            releaseDate: "",
+            totalTracks: 0,
+            uri: ""
+        )
+        return Track(
+            id: spotifyTrackId,
+            name: message.songTitle ?? "Unknown",
+            artists: [Artist(id: "", name: message.songArtist ?? "Unknown", uri: "", externalUrls: nil, images: nil, genres: nil, followers: nil, popularity: nil)],
+            album: album,
+            durationMs: 0,
+            explicit: false,
+            popularity: 0,
+            previewUrl: message.previewUrl,
+            uri: "spotify:track:\(spotifyTrackId)",
+            externalUrls: ExternalUrls(spotify: "https://open.spotify.com/track/\(spotifyTrackId)")
+        )
+    }
+
+    private var reactionsList: [(emoji: String, count: Int, hasUserReacted: Bool)] {
+        return message.reactions.map { (emoji: $0.key, count: $0.value.count, hasUserReacted: $0.value.contains(currentUserId)) }.sorted { $0.count > $1.count }
+    }
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -386,41 +448,150 @@ struct GroupMessageBubble: View {
     }
 
     private var songBubble: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
-                if let artUrl = message.albumArtUrl, let url = URL(string: artUrl) {
-                    AsyncImage(url: url) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Color(.tertiarySystemFill)
+        VStack(alignment: isFromCurrentUser ? .trailing : .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 10) {
+                    if let artUrl = message.albumArtUrl, let url = URL(string: artUrl) {
+                        AsyncImage(url: url) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Color(.tertiarySystemFill)
+                        }
+                        .frame(width: 50, height: 50)
+                        .cornerRadius(6)
                     }
-                    .frame(width: 50, height: 50)
-                    .cornerRadius(6)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(message.songTitle ?? "Unknown")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .lineLimit(1)
+                        Text(message.songArtist ?? "Unknown")
+                            .font(.caption)
+                            .foregroundColor(isFromCurrentUser ? .white.opacity(0.8) : .secondary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer()
+
+                    playButton
                 }
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(message.songTitle ?? "Unknown")
+                if let caption = message.caption, !caption.isEmpty {
+                    Text(caption)
                         .font(.subheadline)
-                        .fontWeight(.medium)
-                        .lineLimit(1)
-                    Text(message.songArtist ?? "Unknown")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
+                }
+            }
+            .padding(10)
+            .background(isFromCurrentUser ? Color.blue.opacity(0.9) : Color(.tertiarySystemFill))
+            .foregroundColor(isFromCurrentUser ? .white : .primary)
+            .cornerRadius(14)
+            .frame(maxWidth: 260)
+            .contextMenu {
+                Button { addReaction("🔥") } label: { Label("🔥 Fire", systemImage: "flame") }
+                Button { addReaction("❤️") } label: { Label("❤️ Love", systemImage: "heart") }
+                Button { addReaction("💯") } label: { Label("💯 100", systemImage: "hand.thumbsup") }
+                Button { addReaction("😐") } label: { Label("😐 Meh", systemImage: "face.smiling") }
+
+                Divider()
+
+                if trackForSharing != nil {
+                    Button {
+                        HapticService.lightImpact()
+                        showFriendPicker = true
+                    } label: {
+                        Label("Send to Friend", systemImage: "paperplane")
+                    }
+                }
+
+                if spotifyService.isAuthenticated && trackUri != nil {
+                    Button {
+                        HapticService.lightImpact()
+                        showPlaylistPicker = true
+                    } label: {
+                        Label("Add to Playlist", systemImage: "plus.circle")
+                    }
+                }
+
+                if let spotifyTrackId = message.spotifyTrackId {
+                    Button {
+                        HapticService.lightImpact()
+                        if let url = URL(string: "https://open.spotify.com/track/\(spotifyTrackId)") {
+                            UIApplication.shared.open(url)
+                        }
+                    } label: {
+                        Label("Open in Spotify", systemImage: "arrow.up.right")
+                    }
                 }
             }
 
-            if let caption = message.caption, !caption.isEmpty {
-                Text(caption)
-                    .font(.subheadline)
+            if !reactionsList.isEmpty {
+                HStack(spacing: 4) {
+                    ForEach(reactionsList.prefix(4), id: \.emoji) { reaction in
+                        Button {
+                            addReaction(reaction.emoji)
+                        } label: {
+                            Text("\(reaction.emoji)\(reaction.count > 1 ? " \(reaction.count)" : "")")
+                                .font(.caption)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(reaction.hasUserReacted ? Color.blue.opacity(0.2) : Color(.tertiarySystemFill))
+                                .cornerRadius(10)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .strokeBorder(reaction.hasUserReacted ? Color.blue : Color.clear, lineWidth: 1)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
         }
-        .padding(10)
-        .background(isFromCurrentUser ? Color.blue.opacity(0.9) : Color(.tertiarySystemFill))
-        .foregroundColor(isFromCurrentUser ? .white : .primary)
-        .cornerRadius(14)
+        .sheet(isPresented: $showPlaylistPicker) {
+            if let uri = trackUri {
+                PlaylistPickerView(
+                    trackUri: uri,
+                    trackName: message.songTitle ?? "Unknown Song",
+                    artistName: message.songArtist ?? "Unknown Artist",
+                    albumArtUrl: message.albumArtUrl,
+                    onAdded: {}
+                )
+            }
+        }
+        .sheet(isPresented: $showFriendPicker) {
+            if let track = trackForSharing {
+                FriendPickerView(track: track, previewUrl: message.previewUrl)
+            }
+        }
+    }
+
+    private func addReaction(_ emoji: String) {
+        HapticService.selectionChanged()
+        guard let messageId = message.id else { return }
+        Task {
+            try? await FirestoreService.shared.addGroupReaction(
+                groupId: groupId,
+                messageId: messageId,
+                userId: currentUserId,
+                emoji: emoji
+            )
+        }
+    }
+
+    private var playButton: some View {
+        Button {
+            HapticService.lightImpact()
+            if let previewUrl = message.previewUrl {
+                audioPlayer.playUrl(previewUrl, trackId: trackId)
+            }
+        } label: {
+            Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                .font(.system(size: 32))
+                .foregroundColor(hasPreview ? (isFromCurrentUser ? .white : .blue) : .gray)
+        }
+        .disabled(!hasPreview)
     }
 
     private var timeString: String {
@@ -561,6 +732,13 @@ class GroupThreadViewModel: ObservableObject {
             print("Failed to delete group: \(error)")
             return false
         }
+    }
+
+    func cleanup() {
+        listener?.remove()
+        groupListener?.remove()
+        listener = nil
+        groupListener = nil
     }
 
     deinit {

@@ -384,6 +384,19 @@ class GeminiService: ObservableObject {
         case 403:
             throw GeminiError.invalidAPIKey
         case 429:
+            if let errorResponse = try? JSONDecoder().decode(GeminiErrorResponse.self, from: data) {
+                let message = errorResponse.error.message
+                // Parse retry time from message like "Please retry in 17.075489199s"
+                var retrySeconds: Int = 60
+                if let range = message.range(of: "retry in "),
+                   let endRange = message.range(of: "s", range: range.upperBound..<message.endIndex) {
+                    let timeStr = String(message[range.upperBound..<endRange.lowerBound])
+                    if let seconds = Double(timeStr) {
+                        retrySeconds = Int(ceil(seconds))
+                    }
+                }
+                throw GeminiError.rateLimitWithRetry(seconds: retrySeconds)
+            }
             throw GeminiError.rateLimitExceeded
         default:
             if let errorResponse = try? JSONDecoder().decode(GeminiErrorResponse.self, from: data) {
@@ -498,6 +511,55 @@ class GeminiService: ObservableObject {
         }
     }
 
+    // MARK: - Playlist-Based Recommendations
+
+    func generatePlaylistRecommendations(
+        playlistTracks: [String],
+        playlistName: String,
+        count: Int = 15,
+        avoidSongs: [String] = []
+    ) async throws -> [AIRecommendedSong] {
+        guard isConfigured, apiKey != nil else {
+            throw GeminiError.notConfigured
+        }
+
+        guard canMakeRequest() else {
+            throw GeminiError.dailyLimitReached
+        }
+
+        let songCount = max(5, min(count, 30))
+        // Limit to reduce token count and avoid rate limits
+        let limitedTracks = Array(playlistTracks.prefix(15))
+        let limitedAvoid = Array(avoidSongs.prefix(20))
+        let avoidSection = limitedAvoid.isEmpty ? "" : "\nAvoid: \(limitedAvoid.joined(separator: ", "))\n"
+
+        let prompt = """
+        Recommend \(songCount) songs for playlist "\(playlistName)" based on these songs:
+        \(limitedTracks.joined(separator: ", "))
+        \(avoidSection)
+        Rules: Real Spotify songs only. Match the vibe. No duplicates.
+
+        JSON only:
+        {"recommendations":[{"id":"1","trackName":"","artistName":"","reason":"","matchScore":0.9,"basedOn":""}]}
+        """
+
+        let response = try await makeRequest(prompt: prompt)
+        incrementRequestCount()
+
+        guard let responseData = response.data(using: .utf8) else {
+            throw GeminiError.invalidResponse
+        }
+
+        do {
+            let recommendationsResponse = try JSONDecoder().decode(AIRecommendationsResponse.self, from: responseData)
+            return recommendationsResponse.recommendations
+        } catch {
+            print("JSON Decode Error: \(error)")
+            print("Response was: \(response.prefix(500))")
+            throw error
+        }
+    }
+
     func clearRecommendationsCache(for profile: MusicProfile) {
         let hash = profileHash(profile)
         let key = "aiRecs_\(hash)"
@@ -574,6 +636,7 @@ enum GeminiError: LocalizedError {
     case notConfigured
     case invalidAPIKey
     case rateLimitExceeded
+    case rateLimitWithRetry(seconds: Int)
     case quotaExceeded
     case dailyLimitReached
     case networkError(String)
@@ -587,6 +650,8 @@ enum GeminiError: LocalizedError {
             return "Invalid Gemini API key. Please check your key in Settings."
         case .rateLimitExceeded:
             return "Too many requests. Please wait a moment and try again."
+        case .rateLimitWithRetry(let seconds):
+            return "Rate limit reached. Try again in \(seconds) seconds."
         case .quotaExceeded:
             return "API quota exceeded. Check your Google Cloud billing."
         case .dailyLimitReached:

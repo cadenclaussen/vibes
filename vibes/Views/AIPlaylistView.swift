@@ -38,6 +38,9 @@ struct AIPlaylistView: View {
         } message: {
             Text("Your playlist has been saved to Spotify!")
         }
+        .onAppear {
+            audioPlayer.stop()
+        }
         .onDisappear {
             audioPlayer.stop()
         }

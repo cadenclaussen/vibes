@@ -41,7 +41,7 @@ struct ChatsView: View {
     var body: some View {
         NavigationStack(path: $navigationPath) {
             contentView
-                .navigationTitle("Chats")
+                .navigationBarTitleDisplayMode(.inline)
                 .navigationDestination(for: FriendProfile.self) { friend in
                     if let currentUserId = authManager.user?.uid {
                         MessageThreadContainer(
@@ -68,6 +68,7 @@ struct ChatsView: View {
                                 Image(systemName: "person.badge.plus")
                                     .imageScale(.large)
                             }
+
                             Button {
                                 showingCreateGroup = true
                             } label: {
@@ -111,7 +112,11 @@ struct ChatsView: View {
             ProgressView()
         } else {
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Chats")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+
                     searchBar
                     if searchText.isEmpty {
                         nowPlayingSection
@@ -121,7 +126,8 @@ struct ChatsView: View {
                     groupsSection
                     chatsSection
                 }
-                .padding()
+                .padding(.vertical)
+                .padding(.horizontal, 20)
             }
         }
     }
@@ -539,6 +545,7 @@ struct ChatItem: Identifiable {
     let unreadCount: Int
     let friend: FriendProfile
     let vibestreak: Int
+    let vibestreakCompletedToday: Bool
     let compatibility: CompatibilityResult?
 
     var displayTime: String {

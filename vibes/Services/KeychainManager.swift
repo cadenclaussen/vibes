@@ -192,4 +192,27 @@ class KeychainManager {
             return false
         }
     }
+
+    // MARK: - Convenience Methods for Ticketmaster API Key
+
+    func saveTicketmasterAPIKey(_ key: String) throws {
+        try save(key: "ticketmasterAPIKey", value: key)
+    }
+
+    func retrieveTicketmasterAPIKey() throws -> String {
+        try retrieve(key: "ticketmasterAPIKey")
+    }
+
+    func deleteTicketmasterAPIKey() throws {
+        try delete(key: "ticketmasterAPIKey")
+    }
+
+    func hasTicketmasterAPIKey() -> Bool {
+        do {
+            _ = try retrieveTicketmasterAPIKey()
+            return true
+        } catch {
+            return false
+        }
+    }
 }
