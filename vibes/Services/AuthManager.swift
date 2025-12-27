@@ -73,20 +73,24 @@ class AuthManager: ObservableObject {
             throw AuthError.invalidUsername
         }
 
+        // Create Firebase Auth user first (needed for Firestore auth)
+        let result = try await Auth.auth().createUser(withEmail: email, password: password)
+        self.user = result.user
+
+        // Now check if username is taken (we're authenticated now)
         let usernameQuery = try await db.collection("users")
             .whereField("username", isEqualTo: username)
             .getDocuments()
 
-        guard usernameQuery.documents.isEmpty else {
+        if !usernameQuery.documents.isEmpty {
+            // Username taken - delete the auth user we just created
+            try await result.user.delete()
+            self.user = nil
             throw AuthError.usernameTaken
         }
 
-        let result = try await Auth.auth().createUser(withEmail: email, password: password)
-
         let userProfile = UserProfile(uid: result.user.uid, email: email, username: username)
-
-        try db.collection("users").document(result.user.uid).setData(from: userProfile)
-        self.user = result.user
+        try await db.collection("users").document(result.user.uid).setData(from: userProfile)
         print("✅ User created successfully: \(username)")
     }
 

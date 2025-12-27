@@ -55,7 +55,7 @@ struct MainTabView: View {
                                     .frame(width: geometry.size.width)
                                     .id(2)
 
-                                ProfileView(shouldEditProfile: $shouldEditProfile)
+                                ProfileView(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
                                     .frame(width: geometry.size.width)
                                     .id(3)
                             }

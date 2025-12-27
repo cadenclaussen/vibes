@@ -33,6 +33,7 @@ struct ProfileView: View {
     @StateObject private var spotifyService = SpotifyService.shared
     @ObservedObject var audioPlayer = AudioPlayerService.shared
     @EnvironmentObject var authManager: AuthManager
+    @Binding var selectedTab: Int
     @Binding var shouldEditProfile: Bool
     @State private var showingGenrePicker = false
     @State private var showingSpotifyAuth = false
@@ -345,6 +346,7 @@ struct ProfileView: View {
 
             Button {
                 HapticService.lightImpact()
+                selectedTab = 0
                 hasCompletedTutorial = false
             } label: {
                 HStack {
@@ -981,6 +983,6 @@ struct ProfileView: View {
 }
 
 #Preview {
-    ProfileView(shouldEditProfile: .constant(false))
+    ProfileView(selectedTab: .constant(3), shouldEditProfile: .constant(false))
         .environmentObject(AuthManager.shared)
 }

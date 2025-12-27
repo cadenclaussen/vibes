@@ -623,9 +623,37 @@
 - **Failures**: None
 - **Solution**: Created SearchHelperViews.swift (439 lines). SearchView reduced from 802 to 371 lines (54% reduction).
 
+### 122. Account creation fails with "missing or insufficient permissions"
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Services/AuthManager.swift:71-95
+- **Requested**: When trying to create a new account, user sees "missing or insufficient permissions" error
+- **Context**: Firestore username check query ran before user was created, but rules require authentication to read users collection
+- **Acceptance Criteria**:
+  - [x] Identify exact error message causing confusion
+  - [x] Fix authentication order issue
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Reordered signUp to create Firebase Auth user first (so we're authenticated), then check username availability. If username is taken, delete the auth user and throw error.
+
+### 123. Replay Tutorial shows wrong tab selected
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Views/ProfileView.swift:347-350, vibes/ContentView.swift:58
+- **Requested**: When replaying tutorial from Settings, after tutorial completes, content shows Discover but tab bar still shows Settings selected
+- **Context**: selectedTab wasn't being reset when tutorial was triggered, causing mismatch between scroll position and tab bar
+- **Acceptance Criteria**:
+  - [x] Pass selectedTab binding to ProfileView
+  - [x] Reset selectedTab to 0 when replaying tutorial
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Added selectedTab binding to ProfileView, set selectedTab = 0 before setting hasCompletedTutorial = false in replay button.
+
 ## Task Statistics
-- Total Tasks: 121
-- Completed: 111
+- Total Tasks: 123
+- Completed: 113
 - Removed: 2
 - Abandoned: 1
 - In Progress: 0
