@@ -16,7 +16,7 @@ class FriendBlendViewModel: ObservableObject {
     let friend: FriendProfile
 
     private let geminiService = GeminiService.shared
-    private let spotifyService = SpotifyService.shared
+    private let musicServiceManager = MusicServiceManager.shared
     private let itunesService = iTunesService.shared
     private let firestoreService = FirestoreService.shared
     private let authManager = AuthManager.shared
@@ -26,7 +26,7 @@ class FriendBlendViewModel: ObservableObject {
     }
 
     var canGenerate: Bool {
-        geminiService.isConfigured && spotifyService.isAuthenticated && geminiService.canMakeRequest()
+        geminiService.isConfigured && musicServiceManager.isAuthenticated && geminiService.canMakeRequest()
     }
 
     var remainingRequests: Int {
@@ -37,8 +37,8 @@ class FriendBlendViewModel: ObservableObject {
         guard canGenerate else {
             if !geminiService.isConfigured {
                 errorMessage = "Configure your Gemini API key in Settings to use AI features."
-            } else if !spotifyService.isAuthenticated {
-                errorMessage = "Connect Spotify to generate personalized blends."
+            } else if !musicServiceManager.isAuthenticated {
+                errorMessage = "Connect \(musicServiceManager.serviceName) to generate personalized blends."
             } else {
                 errorMessage = "Daily AI generation limit reached. Try again tomorrow."
             }
@@ -57,13 +57,14 @@ class FriendBlendViewModel: ObservableObject {
             }
             let currentUserProfile = try await firestoreService.getUserProfile(userId: userId)
 
-            // Build current user's profile from Spotify + their musicTasteTags
-            async let topArtistsTask = spotifyService.getTopArtists(timeRange: "medium_term", limit: 10)
-            async let topTracksTask = spotifyService.getTopTracks(timeRange: "medium_term", limit: 20)
+            // Build current user's profile from music service + their musicTasteTags
+            let service = musicServiceManager.currentService
+            async let topArtistsTask = service.getTopArtists(timeRange: .mediumTerm, limit: 10)
+            async let topTracksTask = service.getTopTracks(timeRange: .mediumTerm, limit: 20)
 
             let (topArtists, topTracks) = try await (topArtistsTask, topTracksTask)
 
-            let userProfile = MusicProfile.from(
+            let userProfile = MusicProfile.fromUnified(
                 artists: topArtists,
                 tracks: topTracks,
                 recentTracks: [],
@@ -114,11 +115,12 @@ class FriendBlendViewModel: ObservableObject {
         isResolvingSongs = true
         resolvedSongs = []
 
+        let service = musicServiceManager.currentService
         var resolved: [ResolvedBlendSong] = []
 
         for recommendation in recommendations {
             do {
-                let tracks = try await spotifyService.searchTracks(query: recommendation.searchQuery, limit: 1)
+                let tracks = try await service.searchTracks(query: recommendation.searchQuery, limit: 1)
 
                 if let track = tracks.first {
                     var previewUrl = track.previewUrl
@@ -132,14 +134,14 @@ class FriendBlendViewModel: ObservableObject {
                     resolved.append(ResolvedBlendSong(
                         id: recommendation.id,
                         recommendation: recommendation,
-                        track: track,
+                        unifiedTrack: track,
                         previewUrl: previewUrl
                     ))
                 } else {
                     resolved.append(ResolvedBlendSong(
                         id: recommendation.id,
                         recommendation: recommendation,
-                        track: nil,
+                        unifiedTrack: nil,
                         previewUrl: nil
                     ))
                 }
@@ -147,7 +149,7 @@ class FriendBlendViewModel: ObservableObject {
                 resolved.append(ResolvedBlendSong(
                     id: recommendation.id,
                     recommendation: recommendation,
-                    track: nil,
+                    unifiedTrack: nil,
                     previewUrl: nil
                 ))
             }
@@ -157,14 +159,18 @@ class FriendBlendViewModel: ObservableObject {
         isResolvingSongs = false
     }
 
-    func saveAsSpotifyPlaylist() async {
-        guard let userId = spotifyService.userProfile?.id,
-              let blendResult = blendResult else {
-            errorMessage = "Could not get Spotify user ID"
+    func savePlaylist() async {
+        guard let blendResult = blendResult else {
+            errorMessage = "No blend result to save"
             return
         }
 
-        let trackUris = resolvedSongs.compactMap { $0.track?.uri }
+        let service = musicServiceManager.currentService
+        let trackUris = resolvedSongs.compactMap { resolved -> String? in
+            guard let track = resolved.unifiedTrack else { return nil }
+            return service.getTrackUri(for: track)
+        }
+
         guard !trackUris.isEmpty else {
             errorMessage = "No tracks to add to playlist"
             return
@@ -174,15 +180,22 @@ class FriendBlendViewModel: ObservableObject {
         errorMessage = nil
 
         do {
-            let playlistId = try await spotifyService.createPlaylist(
-                userId: userId,
+            let playlistId = try await service.createPlaylist(
                 name: blendResult.blendName,
                 description: "A musical blend with \(friend.displayName) - Created by vibes AI"
             )
 
-            try await spotifyService.addTracksToPlaylist(playlistId: playlistId, trackUris: trackUris)
+            try await service.addTracksToPlaylist(playlistId: playlistId, trackUris: trackUris)
 
-            savedPlaylistUrl = "https://open.spotify.com/playlist/\(playlistId)"
+            // Set the URL based on service type
+            switch musicServiceManager.activeServiceType {
+            case .spotify:
+                savedPlaylistUrl = "https://open.spotify.com/playlist/\(playlistId)"
+            case .appleMusic:
+                savedPlaylistUrl = "https://music.apple.com/library/playlist/\(playlistId)"
+            case .none:
+                savedPlaylistUrl = nil
+            }
         } catch {
             errorMessage = "Failed to create playlist: \(error.localizedDescription)"
         }

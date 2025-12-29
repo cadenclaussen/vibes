@@ -4,14 +4,14 @@ import Combine
 struct PlaylistRecommendation: Identifiable {
     let id: String
     let recommendation: AIRecommendedSong
-    let track: Track
+    let track: UnifiedTrack
     let previewUrl: String?
 }
 
 @MainActor
 class PlaylistRecommendationsViewModel: ObservableObject {
-    @Published var playlists: [Playlist] = []
-    @Published var selectedPlaylist: Playlist?
+    @Published var playlists: [UnifiedPlaylist] = []
+    @Published var selectedPlaylist: UnifiedPlaylist?
     @Published var recommendations: [PlaylistRecommendation] = []
     @Published var addedCount: Int = 0
     @Published var isLoadingPlaylists = false
@@ -25,7 +25,7 @@ class PlaylistRecommendationsViewModel: ObservableObject {
     private var shownSongNames: [String] = []
     private var playlistTrackNames: [String] = []
 
-    private let spotifyService = SpotifyService.shared
+    private let musicServiceManager = MusicServiceManager.shared
     private let geminiService = GeminiService.shared
     private let itunesService = iTunesService.shared
 
@@ -40,11 +40,8 @@ class PlaylistRecommendationsViewModel: ObservableObject {
         errorMessage = nil
 
         do {
-            var userPlaylists = try await spotifyService.getUserPlaylists()
-            if let userId = spotifyService.userProfile?.id {
-                userPlaylists = userPlaylists.filter { $0.owner.id == userId }
-            }
-            playlists = userPlaylists
+            let service = musicServiceManager.currentService
+            playlists = try await service.getUserPlaylists(limit: 50, offset: 0)
         } catch {
             errorMessage = "Failed to load playlists: \(error.localizedDescription)"
         }
@@ -52,7 +49,7 @@ class PlaylistRecommendationsViewModel: ObservableObject {
         isLoadingPlaylists = false
     }
 
-    func selectPlaylist(_ playlist: Playlist) async {
+    func selectPlaylist(_ playlist: UnifiedPlaylist) async {
         selectedPlaylist = playlist
         recommendations = []
         pendingRecommendations = []
@@ -79,7 +76,8 @@ class PlaylistRecommendationsViewModel: ObservableObject {
         errorMessage = nil
 
         do {
-            let tracks = try await spotifyService.getPlaylistTracks(playlistId: playlist.id, limit: 50)
+            let service = musicServiceManager.currentService
+            let tracks = try await service.getPlaylistTracks(playlistId: playlist.id, limit: 50)
             playlistTrackNames = tracks.map { "\($0.name) by \($0.artists.first?.name ?? "Unknown")" }
             await generateRecommendations()
         } catch {
@@ -147,12 +145,13 @@ class PlaylistRecommendationsViewModel: ObservableObject {
     }
 
     private func resolveSongs(from aiRecs: [AIRecommendedSong]) async {
+        let service = musicServiceManager.currentService
         var resolved: [PlaylistRecommendation] = []
         var resolvedTrackIds = Set<String>()
 
         for rec in aiRecs {
             do {
-                let tracks = try await spotifyService.searchTracks(query: rec.searchQuery, limit: 1)
+                let tracks = try await service.searchTracks(query: rec.searchQuery, limit: 1)
 
                 guard let track = tracks.first else { continue }
                 if resolvedTrackIds.contains(track.id) { continue }
@@ -194,10 +193,9 @@ class PlaylistRecommendationsViewModel: ObservableObject {
         isAddingSongId = rec.id
 
         do {
-            try await spotifyService.addTrackToPlaylist(
-                playlistId: playlist.id,
-                trackUri: rec.track.uri
-            )
+            let service = musicServiceManager.currentService
+            let trackUri = service.getTrackUri(for: rec.track)
+            try await service.addTracksToPlaylist(playlistId: playlist.id, trackUris: [trackUri])
 
             HapticService.success()
 

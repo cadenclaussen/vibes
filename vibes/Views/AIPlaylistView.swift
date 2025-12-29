@@ -3,6 +3,7 @@ import SwiftUI
 struct AIPlaylistView: View {
     @StateObject private var viewModel = AIPlaylistViewModel()
     @StateObject private var audioPlayer = AudioPlayerService.shared
+    @StateObject private var musicServiceManager = MusicServiceManager.shared
     @State private var showingSaveSheet = false
     @State private var playlistName = ""
 
@@ -25,7 +26,7 @@ struct AIPlaylistView: View {
             savePlaylistSheet
         }
         .alert("Playlist Created", isPresented: .constant(viewModel.savedPlaylistUrl != nil)) {
-            Button("Open in Spotify") {
+            Button("Open in \(musicServiceManager.serviceName)") {
                 if let urlString = viewModel.savedPlaylistUrl,
                    let url = URL(string: urlString) {
                     UIApplication.shared.open(url)
@@ -36,7 +37,7 @@ struct AIPlaylistView: View {
                 viewModel.savedPlaylistUrl = nil
             }
         } message: {
-            Text("Your playlist has been saved to Spotify!")
+            Text("Your playlist has been saved to \(musicServiceManager.serviceName)!")
         }
         .onAppear {
             audioPlayer.stop()
@@ -190,7 +191,7 @@ struct AIPlaylistView: View {
                 if viewModel.isResolvingSongs {
                     HStack {
                         ProgressView()
-                        Text("Finding songs on Spotify...")
+                        Text("Finding songs...")
                             .font(.subheadline)
                             .foregroundColor(Color(.secondaryLabel))
                     }
@@ -200,10 +201,10 @@ struct AIPlaylistView: View {
                         ForEach(viewModel.resolvedSongs) { song in
                             ResolvedSongRow(
                                 song: song,
-                                isPlaying: audioPlayer.currentTrackId == song.track?.id && audioPlayer.isPlaying
+                                isPlaying: audioPlayer.currentTrackId == song.unifiedTrack?.id && audioPlayer.isPlaying
                             ) {
                                 if let previewUrl = song.previewUrl {
-                                    audioPlayer.playUrl(previewUrl, trackId: song.track?.id ?? song.id)
+                                    audioPlayer.playUrl(previewUrl, trackId: song.unifiedTrack?.id ?? song.id)
                                 }
                             }
                             if song.id != viewModel.resolvedSongs.last?.id {
@@ -227,14 +228,14 @@ struct AIPlaylistView: View {
         } label: {
             HStack {
                 Image(systemName: "plus.circle.fill")
-                Text("Save to Spotify")
+                Text("Save to \(musicServiceManager.serviceName)")
             }
             .font(.headline)
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(Color.green)
-            
+            .background(musicServiceManager.serviceColor)
+
         }
         .disabled(viewModel.isSavingPlaylist || viewModel.resolvedSongs.filter { $0.isResolved }.isEmpty)
         .padding(.top, 8)
@@ -262,7 +263,7 @@ struct AIPlaylistView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         Task {
-                            await viewModel.saveAsSpotifyPlaylist(name: playlistName)
+                            await viewModel.savePlaylist(name: playlistName)
                             if viewModel.savedPlaylistUrl != nil {
                                 // Track for achievements
                                 LocalAchievementStats.shared.aiPlaylistsCreated += 1
@@ -330,14 +331,14 @@ struct ResolvedSongRow: View {
     let song: ResolvedSong
     let isPlaying: Bool
     let onPlay: () -> Void
-    @ObservedObject var spotifyService = SpotifyService.shared
+    @StateObject var musicServiceManager = MusicServiceManager.shared
     @State private var showFriendPicker = false
     @State private var showPlaylistPicker = false
 
     var body: some View {
         HStack(spacing: 12) {
             // Album art or placeholder
-            if let track = song.track, let imageUrl = track.album.images.first?.url {
+            if let track = song.unifiedTrack, let imageUrl = track.album.imageUrl {
                 AsyncImage(url: URL(string: imageUrl)) { image in
                     image
                         .resizable()
@@ -360,7 +361,7 @@ struct ResolvedSongRow: View {
 
             // Track info
             VStack(alignment: .leading, spacing: 2) {
-                if let track = song.track {
+                if let track = song.unifiedTrack {
                     Text(track.name)
                         .font(.subheadline)
                         .fontWeight(.medium)
@@ -393,7 +394,7 @@ struct ResolvedSongRow: View {
             Spacer()
 
             // Show X if track not found
-            if song.track == nil {
+            if song.unifiedTrack == nil {
                 Image(systemName: "xmark.circle")
                     .foregroundColor(Color(.tertiaryLabel))
             }
@@ -406,7 +407,7 @@ struct ResolvedSongRow: View {
             }
         }
         .contextMenu {
-            if let track = song.track {
+            if let track = song.unifiedTrack {
                 Button {
                     HapticService.lightImpact()
                     showFriendPicker = true
@@ -414,7 +415,7 @@ struct ResolvedSongRow: View {
                     Label("Send to Friend", systemImage: "paperplane")
                 }
 
-                if spotifyService.isAuthenticated {
+                if musicServiceManager.isAuthenticated {
                     Button {
                         HapticService.lightImpact()
                         showPlaylistPicker = true
@@ -425,28 +426,22 @@ struct ResolvedSongRow: View {
 
                 Button {
                     HapticService.lightImpact()
-                    if let url = URL(string: "https://open.spotify.com/track/\(track.id)") {
+                    if let url = URL(string: track.externalUrl ?? "") {
                         UIApplication.shared.open(url)
                     }
                 } label: {
-                    Label("Open in Spotify", systemImage: "arrow.up.right")
+                    Label("Open in \(musicServiceManager.serviceName)", systemImage: "arrow.up.right")
                 }
             }
         }
         .sheet(isPresented: $showFriendPicker) {
-            if let track = song.track {
-                FriendPickerView(track: track, previewUrl: song.previewUrl)
+            if let track = song.unifiedTrack {
+                FriendPickerView(unifiedTrack: track, previewUrl: song.previewUrl)
             }
         }
         .sheet(isPresented: $showPlaylistPicker) {
-            if let track = song.track {
-                PlaylistPickerView(
-                    trackUri: "spotify:track:\(track.id)",
-                    trackName: track.name,
-                    artistName: track.artists.map { $0.name }.joined(separator: ", "),
-                    albumArtUrl: track.album.images.first?.url,
-                    onAdded: {}
-                )
+            if let track = song.unifiedTrack {
+                UnifiedPlaylistPickerView(track: track) {}
             }
         }
     }

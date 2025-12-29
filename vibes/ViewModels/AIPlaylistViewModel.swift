@@ -14,11 +14,11 @@ class AIPlaylistViewModel: ObservableObject {
     @Published var savedPlaylistUrl: String?
 
     private let geminiService = GeminiService.shared
-    private let spotifyService = SpotifyService.shared
+    private let musicServiceManager = MusicServiceManager.shared
     private let itunesService = iTunesService.shared
 
     var canGenerate: Bool {
-        geminiService.isConfigured && spotifyService.isAuthenticated && geminiService.canMakeRequest()
+        geminiService.isConfigured && musicServiceManager.isAuthenticated && geminiService.canMakeRequest()
     }
 
     var remainingRequests: Int {
@@ -29,8 +29,8 @@ class AIPlaylistViewModel: ObservableObject {
         guard canGenerate else {
             if !geminiService.isConfigured {
                 errorMessage = "Configure your Gemini API key in Settings to use AI features."
-            } else if !spotifyService.isAuthenticated {
-                errorMessage = "Connect Spotify to generate personalized playlists."
+            } else if !musicServiceManager.isAuthenticated {
+                errorMessage = "Connect \(musicServiceManager.serviceName) to generate personalized playlists."
             } else {
                 errorMessage = "Daily AI generation limit reached. Try again tomorrow."
             }
@@ -41,14 +41,16 @@ class AIPlaylistViewModel: ObservableObject {
         errorMessage = nil
 
         do {
-            // Build music profile from Spotify data
-            async let topArtistsTask = spotifyService.getTopArtists(timeRange: "medium_term", limit: 10)
-            async let topTracksTask = spotifyService.getTopTracks(timeRange: "medium_term", limit: 20)
-            async let recentTracksTask = spotifyService.getRecentlyPlayed(limit: 20)
+            let service = musicServiceManager.currentService
+
+            // Build music profile from music service data
+            async let topArtistsTask = service.getTopArtists(timeRange: .mediumTerm, limit: 10)
+            async let topTracksTask = service.getTopTracks(timeRange: .mediumTerm, limit: 20)
+            async let recentTracksTask = service.getRecentlyPlayed(limit: 20)
 
             let (topArtists, topTracks, recentTracks) = try await (topArtistsTask, topTracksTask, recentTracksTask)
 
-            let profile = MusicProfile.from(
+            let profile = MusicProfile.fromUnified(
                 artists: topArtists,
                 tracks: topTracks,
                 recentTracks: recentTracks.map { $0.track }
@@ -78,15 +80,17 @@ class AIPlaylistViewModel: ObservableObject {
         isResolvingSongs = true
         resolvedSongs = []
 
-        // Resolve each song by searching Spotify
+        let service = musicServiceManager.currentService
+
+        // Resolve each song by searching the music service
         var resolved: [ResolvedSong] = []
 
         for songSuggestion in suggestion.suggestedSongs {
             do {
-                let tracks = try await spotifyService.searchTracks(query: songSuggestion.searchQuery, limit: 1)
+                let tracks = try await service.searchTracks(query: songSuggestion.searchQuery, limit: 1)
 
                 if let track = tracks.first {
-                    // Try to get iTunes preview if Spotify doesn't have one
+                    // Try to get iTunes preview if no preview available
                     var previewUrl = track.previewUrl
                     if previewUrl == nil {
                         previewUrl = await itunesService.searchPreview(
@@ -98,14 +102,14 @@ class AIPlaylistViewModel: ObservableObject {
                     resolved.append(ResolvedSong(
                         id: songSuggestion.id,
                         suggestion: songSuggestion,
-                        track: track,
+                        unifiedTrack: track,
                         previewUrl: previewUrl
                     ))
                 } else {
                     resolved.append(ResolvedSong(
                         id: songSuggestion.id,
                         suggestion: songSuggestion,
-                        track: nil,
+                        unifiedTrack: nil,
                         previewUrl: nil
                     ))
                 }
@@ -113,7 +117,7 @@ class AIPlaylistViewModel: ObservableObject {
                 resolved.append(ResolvedSong(
                     id: songSuggestion.id,
                     suggestion: songSuggestion,
-                    track: nil,
+                    unifiedTrack: nil,
                     previewUrl: nil
                 ))
             }
@@ -123,13 +127,14 @@ class AIPlaylistViewModel: ObservableObject {
         isResolvingSongs = false
     }
 
-    func saveAsSpotifyPlaylist(name: String) async {
-        guard let userId = spotifyService.userProfile?.id else {
-            errorMessage = "Could not get Spotify user ID"
-            return
+    func savePlaylist(name: String) async {
+        let service = musicServiceManager.currentService
+
+        let trackUris = resolvedSongs.compactMap { resolved -> String? in
+            guard let track = resolved.unifiedTrack else { return nil }
+            return service.getTrackUri(for: track)
         }
 
-        let trackUris = resolvedSongs.compactMap { $0.track?.uri }
         guard !trackUris.isEmpty else {
             errorMessage = "No tracks to add to playlist"
             return
@@ -140,16 +145,23 @@ class AIPlaylistViewModel: ObservableObject {
 
         do {
             // Create playlist
-            let playlistId = try await spotifyService.createPlaylist(
-                userId: userId,
+            let playlistId = try await service.createPlaylist(
                 name: name,
                 description: "Created by vibes AI"
             )
 
             // Add tracks
-            try await spotifyService.addTracksToPlaylist(playlistId: playlistId, trackUris: trackUris)
+            try await service.addTracksToPlaylist(playlistId: playlistId, trackUris: trackUris)
 
-            savedPlaylistUrl = "https://open.spotify.com/playlist/\(playlistId)"
+            // Set the URL based on service type
+            switch musicServiceManager.activeServiceType {
+            case .spotify:
+                savedPlaylistUrl = "https://open.spotify.com/playlist/\(playlistId)"
+            case .appleMusic:
+                savedPlaylistUrl = "https://music.apple.com/library/playlist/\(playlistId)"
+            case .none:
+                savedPlaylistUrl = nil
+            }
         } catch {
             errorMessage = "Failed to create playlist: \(error.localizedDescription)"
         }

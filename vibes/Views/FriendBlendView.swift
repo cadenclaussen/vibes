@@ -3,6 +3,7 @@ import SwiftUI
 struct FriendBlendView: View {
     @StateObject private var viewModel: FriendBlendViewModel
     @StateObject private var audioPlayer = AudioPlayerService.shared
+    @StateObject private var musicServiceManager = MusicServiceManager.shared
     @EnvironmentObject var authManager: AuthManager
 
     init(friend: FriendProfile) {
@@ -25,7 +26,7 @@ struct FriendBlendView: View {
         .navigationTitle("Music Blend")
         .navigationBarTitleDisplayMode(.inline)
         .alert("Playlist Created", isPresented: .constant(viewModel.savedPlaylistUrl != nil)) {
-            Button("Open in Spotify") {
+            Button("Open in \(musicServiceManager.serviceName)") {
                 if let urlString = viewModel.savedPlaylistUrl,
                    let url = URL(string: urlString) {
                     UIApplication.shared.open(url)
@@ -36,7 +37,7 @@ struct FriendBlendView: View {
                 viewModel.savedPlaylistUrl = nil
             }
         } message: {
-            Text("Your blend playlist has been saved to Spotify!")
+            Text("Your blend playlist has been saved to \(musicServiceManager.serviceName)!")
         }
         .onAppear {
             audioPlayer.stop()
@@ -159,7 +160,7 @@ struct FriendBlendView: View {
             if viewModel.isResolvingSongs {
                 HStack {
                     ProgressView()
-                    Text("Finding songs on Spotify...")
+                    Text("Finding songs...")
                         .font(.subheadline)
                         .foregroundColor(Color(.secondaryLabel))
                 }
@@ -183,10 +184,10 @@ struct FriendBlendView: View {
                     BlendSongRow(
                         song: song,
                         friendName: viewModel.friend.displayName,
-                        isPlaying: audioPlayer.currentTrackId == song.track?.id && audioPlayer.isPlaying
+                        isPlaying: audioPlayer.currentTrackId == song.unifiedTrack?.id && audioPlayer.isPlaying
                     ) {
                         if let previewUrl = song.previewUrl {
-                            audioPlayer.playUrl(previewUrl, trackId: song.track?.id ?? song.id)
+                            audioPlayer.playUrl(previewUrl, trackId: song.unifiedTrack?.id ?? song.id)
                         }
                     }
                     if song.id != viewModel.resolvedSongs.last?.id {
@@ -195,7 +196,7 @@ struct FriendBlendView: View {
                 }
             }
             .cardStyle()
-            
+
 
             saveButton
         }
@@ -204,7 +205,7 @@ struct FriendBlendView: View {
     private var saveButton: some View {
         Button {
             Task {
-                await viewModel.saveAsSpotifyPlaylist()
+                await viewModel.savePlaylist()
             }
         } label: {
             HStack {
@@ -214,14 +215,14 @@ struct FriendBlendView: View {
                 } else {
                     Image(systemName: "plus.circle.fill")
                 }
-                Text(viewModel.isSavingPlaylist ? "Saving..." : "Save to Spotify")
+                Text(viewModel.isSavingPlaylist ? "Saving..." : "Save to \(musicServiceManager.serviceName)")
             }
             .font(.headline)
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(Color.green)
-            
+            .background(musicServiceManager.serviceColor)
+
         }
         .disabled(viewModel.isSavingPlaylist || viewModel.resolvedSongs.filter { $0.isResolved }.isEmpty)
         .padding(.top, 8)
@@ -235,7 +236,7 @@ struct BlendSongRow: View {
     let friendName: String
     let isPlaying: Bool
     let onPlay: () -> Void
-    @ObservedObject var spotifyService = SpotifyService.shared
+    @StateObject var musicServiceManager = MusicServiceManager.shared
     @State private var showingDetails = false
     @State private var showFriendPicker = false
     @State private var showPlaylistPicker = false
@@ -244,7 +245,7 @@ struct BlendSongRow: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 12) {
                 // Album art
-                if let track = song.track, let imageUrl = track.album.images.first?.url {
+                if let track = song.unifiedTrack, let imageUrl = track.album.imageUrl {
                     AsyncImage(url: URL(string: imageUrl)) { image in
                         image
                             .resizable()
@@ -267,7 +268,7 @@ struct BlendSongRow: View {
 
                 // Track info
                 VStack(alignment: .leading, spacing: 2) {
-                    if let track = song.track {
+                    if let track = song.unifiedTrack {
                         Text(track.name)
                             .font(.subheadline)
                             .fontWeight(.medium)
@@ -285,7 +286,7 @@ struct BlendSongRow: View {
                             .foregroundColor(Color(.tertiaryLabel))
                             .lineLimit(1)
 
-                        Text("Not found on Spotify")
+                        Text("Not found")
                             .font(.caption)
                             .foregroundColor(Color(.tertiaryLabel))
                     }
@@ -343,7 +344,7 @@ struct BlendSongRow: View {
         }
         .contentShape(Rectangle())
         .contextMenu {
-            if let track = song.track {
+            if let track = song.unifiedTrack {
                 Button {
                     HapticService.lightImpact()
                     showFriendPicker = true
@@ -351,7 +352,7 @@ struct BlendSongRow: View {
                     Label("Send to Friend", systemImage: "paperplane")
                 }
 
-                if spotifyService.isAuthenticated {
+                if musicServiceManager.isAuthenticated {
                     Button {
                         HapticService.lightImpact()
                         showPlaylistPicker = true
@@ -362,28 +363,22 @@ struct BlendSongRow: View {
 
                 Button {
                     HapticService.lightImpact()
-                    if let url = URL(string: "https://open.spotify.com/track/\(track.id)") {
+                    if let url = URL(string: track.externalUrl ?? "") {
                         UIApplication.shared.open(url)
                     }
                 } label: {
-                    Label("Open in Spotify", systemImage: "arrow.up.right")
+                    Label("Open in \(musicServiceManager.serviceName)", systemImage: "arrow.up.right")
                 }
             }
         }
         .sheet(isPresented: $showFriendPicker) {
-            if let track = song.track {
-                FriendPickerView(track: track, previewUrl: song.previewUrl)
+            if let track = song.unifiedTrack {
+                FriendPickerView(unifiedTrack: track, previewUrl: song.previewUrl)
             }
         }
         .sheet(isPresented: $showPlaylistPicker) {
-            if let track = song.track {
-                PlaylistPickerView(
-                    trackUri: "spotify:track:\(track.id)",
-                    trackName: track.name,
-                    artistName: track.artists.map { $0.name }.joined(separator: ", "),
-                    albumArtUrl: track.album.images.first?.url,
-                    onAdded: {}
-                )
+            if let track = song.unifiedTrack {
+                UnifiedPlaylistPickerView(track: track) {}
             }
         }
     }

@@ -11,7 +11,7 @@ import SwiftUI
 
 struct TrackRow: View {
     let track: Track
-    @ObservedObject var viewModel: SearchViewModel
+    let previewUrl: String?
     @ObservedObject var audioPlayer = AudioPlayerService.shared
     @State private var showNoPreviewAlert = false
     let onSendTapped: (Track) -> Void
@@ -23,10 +23,6 @@ struct TrackRow: View {
 
     private var isPlaying: Bool {
         isCurrentTrack && audioPlayer.isPlaying
-    }
-
-    private var previewUrl: String? {
-        viewModel.getPreviewUrl(for: track)
     }
 
     private var hasPreview: Bool {

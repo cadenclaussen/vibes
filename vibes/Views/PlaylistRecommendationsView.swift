@@ -3,6 +3,7 @@ import SwiftUI
 struct PlaylistRecommendationsView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = PlaylistRecommendationsViewModel()
+    @StateObject private var musicServiceManager = MusicServiceManager.shared
     @ObservedObject private var audioPlayer = AudioPlayerService.shared
 
     var body: some View {
@@ -93,7 +94,7 @@ struct PlaylistRecommendationsView: View {
                 .foregroundColor(.secondary)
             Text("No Playlists")
                 .font(.headline)
-            Text("Create a playlist on Spotify first")
+            Text("Create a playlist in \(musicServiceManager.serviceName) first")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             Spacer()
@@ -238,7 +239,7 @@ struct PlaylistRecommendationsView: View {
 // MARK: - Subviews
 
 struct PlaylistSelectionRow: View {
-    let playlist: Playlist
+    let playlist: UnifiedPlaylist
 
     var body: some View {
         HStack(spacing: 12) {
@@ -247,7 +248,7 @@ struct PlaylistSelectionRow: View {
                 Text(playlist.name)
                     .font(.body)
                     .lineLimit(1)
-                Text("\(playlist.tracks.total) songs")
+                Text("\(playlist.trackCount) songs")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
@@ -263,7 +264,7 @@ struct PlaylistSelectionRow: View {
 
     @ViewBuilder
     private var playlistImage: some View {
-        if let imageUrl = playlist.images?.first?.url, let url = URL(string: imageUrl) {
+        if let imageUrl = playlist.imageUrl, let url = URL(string: imageUrl) {
             AsyncImage(url: url) { phase in
                 switch phase {
                 case .success(let image):
@@ -296,6 +297,7 @@ struct RecommendationCard: View {
     let onPlay: () -> Void
     let onAdd: () -> Void
     let onDismiss: () -> Void
+    @StateObject var musicServiceManager = MusicServiceManager.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -325,7 +327,7 @@ struct RecommendationCard: View {
 
     @ViewBuilder
     private var albumArt: some View {
-        if let imageUrl = recommendation.track.album.images.first?.url,
+        if let imageUrl = recommendation.track.album.imageUrl,
            let url = URL(string: imageUrl) {
             AsyncImage(url: url) { phase in
                 switch phase {
@@ -367,7 +369,7 @@ struct RecommendationCard: View {
         Button(action: onPlay) {
             Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
                 .font(.system(size: 36))
-                .foregroundColor(.green)
+                .foregroundColor(musicServiceManager.serviceColor)
         }
     }
 
@@ -402,7 +404,7 @@ struct RecommendationCard: View {
             .foregroundColor(.white)
             .padding(.horizontal, 20)
             .padding(.vertical, 8)
-            .background(Color.green)
+            .background(musicServiceManager.serviceColor)
             .cornerRadius(20)
         }
         .disabled(isAdding)

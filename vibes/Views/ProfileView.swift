@@ -22,7 +22,7 @@ enum TimeRange: String, CaseIterable {
     }
 }
 
-enum SettingsTab: String, CaseIterable {
+enum ProfileTab: String, CaseIterable {
     case profile = "Profile"
     case stats = "Stats"
     case achievements = "Achievements"
@@ -33,8 +33,7 @@ struct ProfileView: View {
     @StateObject private var spotifyService = SpotifyService.shared
     @ObservedObject var audioPlayer = AudioPlayerService.shared
     @EnvironmentObject var authManager: AuthManager
-    @Binding var selectedTab: Int
-    @Binding var shouldEditProfile: Bool
+    @Environment(AppRouter.self) private var router
     @State private var showingGenrePicker = false
     @State private var showingSpotifyAuth = false
     @State private var selectedTimeRange: TimeRange = .mediumTerm
@@ -48,15 +47,15 @@ struct ProfileView: View {
     @State private var trackToSend: Track?
     @State private var trackToAddToPlaylist: Track?
     @State private var previewUrlForSend: String?
-    @State private var showingAISettings = false
-    @State private var showingConcertSettings = false
     @State private var iTunesPreviews: [String: String] = [:]
-    @State private var selectedSettingsTab: SettingsTab = .profile
-    @AppStorage("hasCompletedTutorial") private var hasCompletedTutorial = true
+    @State private var selectedProfileTab: ProfileTab = .profile
     private let itunesService = iTunesService.shared
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: Binding(
+            get: { router.profilePath },
+            set: { router.profilePath = $0 }
+        )) {
             contentView
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -64,16 +63,18 @@ struct ProfileView: View {
                         toolbarContent
                     }
                 }
+                .navigationDestination(for: AppDestination.self) { destination in
+                    switch destination {
+                    case .settings:
+                        SettingsView()
+                    default:
+                        EmptyView()
+                    }
+                }
         }
         .task {
             await viewModel.loadProfile()
             await loadStats()
-        }
-        .onChange(of: shouldEditProfile) { _, newValue in
-            if newValue && !viewModel.isEditing {
-                viewModel.toggleEditMode()
-                shouldEditProfile = false
-            }
         }
         .onChange(of: selectedTimeRange) { _, _ in
             HapticService.selectionChanged()
@@ -81,7 +82,7 @@ struct ProfileView: View {
                 await loadStats()
             }
         }
-        .onChange(of: selectedSettingsTab) { _, _ in
+        .onChange(of: selectedProfileTab) { _, _ in
             HapticService.selectionChanged()
         }
         .onDisappear {
@@ -168,7 +169,11 @@ struct ProfileView: View {
             }
         } else {
             ToolbarItem(placement: .primaryAction) {
-                SettingsMenu(selectedTab: .constant(3), shouldEditProfile: $shouldEditProfile)
+                NavigationLink(destination: SettingsView()) {
+                    Image(systemName: "gearshape")
+                        .imageScale(.large)
+                        .foregroundColor(Color(.label))
+                }
             }
         }
     }
@@ -198,12 +203,12 @@ struct ProfileView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    Text("Settings")
+                    Text("Profile")
                         .font(.largeTitle)
                         .fontWeight(.bold)
 
-                    settingsTabPicker
-                    switch selectedSettingsTab {
+                    profileTabPicker
+                    switch selectedProfileTab {
                     case .achievements:
                         achievementsTabContent(profile)
                     case .stats:
@@ -239,17 +244,11 @@ struct ProfileView: View {
                 onAdded: {}
             )
         }
-        .sheet(isPresented: $showingAISettings) {
-            AISettingsView()
-        }
-        .sheet(isPresented: $showingConcertSettings) {
-            ConcertSettingsView()
-        }
     }
 
-    private var settingsTabPicker: some View {
-        Picker("Settings Tab", selection: $selectedSettingsTab) {
-            ForEach(SettingsTab.allCases, id: \.self) { tab in
+    private var profileTabPicker: some View {
+        Picker("Profile Tab", selection: $selectedProfileTab) {
+            ForEach(ProfileTab.allCases, id: \.self) { tab in
                 Text(tab.rawValue).tag(tab)
             }
         }
@@ -290,7 +289,7 @@ struct ProfileView: View {
             Image(systemName: "music.note.list")
                 .font(.system(size: 48))
                 .foregroundColor(Color(.tertiaryLabel))
-            Text("Connect Spotify to see your stats")
+            Text("Connect a Music Service")
                 .font(.headline)
                 .foregroundColor(Color(.secondaryLabel))
             Text("View your top artists, top songs, and recently played tracks")
@@ -298,16 +297,16 @@ struct ProfileView: View {
                 .foregroundColor(Color(.tertiaryLabel))
                 .multilineTextAlignment(.center)
             Button {
-                showingSpotifyAuth = true
+                router.goToSettings()
             } label: {
                 HStack {
                     Image(systemName: "music.note")
-                    Text("Connect Spotify")
+                    Text("Go to Settings")
                         .fontWeight(.semibold)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                .background(Color.green)
+                .background(Color.blue)
                 .foregroundColor(.white)
                 .cornerRadius(8)
             }
@@ -322,46 +321,12 @@ struct ProfileView: View {
     private func profileTabContent(_ profile: UserProfile) -> some View {
         VStack(spacing: 24) {
             profileHeader(profile)
-            spotifySection
-            aiFeaturesSection
-            concertFeaturesSection
             if spotifyService.isAuthenticated {
                 musicPersonalitySection
             }
             genresSection(profile)
             infoSection(profile)
-            supportSection
         }
-    }
-
-    private var supportSection: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Image(systemName: "questionmark.circle")
-                    .foregroundColor(.blue)
-                Text("Support")
-                    .font(.headline)
-                Spacer()
-            }
-
-            Button {
-                HapticService.lightImpact()
-                selectedTab = 0
-                hasCompletedTutorial = false
-            } label: {
-                HStack {
-                    Image(systemName: "play.circle")
-                    Text("Replay Tutorial")
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .foregroundColor(Color(.tertiaryLabel))
-                }
-                .foregroundColor(.primary)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .cardStyle()
     }
 
     private func profileHeader(_ profile: UserProfile) -> some View {
@@ -434,194 +399,6 @@ struct ProfileView: View {
                 .font(.body)
                 .foregroundColor(Color(.label))
         }
-    }
-
-    private var spotifySection: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Image(systemName: "music.note")
-                    .foregroundColor(.green)
-                Text("Spotify")
-                    .font(.headline)
-
-                Spacer()
-
-                if spotifyService.isAuthenticated {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                }
-            }
-
-            if spotifyService.isAuthenticated {
-                if let profile = spotifyService.userProfile {
-                    HStack {
-                        Text("Connected as")
-                            .font(.caption)
-                            .foregroundColor(Color(.secondaryLabel))
-                        Text(profile.displayName ?? profile.id)
-                            .font(.caption)
-                            .foregroundColor(Color(.label))
-                        Spacer()
-                    }
-                }
-
-                Button {
-                    showingSpotifyAuth = true
-                } label: {
-                    Text("Manage Connection")
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                Button {
-                    showingSpotifyAuth = true
-                } label: {
-                    HStack {
-                        Image(systemName: "music.note")
-                        Text("Connect Spotify")
-                            .fontWeight(.semibold)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(Color.green)
-                    .foregroundColor(.white)
-                    .cornerRadius(8)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .cardStyle()
-        
-    }
-
-    private var aiFeaturesSection: some View {
-        let geminiService = GeminiService.shared
-
-        return VStack(spacing: 12) {
-            HStack {
-                Image(systemName: "sparkles")
-                    .foregroundColor(.purple)
-                Text("AI Features")
-                    .font(.headline)
-
-                Spacer()
-
-                if geminiService.isConfigured {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                }
-            }
-
-            if geminiService.isConfigured {
-                HStack {
-                    Text("Gemini API")
-                        .font(.caption)
-                        .foregroundColor(Color(.secondaryLabel))
-                    Text("Connected")
-                        .font(.caption)
-                        .foregroundColor(Color(.label))
-                    Spacer()
-                }
-
-                Button {
-                    showingAISettings = true
-                } label: {
-                    Text("Manage AI Settings")
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                Text("Enable AI-powered playlist ideas and friend blends")
-                    .font(.caption)
-                    .foregroundColor(Color(.secondaryLabel))
-
-                Button {
-                    showingAISettings = true
-                } label: {
-                    HStack {
-                        Image(systemName: "sparkles")
-                        Text("Set Up AI Features")
-                            .fontWeight(.semibold)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(Color.purple)
-                    .foregroundColor(.white)
-                    .cornerRadius(8)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .cardStyle()
-
-    }
-
-    private var concertFeaturesSection: some View {
-        let ticketmasterService = TicketmasterService.shared
-
-        return VStack(spacing: 12) {
-            HStack {
-                Image(systemName: "ticket.fill")
-                    .foregroundColor(.orange)
-                Text("Concert Discovery")
-                    .font(.headline)
-
-                Spacer()
-
-                if ticketmasterService.isConfigured && !ticketmasterService.userCity.isEmpty {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                }
-            }
-
-            if ticketmasterService.isConfigured && !ticketmasterService.userCity.isEmpty {
-                HStack {
-                    Text("Location")
-                        .font(.caption)
-                        .foregroundColor(Color(.secondaryLabel))
-                    Text(ticketmasterService.userCity)
-                        .font(.caption)
-                        .foregroundColor(Color(.label))
-                    Spacer()
-                }
-
-                Button {
-                    showingConcertSettings = true
-                } label: {
-                    Text("Manage Concert Settings")
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                Text("Find concerts from your top artists near you")
-                    .font(.caption)
-                    .foregroundColor(Color(.secondaryLabel))
-
-                Button {
-                    showingConcertSettings = true
-                } label: {
-                    HStack {
-                        Image(systemName: "ticket.fill")
-                        Text("Set Up Concerts")
-                            .fontWeight(.semibold)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(Color.orange)
-                    .foregroundColor(.white)
-                    .cornerRadius(8)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .cardStyle()
-
     }
 
     private func genresSection(_ profile: UserProfile) -> some View {
@@ -983,6 +760,7 @@ struct ProfileView: View {
 }
 
 #Preview {
-    ProfileView(selectedTab: .constant(3), shouldEditProfile: .constant(false))
+    ProfileView()
+        .environment(AppRouter())
         .environmentObject(AuthManager.shared)
 }

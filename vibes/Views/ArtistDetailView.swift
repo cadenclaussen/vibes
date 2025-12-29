@@ -13,7 +13,8 @@ struct ArtistDetailView: View {
     @ObservedObject var audioPlayer = AudioPlayerService.shared
     @State private var topTracks: [Track] = []
     @State private var albums: [Album] = []
-    @State private var previewUrls: [String: String] = [:]
+    @State private var previewUrls: [
+        String: String] = [:]
     @State private var isLoadingTracks = true
     @State private var isLoadingAlbums = true
     @State private var errorMessage: String?

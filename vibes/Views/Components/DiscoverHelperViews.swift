@@ -532,17 +532,12 @@ struct AIRecommendationRow: View {
     let resolved: ResolvedAIRecommendation
     let onDismiss: () -> Void
     @ObservedObject var audioPlayer = AudioPlayerService.shared
-    @ObservedObject var spotifyService = SpotifyService.shared
+    @StateObject var musicServiceManager = MusicServiceManager.shared
     @State private var showFriendPicker = false
     @State private var showPlaylistPicker = false
 
-    private var track: Track? {
-        resolved.track
-    }
-
-    private var trackUri: String {
-        guard let track = track else { return "" }
-        return "spotify:track:\(track.id)"
+    private var track: UnifiedTrack? {
+        resolved.unifiedTrack
     }
 
     private var isPlaying: Bool {
@@ -553,7 +548,7 @@ struct AIRecommendationRow: View {
     var body: some View {
         HStack(spacing: 12) {
             ZStack {
-                if let imageUrl = track?.album.images.first?.url,
+                if let imageUrl = track?.album.imageUrl,
                    let url = URL(string: imageUrl) {
                     AsyncImage(url: url) { image in
                         image
@@ -640,7 +635,7 @@ struct AIRecommendationRow: View {
                     Label("Send to Friend", systemImage: "paperplane")
                 }
 
-                if spotifyService.isAuthenticated {
+                if musicServiceManager.isAuthenticated {
                     Button {
                         HapticService.lightImpact()
                         showPlaylistPicker = true
@@ -651,29 +646,192 @@ struct AIRecommendationRow: View {
 
                 Button {
                     HapticService.lightImpact()
-                    if let url = URL(string: "https://open.spotify.com/track/\(track.id)") {
+                    if let url = URL(string: track.externalUrl ?? "") {
                         UIApplication.shared.open(url)
                     }
                 } label: {
-                    Label("Open in Spotify", systemImage: "arrow.up.right")
+                    Label("Open in \(musicServiceManager.serviceName)", systemImage: "arrow.up.right")
                 }
             }
         }
         .sheet(isPresented: $showFriendPicker) {
             if let track = track {
-                FriendPickerView(track: track, previewUrl: resolved.previewUrl)
+                FriendPickerView(unifiedTrack: track, previewUrl: resolved.previewUrl)
             }
         }
         .sheet(isPresented: $showPlaylistPicker) {
             if let track = track {
-                PlaylistPickerView(
-                    trackUri: trackUri,
-                    trackName: track.name,
-                    artistName: track.artists.map { $0.name }.joined(separator: ", "),
-                    albumArtUrl: track.album.images.first?.url,
-                    onAdded: {}
-                )
+                UnifiedPlaylistPickerView(track: track) {}
             }
         }
+    }
+}
+
+// MARK: - Unified New Release Card
+
+struct UnifiedNewReleaseCard: View {
+    let album: UnifiedAlbum
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let imageUrl = album.imageUrl,
+               let url = URL(string: imageUrl) {
+                AsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Color(.tertiarySystemBackground)
+                }
+                .frame(width: 140, height: 140)
+                .cornerRadius(8)
+            } else {
+                Image(systemName: "music.note")
+                    .font(.title)
+                    .foregroundColor(Color(.tertiaryLabel))
+                    .frame(width: 140, height: 140)
+                    .background(Color(.tertiarySystemBackground))
+                    .cornerRadius(8)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(album.name)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+
+                if !album.releaseDate.isEmpty {
+                    Text(album.releaseDate.prefix(4))
+                        .font(.caption2)
+                        .foregroundColor(Color(.secondaryLabel))
+                }
+            }
+        }
+        .frame(width: 140)
+    }
+}
+
+// MARK: - Unified Recommendation Row
+
+struct UnifiedRecommendationRow: View {
+    let track: UnifiedTrack
+    @ObservedObject var audioPlayer = AudioPlayerService.shared
+    @StateObject var musicServiceManager = MusicServiceManager.shared
+    @State private var showFriendPicker = false
+    @State private var showPlaylistPicker = false
+
+    private var isPlaying: Bool {
+        audioPlayer.currentTrackId == track.id && audioPlayer.isPlaying
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                if let imageUrl = track.album.imageUrl,
+                   let url = URL(string: imageUrl) {
+                    AsyncImage(url: url) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Color(.tertiarySystemBackground)
+                    }
+                    .frame(width: 50, height: 50)
+                    .cornerRadius(6)
+                } else {
+                    Image(systemName: "music.note")
+                        .frame(width: 50, height: 50)
+                        .background(Color(.tertiarySystemBackground))
+                        .cornerRadius(6)
+                }
+
+                if track.previewUrl != nil {
+                    Circle()
+                        .fill(Color.black.opacity(0.5))
+                        .frame(width: 30, height: 30)
+
+                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(.white)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(track.name)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+
+                Text(track.artists.map { $0.name }.joined(separator: ", "))
+                    .font(.caption)
+                    .foregroundColor(Color(.secondaryLabel))
+                    .lineLimit(1)
+            }
+
+            Spacer()
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if let previewUrl = track.previewUrl {
+                audioPlayer.playUrl(previewUrl, trackId: track.id)
+            } else {
+                openInMusicApp()
+            }
+        }
+        .contextMenu {
+            Button {
+                HapticService.lightImpact()
+                showFriendPicker = true
+            } label: {
+                Label("Send to Friend", systemImage: "paperplane")
+            }
+
+            if musicServiceManager.isAuthenticated {
+                Button {
+                    HapticService.lightImpact()
+                    showPlaylistPicker = true
+                } label: {
+                    Label("Add to Playlist", systemImage: "plus.circle")
+                }
+            }
+
+            Button {
+                HapticService.lightImpact()
+                openInMusicApp()
+            } label: {
+                Label("Open in \(track.serviceType.displayName)", systemImage: "arrow.up.right")
+            }
+        }
+        .sheet(isPresented: $showFriendPicker) {
+            FriendPickerView(
+                unifiedTrack: track,
+                previewUrl: track.previewUrl,
+                onSongSent: { _ in }
+            )
+        }
+        .sheet(isPresented: $showPlaylistPicker) {
+            UnifiedPlaylistPickerView(
+                track: track,
+                onAdded: {}
+            )
+        }
+    }
+
+    private func openInMusicApp() {
+        guard let externalUrl = track.externalUrl,
+              let url = URL(string: externalUrl) else {
+            let urlString: String
+            switch track.serviceType {
+            case .spotify:
+                urlString = "https://open.spotify.com/track/\(track.originalId)"
+            case .appleMusic:
+                urlString = "https://music.apple.com/song/\(track.originalId)"
+            }
+            if let url = URL(string: urlString) {
+                UIApplication.shared.open(url)
+            }
+            return
+        }
+        UIApplication.shared.open(url)
     }
 }

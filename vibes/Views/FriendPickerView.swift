@@ -11,6 +11,8 @@ import FirebaseAuth
 enum FriendPickerContent {
     case track(Track, previewUrl: String?)
     case playlist(Playlist)
+    case unifiedTrack(UnifiedTrack, previewUrl: String?)
+    case unifiedPlaylist(UnifiedPlaylist)
 }
 
 struct FriendPickerView: View {
@@ -26,6 +28,18 @@ struct FriendPickerView: View {
     // New initializer for playlists
     init(playlist: Playlist, onPlaylistSent: ((FriendProfile) -> Void)? = nil) {
         self.content = .playlist(playlist)
+        self.onSent = onPlaylistSent
+    }
+
+    // Unified track initializer
+    init(unifiedTrack: UnifiedTrack, previewUrl: String?, onSongSent: ((FriendProfile) -> Void)? = nil) {
+        self.content = .unifiedTrack(unifiedTrack, previewUrl: previewUrl)
+        self.onSent = onSongSent
+    }
+
+    // Unified playlist initializer
+    init(unifiedPlaylist: UnifiedPlaylist, onPlaylistSent: ((FriendProfile) -> Void)? = nil) {
+        self.content = .unifiedPlaylist(unifiedPlaylist)
         self.onSent = onPlaylistSent
     }
 
@@ -47,8 +61,8 @@ struct FriendPickerView: View {
 
     private var navigationTitle: String {
         switch content {
-        case .track: return "Send Song"
-        case .playlist: return "Send Playlist"
+        case .track, .unifiedTrack: return "Send Song"
+        case .playlist, .unifiedPlaylist: return "Send Playlist"
         }
     }
 
@@ -213,6 +227,36 @@ struct FriendPickerView: View {
                 }
             }
             .padding(.vertical, 4)
+
+        case .unifiedTrack(let track, _):
+            HStack(spacing: 12) {
+                unifiedTrackArtView(track: track)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(track.name)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Text(track.artists.map { $0.name }.joined(separator: ", "))
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .padding(.vertical, 4)
+
+        case .unifiedPlaylist(let playlist):
+            HStack(spacing: 12) {
+                unifiedPlaylistArtView(playlist: playlist)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(playlist.name)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Text("\(playlist.trackCount) tracks")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .padding(.vertical, 4)
         }
     }
 
@@ -280,6 +324,54 @@ struct FriendPickerView: View {
                 Image(systemName: "music.note.list")
                     .foregroundColor(.secondary)
             }
+    }
+
+    private func unifiedTrackArtView(track: UnifiedTrack) -> some View {
+        Group {
+            if let imageUrl = track.album.imageUrl,
+               let url = URL(string: imageUrl) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    case .failure, .empty:
+                        albumPlaceholder
+                    @unknown default:
+                        albumPlaceholder
+                    }
+                }
+            } else {
+                albumPlaceholder
+            }
+        }
+        .frame(width: 50, height: 50)
+        .cornerRadius(6)
+    }
+
+    private func unifiedPlaylistArtView(playlist: UnifiedPlaylist) -> some View {
+        Group {
+            if let imageUrl = playlist.imageUrl,
+               let url = URL(string: imageUrl) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    case .failure, .empty:
+                        playlistPlaceholder
+                    @unknown default:
+                        playlistPlaceholder
+                    }
+                }
+            } else {
+                playlistPlaceholder
+            }
+        }
+        .frame(width: 50, height: 50)
+        .cornerRadius(6)
     }
 
     private func friendSelectRow(_ friend: FriendProfile) -> some View {
@@ -398,6 +490,58 @@ struct FriendPickerView: View {
                             timestamp: Date(),
                             read: false
                         )
+
+                    case .unifiedTrack(let track, let previewUrl):
+                        message = Message(
+                            id: nil,
+                            threadId: threadId,
+                            senderId: currentUserId,
+                            recipientId: friend.id,
+                            messageType: .song,
+                            textContent: nil,
+                            spotifyTrackId: track.originalId,
+                            songTitle: track.name,
+                            songArtist: track.artists.map { $0.name }.joined(separator: ", "),
+                            albumArtUrl: track.album.imageUrl,
+                            previewUrl: previewUrl ?? track.previewUrl,
+                            duration: track.durationMs / 1000,
+                            caption: nil,
+                            rating: nil,
+                            playlistId: nil,
+                            playlistName: nil,
+                            playlistImageUrl: nil,
+                            playlistTrackCount: nil,
+                            playlistOwnerName: nil,
+                            reactions: nil,
+                            timestamp: Date(),
+                            read: false
+                        )
+
+                    case .unifiedPlaylist(let playlist):
+                        message = Message(
+                            id: nil,
+                            threadId: threadId,
+                            senderId: currentUserId,
+                            recipientId: friend.id,
+                            messageType: .playlist,
+                            textContent: nil,
+                            spotifyTrackId: nil,
+                            songTitle: nil,
+                            songArtist: nil,
+                            albumArtUrl: nil,
+                            previewUrl: nil,
+                            duration: nil,
+                            caption: nil,
+                            rating: nil,
+                            playlistId: playlist.originalId,
+                            playlistName: playlist.name,
+                            playlistImageUrl: playlist.imageUrl,
+                            playlistTrackCount: playlist.trackCount,
+                            playlistOwnerName: playlist.ownerName,
+                            reactions: nil,
+                            timestamp: Date(),
+                            read: false
+                        )
                     }
 
                     try await FirestoreService.shared.sendMessage(message)
@@ -405,21 +549,31 @@ struct FriendPickerView: View {
                     lastSentFriend = friend
 
                     // Track for achievements
-                    if case .track(let track, _) = content {
-                        // Track song message sent for each recipient
+                    switch content {
+                    case .track(let track, _):
                         LocalAchievementStats.shared.songMessagesSent += 1
                         LocalAchievementStats.shared.messagesSent += 1
                         LocalAchievementStats.shared.trackConversation(with: friend.id)
-
-                        // Only track these once per send action
                         if successCount == 1 {
                             let artistName = track.artists.first?.name ?? ""
                             LocalAchievementStats.shared.trackArtistShared(artistName)
                             LocalAchievementStats.shared.trackSongSharedOnFriday()
                             LocalAchievementStats.shared.checkTimeBasedAchievements()
-                            // Check Butterfly Effect - passing along received songs
                             LocalAchievementStats.shared.checkButterflyEffect(trackId: track.id)
                         }
+                    case .unifiedTrack(let track, _):
+                        LocalAchievementStats.shared.songMessagesSent += 1
+                        LocalAchievementStats.shared.messagesSent += 1
+                        LocalAchievementStats.shared.trackConversation(with: friend.id)
+                        if successCount == 1 {
+                            let artistName = track.artists.first?.name ?? ""
+                            LocalAchievementStats.shared.trackArtistShared(artistName)
+                            LocalAchievementStats.shared.trackSongSharedOnFriday()
+                            LocalAchievementStats.shared.checkTimeBasedAchievements()
+                            LocalAchievementStats.shared.checkButterflyEffect(trackId: track.originalId)
+                        }
+                    case .playlist, .unifiedPlaylist:
+                        break
                     }
                 } catch {
                     print("Failed to send to \(friend.username): \(error)")
@@ -433,8 +587,8 @@ struct FriendPickerView: View {
 
             let itemName: String
             switch content {
-            case .track: itemName = "song"
-            case .playlist: itemName = "playlist"
+            case .track, .unifiedTrack: itemName = "song"
+            case .playlist, .unifiedPlaylist: itemName = "playlist"
             }
 
             if successCount == 0 {
@@ -506,7 +660,6 @@ struct FriendPickerView: View {
                         caption: nil
                     )
 
-                    // Track achievements
                     LocalAchievementStats.shared.songMessagesSent += 1
                     LocalAchievementStats.shared.messagesSent += 1
                     let artistName = track.artists.first?.name ?? ""
@@ -515,9 +668,38 @@ struct FriendPickerView: View {
                     LocalAchievementStats.shared.checkTimeBasedAchievements()
                     LocalAchievementStats.shared.checkButterflyEffect(trackId: track.id)
 
+                case .unifiedTrack(let track, let previewUrl):
+                    try await FirestoreService.shared.sendGroupSongMessage(
+                        groupId: groupId,
+                        senderId: currentUserId,
+                        senderName: senderName,
+                        trackId: track.originalId,
+                        title: track.name,
+                        artist: track.artists.map { $0.name }.joined(separator: ", "),
+                        albumArtUrl: track.album.imageUrl,
+                        previewUrl: previewUrl ?? track.previewUrl,
+                        caption: nil
+                    )
+
+                    LocalAchievementStats.shared.songMessagesSent += 1
+                    LocalAchievementStats.shared.messagesSent += 1
+                    let artistName = track.artists.first?.name ?? ""
+                    LocalAchievementStats.shared.trackArtistShared(artistName)
+                    LocalAchievementStats.shared.trackSongSharedOnFriday()
+                    LocalAchievementStats.shared.checkTimeBasedAchievements()
+                    LocalAchievementStats.shared.checkButterflyEffect(trackId: track.originalId)
+
                 case .playlist(let playlist):
-                    // Send playlist as a text message with link for now
                     let playlistMessage = "Shared playlist: \(playlist.name) (\(playlist.tracks.total) tracks)"
+                    try await FirestoreService.shared.sendGroupMessage(
+                        groupId: groupId,
+                        senderId: currentUserId,
+                        senderName: senderName,
+                        content: playlistMessage
+                    )
+
+                case .unifiedPlaylist(let playlist):
+                    let playlistMessage = "Shared playlist: \(playlist.name) (\(playlist.trackCount) tracks)"
                     try await FirestoreService.shared.sendGroupMessage(
                         groupId: groupId,
                         senderId: currentUserId,

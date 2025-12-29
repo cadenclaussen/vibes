@@ -14,6 +14,7 @@ import FirebaseMessaging
 @main
 struct vibesApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    @State private var router = AppRouter()
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
@@ -39,6 +40,7 @@ struct vibesApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(router)
                 .environmentObject(AuthManager.shared)
                 .onOpenURL { url in
                     handleIncomingURL(url)
@@ -76,10 +78,10 @@ struct vibesApp: App {
 
         Task {
             do {
-                try await SpotifyService.shared.handleAuthorizationCallback(url: url)
-                print("✅ Spotify authentication successful")
+                try await MusicServiceManager.shared.handleSpotifyCallback(url: url)
+                print("Spotify authentication successful")
             } catch {
-                print("❌ Spotify authentication failed: \(error)")
+                print("Spotify authentication failed: \(error)")
             }
         }
     }

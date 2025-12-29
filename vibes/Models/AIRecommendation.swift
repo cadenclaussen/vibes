@@ -29,6 +29,27 @@ struct MusicProfile: Codable {
             musicTasteTags: tags
         )
     }
+
+    static func fromUnified(
+        artists: [UnifiedArtist],
+        tracks: [UnifiedTrack],
+        recentTracks: [UnifiedTrack],
+        tags: [String] = []
+    ) -> MusicProfile {
+        let artistNames = artists.prefix(10).map { $0.name }
+        let trackNames = tracks.prefix(20).map { "\($0.name) by \($0.artists.first?.name ?? "")" }
+        let recentNames = recentTracks.prefix(20).map { "\($0.name) by \($0.artists.first?.name ?? "")" }
+        let allGenres = artists.compactMap { $0.genres }.flatMap { $0 }
+        let uniqueGenres = Array(Set(allGenres)).prefix(10)
+
+        return MusicProfile(
+            topArtists: Array(artistNames),
+            topTracks: Array(trackNames),
+            genres: Array(uniqueGenres),
+            recentTracks: Array(recentNames),
+            musicTasteTags: tags
+        )
+    }
 }
 
 // MARK: - Playlist Suggestion (AI Output)
@@ -292,27 +313,27 @@ struct OpenAIErrorResponse: Codable {
     }
 }
 
-// MARK: - Resolved Track (Spotify Track with AI Suggestion)
+// MARK: - Resolved Track (Music Service Track with AI Suggestion)
 
 struct ResolvedSong: Identifiable {
     let id: String
     let suggestion: SongSuggestion
-    let track: Track?
+    let unifiedTrack: UnifiedTrack?
     let previewUrl: String?
 
     var isResolved: Bool {
-        track != nil
+        unifiedTrack != nil
     }
 }
 
 struct ResolvedBlendSong: Identifiable {
     let id: String
     let recommendation: BlendRecommendation
-    let track: Track?
+    let unifiedTrack: UnifiedTrack?
     let previewUrl: String?
 
     var isResolved: Bool {
-        track != nil
+        unifiedTrack != nil
     }
 }
 
@@ -381,10 +402,10 @@ struct CachedAIRecommendations: Codable {
 struct ResolvedAIRecommendation: Identifiable {
     let id: String
     let recommendation: AIRecommendedSong
-    let track: Track?
+    let unifiedTrack: UnifiedTrack?
     let previewUrl: String?
 
     var isResolved: Bool {
-        track != nil
+        unifiedTrack != nil
     }
 }

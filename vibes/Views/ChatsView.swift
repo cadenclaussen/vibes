@@ -10,14 +10,12 @@ import FirebaseAuth
 
 struct ChatsView: View {
     @EnvironmentObject var authManager: AuthManager
+    @Environment(AppRouter.self) private var router
     @StateObject private var viewModel = ChatsViewModel()
     @State private var showingAddFriend = false
     @State private var showingCreateGroup = false
-    @State private var navigationPath = NavigationPath()
     @State private var selectedFriendForBlend: FriendProfile?
     @State private var searchText = ""
-    @Binding var selectedTab: Int
-    @Binding var shouldEditProfile: Bool
 
     private var filteredChats: [ChatItem] {
         if searchText.isEmpty {
@@ -39,7 +37,9 @@ struct ChatsView: View {
     }
 
     var body: some View {
-        NavigationStack(path: $navigationPath) {
+        @Bindable var router = router
+
+        return NavigationStack(path: $router.chatsPath) {
             contentView
                 .navigationBarTitleDisplayMode(.inline)
                 .navigationDestination(for: FriendProfile.self) { friend in
@@ -57,9 +57,6 @@ struct ChatsView: View {
                     }
                 }
                 .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
-                        SettingsMenu(selectedTab: $selectedTab, shouldEditProfile: $shouldEditProfile)
-                    }
                     ToolbarItem(placement: .topBarLeading) {
                         HStack(spacing: 16) {
                             Button {
@@ -103,6 +100,12 @@ struct ChatsView: View {
         }
         .refreshable {
             await viewModel.loadData()
+        }
+        .onChange(of: router.shouldShowNewChat) { _, shouldShow in
+            if shouldShow {
+                showingAddFriend = true
+                router.shouldShowNewChat = false
+            }
         }
     }
 
@@ -305,7 +308,7 @@ struct ChatsView: View {
                     HStack(spacing: 12) {
                         ForEach(viewModel.friendsNowPlaying) { friend in
                             NowPlayingCard(friend: friend) {
-                                navigationPath.append(friend)
+                                router.chatsPath.append(friend)
                             }
                             .transition(.scale.combined(with: .opacity))
                         }
@@ -335,7 +338,7 @@ struct ChatsView: View {
                     ForEach(filteredChats) { chat in
                         Button {
                             searchText = ""
-                            navigationPath.append(chat.friend)
+                            router.chatsPath.append(chat.friend)
                         } label: {
                             ChatRowView(chat: chat)
                         }
@@ -402,7 +405,7 @@ struct ChatsView: View {
                     ForEach(filteredGroups) { group in
                         Button {
                             searchText = ""
-                            navigationPath.append(group)
+                            router.chatsPath.append(group)
                         } label: {
                             GroupRowView(group: group, currentUserId: authManager.user?.uid ?? "")
                         }
@@ -661,6 +664,7 @@ struct GroupRowView: View {
 }
 
 #Preview {
-    ChatsView(selectedTab: .constant(1), shouldEditProfile: .constant(false))
+    ChatsView()
+        .environment(AppRouter())
         .environmentObject(AuthManager.shared)
 }
