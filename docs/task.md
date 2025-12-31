@@ -2,6 +2,25 @@
 
 ## Active Tasks
 
+### 133. Remove all code and start from scratch
+- **Status**: IN_PROGRESS
+- **Type**: Feature
+- **Location**: vibes/, vibes.xcodeproj/, docs/, build/, vids/, .specs/, GoogleService-Info.plist
+- **Requested**: User wants to remove all existing code and start fresh
+- **Context**: Complete project reset
+- **Acceptance Criteria**:
+  - [ ] Remove vibes/ source code directory
+  - [ ] Remove vibes.xcodeproj/ project file
+  - [ ] Remove docs/ documentation
+  - [ ] Remove build/ artifacts
+  - [ ] Remove vids/ videos
+  - [ ] Remove .specs/ folder
+  - [ ] Remove root GoogleService-Info.plist
+  - [ ] Keep .git, .gitignore, CLAUDE.md, .claude/
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Pending
+
 ### 124. Add Apple Music as alternative to Spotify
 - **Status**: COMPLETED
 - **Type**: Feature
@@ -171,10 +190,49 @@
   4. Documented behavior flow: select playlist -> fetch recommendations -> show 10-20 tracks -> add removes from list
   5. Added Data Sources: "Playlist Recommendations" (Spotify seed_tracks API) and "User playlists" (Spotify/Apple Music API)
 
+### 134. Implement Authentication Section from Kiro Spec
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/
+- **Requested**: Implement the authentication section from .specs/tasks.md - Phase 1 Foundation (Tasks 1-4) and Phase 2 Auth (Tasks 5-7). Create project structure, models, KeychainManager, AppRouter, AuthManager, AuthView, TutorialView.
+- **Context**: Fresh implementation following Kiro SDD workflow. App was reset, implementing from specs.
+- **Acceptance Criteria**:
+  - [x] Project structure created with all directories
+  - [x] Data models implemented (UserProfile, Friendship, SongShare, FeedItem, etc.)
+  - [x] KeychainManager for secure token storage
+  - [x] AppRouter for navigation
+  - [x] AuthManager with Google Sign-In
+  - [x] AuthView with Google button
+  - [x] TutorialView with 7 onboarding cards
+  - [x] App builds successfully
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Created complete authentication foundation:
+  - **Models**: UserProfile, Friendship, SongShare, Concert, Achievement, UnifiedTrack, UnifiedAlbum, UnifiedArtist, UnifiedPlaylist, FeedItem, Message, MessageThread, ListeningStats, VibesError
+  - **Services**: KeychainManager (secure token storage), AppRouter (@Observable navigation coordinator), AuthManager (@Observable with Google Sign-In via Firebase)
+  - **Views**: AuthView (Google Sign-In button), TutorialView (7 swipeable onboarding cards), ContentView (3-tab navigation placeholder), LoadingView, EmptyStateView, ErrorView
+  - **Configuration**: Added GoogleSignIn-iOS package, created Info.plist with URL scheme, created placeholder GoogleService-Info.plist
+  - Build succeeds on iPhone 16e simulator
+
+### 135. Google Sign-In fails: "No active configuration. Make sure GIDClientID is set in Info.plist"
+- **Status**: IN_PROGRESS
+- **Type**: Bug
+- **Location**: Info.plist, vibes/GoogleService-Info.plist
+- **Requested**: Google Sign-In fails with error "No active configuration. Make sure GIDClientID is set in Info.plist"
+- **Context**: The GoogleService-Info.plist is missing the CLIENT_ID key. Info.plist needs the GIDClientID key and the reversed client ID URL scheme for Google Sign-In OAuth flow to work.
+- **Acceptance Criteria**:
+  - [ ] Get OAuth Client ID from Google Cloud Console
+  - [ ] Add GIDClientID to Info.plist
+  - [ ] Add reversed client ID to URL schemes
+  - [ ] Google Sign-In works
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Pending
+
 ## Task Statistics
-- Total Tasks: 132
-- Completed: 132
-- In Progress: 0
+- Total Tasks: 135
+- Completed: 133
+- In Progress: 1
 - Archived: Tasks 1-123
 
 ---
