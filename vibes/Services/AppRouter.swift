@@ -10,34 +10,30 @@ import SwiftUI
 // MARK: - Tab Enum
 
 enum Tab: Int, CaseIterable {
-    case home = 0
+    case feed = 0
     case explore = 1
-    case chats = 2
-    case profile = 3
+    case profile = 2
 
     var title: String {
         switch self {
-        case .home: return "Home"
+        case .feed: return "Feed"
         case .explore: return "Explore"
-        case .chats: return "Chats"
         case .profile: return "Profile"
         }
     }
 
     var icon: String {
         switch self {
-        case .home: return "house"
+        case .feed: return "house"
         case .explore: return "sparkles"
-        case .chats: return "bubble.left.and.bubble.right"
         case .profile: return "person.circle"
         }
     }
 
     var selectedIcon: String {
         switch self {
-        case .home: return "house.fill"
+        case .feed: return "house.fill"
         case .explore: return "sparkles"
-        case .chats: return "bubble.left.and.bubble.right.fill"
         case .profile: return "person.circle.fill"
         }
     }
@@ -50,9 +46,7 @@ enum AppDestination: Hashable {
     case album(Album)
     case playlist(Playlist)
     case chat(FriendProfile)
-    case groupChat(GroupThread)
     case settings
-    case achievements
     case editProfile
 }
 
@@ -60,16 +54,13 @@ enum AppDestination: Hashable {
 
 @Observable
 class AppRouter {
-    var selectedTab: Tab = .home
-    var homePath = NavigationPath()
+    var selectedTab: Tab = .feed
+    var feedPath = NavigationPath()
     var explorePath = NavigationPath()
-    var chatsPath = NavigationPath()
     var profilePath = NavigationPath()
 
     // For triggering specific actions
     var shouldFocusSearch = false
-    var shouldShowNewChat = false
-    var shouldShowBlend = false
 
     // MARK: - Navigation
 
@@ -88,20 +79,12 @@ class AppRouter {
             explorePath.append(playlist)
 
         case .chat(let friend):
-            selectedTab = .chats
-            chatsPath.append(friend)
-
-        case .groupChat(let group):
-            selectedTab = .chats
-            chatsPath.append(group)
+            selectedTab = .feed
+            feedPath.append(friend)
 
         case .settings:
             selectedTab = .profile
             profilePath.append(AppDestination.settings)
-
-        case .achievements:
-            selectedTab = .profile
-            // Achievements handled within ProfileView tabs
 
         case .editProfile:
             selectedTab = .profile
@@ -112,21 +95,18 @@ class AppRouter {
     func popToRoot(tab: Tab? = nil) {
         let targetTab = tab ?? selectedTab
         switch targetTab {
-        case .home:
-            homePath = NavigationPath()
+        case .feed:
+            feedPath = NavigationPath()
         case .explore:
             explorePath = NavigationPath()
-        case .chats:
-            chatsPath = NavigationPath()
         case .profile:
             profilePath = NavigationPath()
         }
     }
 
     func popToRootAll() {
-        homePath = NavigationPath()
+        feedPath = NavigationPath()
         explorePath = NavigationPath()
-        chatsPath = NavigationPath()
         profilePath = NavigationPath()
     }
 
@@ -137,18 +117,8 @@ class AppRouter {
         shouldFocusSearch = true
     }
 
-    func goToNewChat() {
-        selectedTab = .chats
-        shouldShowNewChat = true
-    }
-
-    func goToBlend() {
-        selectedTab = .explore
-        shouldShowBlend = true
-    }
-
-    func goToChats() {
-        selectedTab = .chats
+    func goToFeed() {
+        selectedTab = .feed
     }
 
     func goToProfile() {

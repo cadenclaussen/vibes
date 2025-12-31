@@ -285,7 +285,8 @@ struct AlbumTrackRow: View {
             images: [],
             releaseDate: "2024-01-01",
             totalTracks: 10,
-            uri: "spotify:album:1"
+            uri: "spotify:album:1",
+            artists: [Artist(id: "1", name: "Test Artist", images: nil, genres: nil, popularity: nil, externalUrls: nil)]
         ))
     }
 }

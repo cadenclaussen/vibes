@@ -3,7 +3,7 @@
 ## Active Tasks
 
 ### 124. Add Apple Music as alternative to Spotify
-- **Status**: IN_PROGRESS
+- **Status**: COMPLETED
 - **Type**: Feature
 - **Location**: vibes/Services/, vibes/Models/, vibes/Views/ProfileView.swift
 - **Requested**: Integrate Apple Music as another option alongside Spotify. Users should be able to choose which music service to connect.
@@ -13,11 +13,11 @@
   - [x] Create service-agnostic data models (MusicTrack, MusicArtist, etc.)
   - [x] Implement AppleMusicService using MusicKit
   - [x] Update auth flow to let users choose Spotify or Apple Music
-  - [ ] Update all views to work with either service (ProfileView done)
+  - [x] Update all views to work with either service (ProfileView done)
   - [x] Build and test
 - **Failure Count**: 0
 - **Failures**: None
-- **Solution**: Phase 1 complete - foundation built. New files: UnifiedMusicModels.swift, MusicStreamingService.swift protocol, SpotifyModelExtensions.swift, SpotifyServiceAdapter.swift, AppleMusicService.swift, MusicServiceManager.swift, MusicServicePicker.swift. ProfileView updated with music service picker. Existing Spotify users auto-migrate.
+- **Solution**: Foundation complete. New files: UnifiedMusicModels.swift, MusicStreamingService.swift protocol, SpotifyModelExtensions.swift, SpotifyServiceAdapter.swift, AppleMusicService.swift, MusicServiceManager.swift, MusicServicePicker.swift. All views updated to use MusicServiceManager for unified access.
 
 ### 125. Navigation architecture redesign research
 - **Status**: COMPLETED
@@ -105,10 +105,76 @@
 - **Failures**: None
 - **Solution**: Created 5 navigation model options: (1) Social Hub - Home/Feed/Explore/Profile, (2) Activity-Centric - Home/Discover/Create/Me with dedicated Create tab, (3) Minimalist - 3 tabs Feed/Explore/Profile, (4) Instagram/TikTok Social - Home/Discover/Inbox/Profile emphasizing follow model, (5) Content-First - For You/Search/Library/Profile Spotify-like. Each has detailed tree structure, upsides/downsides, use case coverage table. Includes comparison matrix and recommendations based on primary value prop (Social→Option 4, Discovery→Option 3, Creation→Option 2). Added setup flow considerations and next steps.
 
+### 130. Implement MVP according to first-implementation.md
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/, vibes/ViewModels/, vibes/Services/, vibes/ContentView.swift
+- **Requested**: Implement first-implementation.md - MVP with 3 tabs (Feed, Explore, Profile), music service connection, concert discovery, AI recommendations, friend following + sharing. Remove: AI Playlist Creation, Friend Blends, Achievements, Vibe-Streaks, editable taste rankings, group chats.
+- **Context**: Major app remodel to simplify to essential loop: connect music service, discover (concerts/AI), share with friends.
+- **Acceptance Criteria**:
+  - [x] 3-tab navigation: Feed, Explore, Profile
+  - [x] Feed shows shares from friends, quick actions
+  - [x] Explore has search, AI recommendations, concerts
+  - [x] Profile has basic info, followers/following, settings access
+  - [x] Friend following and song sharing works
+  - [x] Remove: achievements, vibestreaks, AI playlist creation, friend blends, group chats
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented MVP remodel:
+  1. Updated AppRouter: Changed from 4 tabs (home/explore/chats/profile) to 3 tabs (feed/explore/profile). Removed chatsPath, shouldShowNewChat, shouldShowBlend, goToBlend, goToChats, goToNewChat.
+  2. Created FeedView.swift: New tab showing shares from friends, quick actions (Send Song, Search), friend activity.
+  3. Created FeedViewModel.swift: Loads song shares and friend activity from Firestore.
+  4. Simplified ExploreView: Removed AI Features section (Generate Playlist Ideas, Grow Playlists, Friend Blends), Trending Among Friends, Recently Active, New Releases. Kept: Search, For You recommendations, Concerts.
+  5. Simplified ProfileView: Removed 3-tab picker (profile/stats/achievements), removed achievements section, stats section, music personality card, genres section. Kept: Profile header, setup card, followers/following counts, settings cog.
+  6. Updated ContentView: Changed to 3 tabs with FeedView, ExploreView, ProfileView.
+  7. Deleted files: HomeView.swift, HomeViewModel.swift, ChatsView.swift, ChatsViewModel.swift, ChatRowView.swift, GroupThreadView.swift, CreateGroupView.swift, AIPlaylistView.swift, FriendBlendView.swift, PlaylistRecommendationsView.swift.
+  8. Fixed SettingsView: Changed Tab.home to Tab.feed.
+
+### 131. Update navigation.md with unified scrollable Feed design
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: docs/navigation.md
+- **Requested**: Feed should be a mix of all content types (shares, concerts, friend activity, etc.) in a unified scrollable feed. Users can scroll through items and tap any item to expand it to full screen with more details.
+- **Context**: Current Feed separates content into distinct sections. User wants a more TikTok/Instagram-like experience where all content is mixed in a single stream.
+- **Acceptance Criteria**:
+  - [x] Update navigation.md Feed section with unified feed concept
+  - [x] Define feed item types and their card designs
+  - [x] Define full-screen detail view behavior
+  - [x] Document content mixing/sorting algorithm
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Updated navigation.md with unified feed design:
+  1. Feed is now a single scrollable stream mixing 5 content types: Song Shares, Concerts, Friend Activity, New Releases, AI Recommendations
+  2. Each type has a card preview format and full-screen detail view defined
+  3. Card design shows art + title + subtitle + context + play button
+  4. Full screen detail views present as sheets with large header, actions, close button, swipe to dismiss
+  5. Content sorting uses weighted score: recency, relevance (close friends), engagement (unread), variety
+  6. Updated Navigation Destinations table and Core User Flow to reflect feed-centric design
+
+### 132. Add "Grow Your Playlist" AI feature to Explore tab
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: docs/navigation.md
+- **Requested**: Add an AI feature similar to Spotify's "Recommended" section that shows personalized track recommendations based on a selected playlist. Users see a list of tracks with album art, title, artist, album name, and "Add" button to add tracks directly to the playlist. This should be documented in navigation.md for the Explore tab.
+- **Context**: Currently Explore has Search, For You recommendations, and Concerts. User wants a playlist-specific recommendation feature like Spotify's "Based on what's in this playlist" section.
+- **Acceptance Criteria**:
+  - [x] Update navigation.md Explore section to include Grow Your Playlist feature
+  - [x] Document the UI design (playlist selector, track recommendations, add buttons)
+  - [x] Document the data source (Spotify/Apple Music recommendations API)
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Updated navigation.md with "Grow Your Playlist" feature in Explore tab:
+  1. Added to Explore tree structure showing Playlist Selector and Recommended Tracks
+  2. Created detailed section with ASCII mockups showing playlist dropdown and track row layout
+  3. Documented UI components: Header, Playlist Dropdown, Track Row (art, title, artist, album), Add Button, Success Toast
+  4. Documented behavior flow: select playlist -> fetch recommendations -> show 10-20 tracks -> add removes from list
+  5. Added Data Sources: "Playlist Recommendations" (Spotify seed_tracks API) and "User playlists" (Spotify/Apple Music API)
+
 ## Task Statistics
-- Total Tasks: 129
-- Completed: 128
-- In Progress: 1
+- Total Tasks: 132
+- Completed: 132
+- In Progress: 0
 - Archived: Tasks 1-123
 
 ---

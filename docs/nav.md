@@ -180,58 +180,127 @@ Me (Tab 3)
 
 ```
 Feed (Tab 0)
-├── Following Activity
-│   ├── What people listen to
-│   ├── Shared songs
-│   └── New playlists
-├── Trending
-│   ├── Popular songs
-│   ├── New releases
-│   └── Concerts nearby
-├── Quick Actions (floating or inline)
+├── Quick Actions (horizontal row, top, always visible)
 │   ├── Create Playlist
 │   ├── Send Song
 │   └── Shazam
-├── Streak Reminders
-└── Setup CTAs
+├── Streak Reminders (if any active)
+├── [If not connected] "Connect to see what friends are playing" banner
+└── Scrollable Feed (Instagram-style, infinite scroll)
+    ├── "Alex is listening to..." [song card]
+    ├── "New release from [Artist]" [album card]
+    ├── "Jordan shared a song with you" [song card]
+    ├── Trending song [song card]
+    ├── "Sarah added to playlist" [playlist card]
+    ├── New release [album card]
+    ├── Friend listening [song card]
+    └── ... mixed content, infinite scroll
 
 Explore (Tab 1)
-├── Search Bar
-├── Your Taste
-│   ├── Top Genres (editable)
-│   ├── Top Artists (editable)
-│   └── Top Songs (editable)
+├── Search Bar (always works)
+├── Your Taste (editable, drives discovery)
+│   ├── Top Genres (rankable, hide/dislike)
+│   ├── Top Artists (rankable, hide/dislike)
+│   └── Top Songs (rankable, hide/dislike)
+│   └── [If not connected] Grayed, "Connect to see your taste"
 ├── AI Discovery
 │   ├── Based on you
 │   ├── Based on friends
 │   └── Mood-based
-├── Friend Discovery
+│   └── [If not connected] Grayed, "Connect to unlock"
+├── Concerts Near You
+│   └── [If no city set] "Set your city" prompt → city picker
+├── Friend Discovery (always works)
 │   ├── Songs your friends like
 │   └── Friend blends
 └── AI Playlist Creation
     ├── Mood picker
     ├── Activity picker
     └── Friend blend builder
+    └── [If not connected] Grayed, "Connect to create"
 
 Profile (Tab 2)
 ├── Profile Header
-├── Stats Dashboard
-│   ├── Top Artists
-│   ├── Top Songs
-│   ├── Top Genres
-│   └── Recently Played
+├── [If not connected] Setup Card
+│   ├── "Connect to unlock your music identity"
+│   ├── [ ] Connect Spotify
+│   └── [ ] Connect Apple Music
+├── Music Identity (display-only, for you and followers)
+│   ├── Top Artist (singular - your "main")
+│   ├── Recently Played (dynamic, what you're into now)
+│   └── Listening Time (hours this week/month)
 ├── Your Playlists
 ├── Achievements
 ├── Vibe-Streaks
 ├── Followers / Following
-└── Settings (cog)
+└── Settings (cog) [red badge if not connected]
+    ├── Account
+    ├── Music Service (Spotify/Apple Music)
+    ├── AI Features
+    │   ├── Enable AI recommendations (on by default)
+    │   └── Gemini API key (optional, for power users)
+    ├── Concerts
+    │   ├── Your city/location
+    │   └── Ticketmaster API key (optional, for more results)
+    ├── Notifications
+    └── Privacy
 ```
+
+### Setup Strategy
+
+Setup is aggressive but rewarding. Users feel incomplete until connected.
+
+**Primary Setup (Music Service):**
+| Feature | Without Connection |
+|---------|-------------------|
+| Search | Works |
+| Friend Discovery | Works |
+| Your Taste | Grayed, "Connect to see" |
+| AI Discovery | Grayed, "Connect to unlock" |
+| AI Playlist Creation | Grayed, "Connect to create" |
+| Music Identity stats | Empty, shows prompt |
+
+**Visual Indicators:**
+- Red badge on Settings cog until connected
+- Setup Card on Profile
+- Grayed features with clear unlock prompts
+
+**First Launch:**
+1. Onboarding modal pushes connection (skippable)
+2. If skipped, every tab shows what they're missing
+3. Tapping grayed feature → connection prompt
+
+**On Connection:**
+1. "Connected!" achievement unlocked (first achievement)
+2. Immediate load of personalized content
+3. Setup Card disappears, red badges clear
+4. Celebration moment
+
+**Secondary Setup (AI & Concerts):**
+
+| Feature | Default | Power User |
+|---------|---------|------------|
+| AI Discovery | Works with app backend | Add Gemini API key for unlimited |
+| AI Playlists | Works with app backend | Add Gemini API key for unlimited |
+| Concerts | Prompt for city on first tap | Add Ticketmaster key for more results |
+
+These features "just work" - no setup required for most users. Power users can add their own API keys in Settings for enhanced functionality.
+
+### Design Rationale
+
+**Explore's "Your Taste"** = A tool. Editable inputs that drive discovery algorithms.
+
+**Profile's "Music Identity"** = A display. Quick snapshot of who you are musically.
+
+This avoids redundancy: full taste breakdown lives in Explore where it's actionable. Profile shows identity stats that are more interesting to followers and change more often.
 
 ### Upsides
 - Very clean, only 3 tabs
 - Less decision fatigue
-- Everything fits logically
-- Familiar pattern (Instagram-like)
+- No redundant stats between tabs
+- Profile stays fresh (Recently Played changes often)
+- Clear purpose per tab: Social (Feed), Find (Explore), Me (Profile)
+- Setup is impossible to ignore but rewarding to complete
 
 ### Downsides
 - Feed could get crowded
@@ -246,8 +315,8 @@ Profile (Tab 2)
 | Trending | Feed | Strong |
 | Playlist Creation | Explore | Good |
 | Gamification | Profile | Strong |
-| Setup | Profile Settings, Feed CTAs | Good |
-| Stats | Profile | Strong |
+| Setup | Feature gating, progress card, badges, first achievement | Strong |
+| Stats | Explore (editable), Profile (identity) | Strong |
 
 ---
 

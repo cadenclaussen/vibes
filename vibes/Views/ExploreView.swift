@@ -13,9 +13,7 @@ struct ExploreView: View {
     @StateObject private var viewModel = ExploreViewModel()
     @StateObject private var musicServiceManager = MusicServiceManager.shared
     @StateObject private var audioPlayer = AudioPlayerService.shared
-    @StateObject private var geminiService = GeminiService.shared
     @StateObject private var ticketmasterService = TicketmasterService.shared
-    @State private var showPlaylistRecommendations = false
     @State private var showConcertSettings = false
     @State private var trackToSend: UnifiedTrack?
     @State private var trackToAddToPlaylist: UnifiedTrack?
@@ -72,17 +70,8 @@ struct ExploreView: View {
                 router.shouldFocusSearch = false
             }
         }
-        .onChange(of: router.shouldShowBlend) { _, shouldShow in
-            if shouldShow {
-                // Could navigate to blend or show a sheet
-                router.shouldShowBlend = false
-            }
-        }
         .onDisappear {
             audioPlayer.stop()
-        }
-        .sheet(isPresented: $showPlaylistRecommendations) {
-            PlaylistRecommendationsView()
         }
         .sheet(isPresented: $showConcertSettings) {
             ConcertSettingsView()
@@ -267,7 +256,7 @@ struct ExploreView: View {
     private var searchInitialStateView: some View {
         VStack(spacing: 16) {
             Spacer()
-            Image(systemName: "music.magnifyingglass")
+            Image(systemName: "magnifyingglass")
                 .font(.system(size: 48))
                 .foregroundColor(.secondary)
             Text("Search for Music")
@@ -373,38 +362,17 @@ struct ExploreView: View {
             loadingSection
         } else {
             VStack(alignment: .leading, spacing: 24) {
-                if !viewModel.recentlyActiveFriends.isEmpty {
-                    recentlyActiveSection
-                }
-
-                if !viewModel.newReleases.isEmpty || viewModel.isLoadingNewReleases {
-                    newReleasesSection
-                }
-
                 if !viewModel.recommendations.isEmpty || viewModel.isLoadingRecommendations {
                     forYouSection
-                }
-
-                if geminiService.isConfigured || musicServiceManager.isAuthenticated {
-                    aiPlaylistSection
                 }
 
                 if ticketmasterService.isConfigured || musicServiceManager.isAuthenticated {
                     concertsSection
                 }
 
-                if !viewModel.trendingSongs.isEmpty || viewModel.isLoadingTrending {
-                    trendingSection
-                }
-
-                let nothingLoading = !viewModel.isLoadingNewReleases &&
-                                   !viewModel.isLoadingRecommendations &&
-                                   !viewModel.isLoadingTrending
+                let nothingLoading = !viewModel.isLoadingRecommendations
                 if nothingLoading &&
-                   viewModel.recentlyActiveFriends.isEmpty &&
-                   viewModel.newReleases.isEmpty &&
-                   viewModel.recommendations.isEmpty &&
-                   viewModel.trendingSongs.isEmpty {
+                   viewModel.recommendations.isEmpty {
                     emptyStateSection
                 }
             }
@@ -480,52 +448,6 @@ struct ExploreView: View {
         .padding(.vertical, 40)
     }
 
-    // MARK: - Recently Active Section
-
-    private var recentlyActiveSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Recently Active")
-                .font(.headline)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
-                    ForEach(viewModel.recentlyActiveFriends) { friend in
-                        RecentlyActiveFriendCard(friend: friend)
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - New Releases Section
-
-    private var newReleasesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("New Releases")
-                .font(.headline)
-
-            if viewModel.isLoadingNewReleases && viewModel.newReleases.isEmpty {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
-                }
-                .frame(height: 180)
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(viewModel.newReleases) { album in
-                            NavigationLink(value: album) {
-                                UnifiedNewReleaseCard(album: album)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     // MARK: - For You Section
 
     private var forYouSection: some View {
@@ -554,176 +476,6 @@ struct ExploreView: View {
                         UnifiedRecommendationRow(track: track)
                     }
                 }
-                .padding()
-                .cardStyle()
-            }
-        }
-    }
-
-    // MARK: - Trending Section
-
-    private var trendingSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Trending Among Friends")
-                    .font(.headline)
-                Image(systemName: "flame.fill")
-                    .foregroundColor(.orange)
-            }
-
-            if viewModel.isLoadingTrending && viewModel.trendingSongs.isEmpty {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
-                }
-                .frame(height: 100)
-                .padding()
-                .cardStyle()
-            } else {
-                VStack(spacing: 8) {
-                    ForEach(viewModel.trendingSongs) { song in
-                        TrendingSongRow(song: song)
-                    }
-                }
-                .padding()
-                .cardStyle()
-            }
-        }
-    }
-
-    // MARK: - AI Features Section
-
-    private var aiPlaylistSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "sparkles")
-                    .foregroundColor(.purple)
-                Text("AI Features")
-                    .font(.headline)
-                Spacer()
-            }
-
-            if geminiService.isConfigured {
-                NavigationLink(destination: AIPlaylistView()) {
-                    HStack(spacing: 16) {
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [.purple.opacity(0.3), .pink.opacity(0.3)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 60, height: 60)
-
-                            Image(systemName: "wand.and.stars")
-                                .font(.title2)
-                                .foregroundColor(.purple)
-                        }
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Generate Playlist Ideas")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundColor(Color(.label))
-
-                            Text("Get personalized themes based on your listening")
-                                .font(.caption)
-                                .foregroundColor(Color(.secondaryLabel))
-                        }
-
-                        Spacer()
-
-                        Image(systemName: "chevron.right")
-                            .foregroundColor(Color(.tertiaryLabel))
-                    }
-                    .padding()
-                    .cardStyle()
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    showPlaylistRecommendations = true
-                } label: {
-                    HStack(spacing: 16) {
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [.green.opacity(0.3), .teal.opacity(0.3)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 60, height: 60)
-
-                            Image(systemName: "plus.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(.green)
-                        }
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Grow Your Playlists")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundColor(Color(.label))
-
-                            Text("Get AI song suggestions for any playlist")
-                                .font(.caption)
-                                .foregroundColor(Color(.secondaryLabel))
-                        }
-
-                        Spacer()
-
-                        Image(systemName: "chevron.right")
-                            .foregroundColor(Color(.tertiaryLabel))
-                    }
-                    .padding()
-                    .cardStyle()
-                }
-                .buttonStyle(.plain)
-
-                if !viewModel.blendableFriends.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Blend with a Friend")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(Color(.secondaryLabel))
-
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
-                                ForEach(viewModel.blendableFriends.prefix(8)) { blendable in
-                                    NavigationLink(destination: FriendBlendView(friend: blendable.friend)) {
-                                        BlendFriendCard(blendable: blendable)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                VStack(spacing: 12) {
-                    Image(systemName: "sparkles")
-                        .font(.title)
-                        .foregroundColor(.purple)
-
-                    Text("Set up AI Features")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-
-                    Text("Add your Gemini API key to get personalized AI-generated playlists and friend blends")
-                        .font(.caption)
-                        .foregroundColor(Color(.secondaryLabel))
-                        .multilineTextAlignment(.center)
-
-                    Text("Settings > AI Features")
-                        .font(.caption)
-                        .foregroundColor(.purple)
-                }
-                .frame(maxWidth: .infinity)
                 .padding()
                 .cardStyle()
             }

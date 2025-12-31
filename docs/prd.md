@@ -1,498 +1,817 @@
-# Product Requirements Document
+# Vibes Product Requirements Document
+
+## Core Features
+
+Vibes is built around 8 core features that together create a social music experience.
+
+**App-Wide Interaction**: Long-press any song anywhere in the app to access quick actions (add to library, share to all/send to one, add to playlist).
+
+| # | Feature | Description |
+|---|---------|-------------|
+| 1 | Music Collaboration | Share songs with people you follow and receive recommendations from your network |
+| 2 | Music Discovery | Find new music through personalized recommendations and activity from people you follow |
+| 3 | Trending | Stay current with new releases, popular songs, and concerts near you |
+| 4 | Playlist Creation | AI-powered playlist generation and blends with people you follow |
+| 5 | Gamification | Achievements and vibe-streaks to encourage engagement |
+| 6 | Setup | Connect music services and configure the app |
+| 7 | Stats | View your top artists, songs, genres, and listening history |
+| 8 | Profile Management | Manage your identity, who you follow, and settings |
+
+---
+
+### 1. Music Collaboration
+
+Share and receive music with your network through a follow-based social model (similar to Twitter/Instagram).
+
+#### Features
+
+**Follow Model**
+- Follow other users to see their shared songs in your feed
+- No mutual approval required (asymmetric following)
+- View count of people you follow on profile
+- Discover users through suggestions
+
+**Song Sharing**
+- Two sharing options:
+  - Share to all: broadcast to everyone you follow
+  - Send to one: pick a specific person from your following list
+- When selecting one person, list is ranked by most frequent conversations
+- Request song recommendations from people you follow
+- Share with message/context ("this reminded me of you", "check this out")
+- Receive notifications when someone shares a song with you
+
+**Feed Integration**
+- Shared songs appear in Feed with sender attribution
+- "From [username]" context on song cards
+- Reply to shares with your own song recommendation
+- Similar to Strava's activity sharing model
+
+#### Inspiration
+- Strava: Activity sharing with people you follow
+- Letterboxd: Movie recommendations between users
+- Twitter: Asymmetric follow model
+
+---
+
+### 2. Music Discovery
+
+Find new music through multiple discovery paths tailored to your taste.
+
+#### Features
+
+**Taste Profile**
+- View your top genres, artists, and songs
+- Data sourced from Spotify listening history
+- Manual curation: users can adjust/remove items that don't reflect their taste
+- LLM-enhanced processing to improve accuracy of taste profiles
+
+**Personalized Recommendations**
+- "For You" section with AI-curated suggestions
+- Recommendations based on listening history and taste profile
+- Ability to dislike/dismiss recommendations to improve future suggestions
+- Explanation of why each song was recommended
+
+**Following-Based Discovery**
+- Find songs people you follow listen to that match your taste
+- Blend recommendations: songs that work for both you and someone you follow
+- See what's popular among people you follow
+
+**Shazam Integration**
+- Identify songs playing around you
+- Add identified songs directly to library or playlists
+- Share identified songs with people you follow
+
+**Search (via Spotify API)**
+- Search across artists, albums, playlists, and songs
+- Results powered by Spotify's search API
+- 30-second preview for any song (sourced from iTunes API)
+  - If preview unavailable: button appears grayed out
+  - Tapping grayed button offers option to open and play in Spotify
+- Quick actions (long-press any song): add to library, share to all/send to one, add to playlist
+
+---
+
+### 3. Trending
+
+Stay current with what's happening in music.
+
+#### Features
+
+**New Releases**
+- New albums and singles from artists you follow
+- Trending new releases across the platform
+- Artist announcements (tour dates, social media activity)
+- Release radar: upcoming releases to watch
+
+**Popular Songs**
+- Charts and trending tracks
+- What's popular among people you follow
+- Genre-specific trending lists
+
+**Concerts Near You**
+- Upcoming shows in your city and nearby cities
+- Concerts from artists in your taste profile
+- Price ranges and ticket availability
+- Venue information and maps
+- One-tap ticket purchase links
+
+---
+
+### 4. Playlist Creation
+
+AI-powered tools for building the perfect playlist.
+
+#### Features
+
+**AI Playlist Generation**
+- Create playlists based on mood/activity (workout, relaxing, working, party)
+- Natural language prompts: "upbeat songs for a road trip"
+- Generate playlists from a seed song or artist
+
+**Grow Your Playlist**
+- Select an existing playlist
+- Get AI recommendations for songs that fit the playlist's vibe
+- One-tap add to playlist
+- Exclude songs already in the playlist
+
+**Song Filtering**
+- Filter your library by mood, tempo, energy level
+- Find songs good for specific activities
+- Create smart playlists based on audio features
+
+**Blends**
+
+A Blend is a collaborative playlist that mixes the music tastes of you and someone you follow. The AI analyzes both users' listening history, top artists, and favorite genres to find songs that bridge both tastes—tracks you'll both enjoy.
+
+- Select someone you follow to create a Blend with
+- AI generates a playlist of songs that match both taste profiles
+- Blend includes a mix of:
+  - Songs you both already like
+  - New discoveries that fit both profiles
+  - Artists similar to what you both listen to
+- Share blend playlist with them
+- Blends can be refreshed to get new songs
+- Saved to your Spotify library as a playlist
+
+---
+
+### 5. Gamification
+
+Engagement mechanics to encourage regular use and social interaction.
+
+#### Features
+
+**Achievements**
+- Unlock badges for milestones (first share, following 10 users, etc.)
+- Genre exploration achievements
+- Social achievements (collaboration streaks, popular shares)
+- Display achievements on profile
+
+**Vibe Streaks**
+- Maintain daily streaks by sharing songs with people you follow
+- Streak counters visible on profile
+- Notifications to maintain streaks
+- Streak recovery options (grace period or streak freeze)
+
+**Engagement Rewards**
+- Points/XP for sharing, discovering, and engaging
+- Leaderboards among people you follow
+- Weekly/monthly challenges
+
+---
+
+### 6. Setup
+
+Onboarding and configuration to get users connected and engaged.
+
+#### Features
+
+**Account Login**
+- Sign in with Google (recommended, one-tap login)
+- Sign in with email/password
+- Create new account with email
+- Password reset via email
+- Session persistence (stay logged in)
+
+**Music Service Connection**
+- Connect Spotify account
+- OAuth flow for secure authentication
+- Display connection status prominently
+- Easy disconnect/reconnect flow
+
+**Gemini API Key (Required)**
+- User must provide their own Gemini API key (free to create)
+- Required for AI-powered features (playlist generation, recommendations)
+- Key stored securely on device
+- Validation check on entry
+- Link to Google AI Studio where users can create a free API key
+- Without key: AI features disabled, prompts to add key
+
+**Concert City**
+- Set home city for Ticketmaster concert discovery
+- City search with autocomplete
+- App searches concerts in your city and nearby cities within radius
+- Used to show concerts in Feed and Trending
+- Can be changed anytime in Settings
+
+**Setup Progress Indicator**
+- Visual progress bar showing setup completion
+- Checklist of setup steps (connect Spotify, add Gemini API key, add profile photo, follow users)
+- Call-to-action prompts until setup is complete
+- Red/orange indicators for incomplete critical steps (Spotify, Gemini API key)
+
+**Setup Steps**
+1. Create account (Google or email/password)
+2. Complete tutorial (ends with Spotify connection prompt)
+3. Connect Spotify
+4. Set Gemini API key (free to create at Google AI Studio)
+5. Set concert city for local events
+6. Set profile photo and display name
+7. Follow suggested users
+
+**Notifications**
+- Prompt notifications for incomplete setup
+- Badge on Profile tab until setup complete
+- Contextual reminders when trying to use features requiring setup
+
+**Tutorial (Swipeable Onboarding Cards)**
+
+Shows immediately after account creation. Can be replayed from Settings.
+
+| Card | Title | Content |
+|------|-------|---------|
+| 1 | Welcome to Vibes | Your social music experience. Discover, share, and connect through music. |
+| 2 | Share Music | Share songs with everyone you follow, or send directly to one person. Long-press any song for quick actions. |
+| 3 | Discover | Search Spotify's catalog, get personalized recommendations, and see what people you follow are listening to. |
+| 4 | Stay Current | Find concerts near you, see new releases, and never miss what's trending. |
+| 5 | Create Playlists | Use AI to generate playlists for any mood. Create blends with people you follow. |
+| 6 | Your Stats | See your top artists, songs, and genres. Track your listening over time. |
+| 7 | Connect Spotify | Link your Spotify account to unlock all features. [Connect Spotify button] |
+
+- Cards are swipeable left/right
+- Progress dots at bottom
+- Skip button available on cards 1-6
+- Card 7 has "Connect Spotify" button and "Skip for now" option
+
+---
+
+### 7. Stats
+
+View your listening statistics from Spotify.
+
+#### Features
+
+- Top artists
+- Top songs
+- Top genres
+- Time range toggle: all-time, past 6 months, past month
+- Data pulled directly from Spotify API
+
+---
+
+### 8. Profile Management
+
+User identity and account management.
+
+#### Features
+
+**Profile Display**
+- Profile photo
+- Display name
+- Username (@handle)
+- Bio/status
+- Following count
+- Achievement badges
+- Current streak
+
+**Edit Profile**
+- Update photo, name, bio
+- Change username (with availability check)
+- Privacy settings
+
+**Social Management**
+- View list of people you follow
+- Unfollow users
+- Block users
+
+**Settings**
+- Account settings (email, password, delete account)
+- Spotify connection
+- Gemini API key (free to create)
+- Concert city/location (searches nearby cities)
+- Replay Tutorial
+- About
+
+---
+
+## User Flows
+
+Detailed step-by-step flows for key features.
+
+### Share to All Flow
+
+When you share a song to all people you follow:
+
+```
+1. Long-press any song → Quick actions menu
+2. Tap "Share to All"
+3. (Optional) Add a message (max 280 characters)
+4. Tap "Share"
+5. Song appears in the Feed of everyone who follows you
+   - Shows as: "[Your name] shared a song"
+   - Includes your message if added
+   - They can tap to open Song Detail
+   - They can reply with their own song
+```
+
+### Send to One Flow
+
+When you send a song directly to one person:
+
+```
+1. Long-press any song → Quick actions menu
+2. Tap "Send to One"
+3. User Picker appears
+   - Shows people you follow
+   - Sorted by most frequent conversations
+   - Search bar to filter
+4. Select a person
+5. (Optional) Add a message
+6. Tap "Send"
+7. Song appears in their Feed with "From [your name]"
+8. They receive a push notification: "[Your name] sent you a song"
+```
+
+### Receiving Songs Flow
+
+When someone shares a song with you:
+
+```
+1. Push notification: "[Name] sent you a song" or "[Name] shared a song"
+2. Tap notification → Opens Song Detail directly
+   OR
+3. Open app → Song appears in Feed
+   - Card shows album art, song title, "from [username]"
+   - Unread indicator (dot) until viewed
+4. Tap card → Song Detail opens
+5. Listen to preview, view actions
+6. Optional: Tap "Reply with a song" to send one back
+```
+
+### Shazam Flow
+
+When identifying a song:
+
+```
+1. Tap Shazam button in Feed Quick Actions Bar
+2. Listening screen appears
+   - Animated sound wave visualization
+   - "Listening..." text
+   - Cancel button
+3. Song identified → Song Detail appears
+   - Shows song info with "Identified with Shazam" badge
+   - 30-second preview plays automatically
+   - All standard quick actions available
+4. If not identified:
+   - "Couldn't identify song" message
+   - "Try Again" button
+   - "Cancel" button
+```
+
+### AI Playlist Generation Flow
+
+When creating an AI-generated playlist:
+
+```
+1. Navigate to Explore → AI Playlist section
+   OR Profile → Create Playlist
+2. Input screen appears:
+   - Text prompt field: "Describe your playlist..."
+   - Example prompts shown:
+     - "Upbeat songs for a morning run"
+     - "Chill acoustic for studying"
+     - "90s throwbacks for a road trip"
+   - Optional: Mood sliders (energy, tempo, popularity)
+   - Optional: Set playlist length (10, 20, 50 songs)
+3. Tap "Generate"
+4. Loading screen: "Creating your playlist..."
+5. Playlist preview appears:
+   - Generated playlist name
+   - Track list with previews
+   - "Regenerate" button for new results
+   - "Edit" to remove specific tracks
+   - "Save to Spotify" button
+6. Saved playlist appears in your Spotify library
+```
+
+### User Discovery Flow
+
+How to find people to follow:
+
+```
+1. Profile tab → "Find Users" button
+   OR Feed empty state → "Find people to follow"
+2. Discovery screen appears with sections:
+
+   a. Search
+      - Search bar at top
+      - Search by username or display name
+      - Results show: photo, name, @username
+      - "Follow" button on each result
+
+   b. Suggested Users
+      - Based on mutual connections (people followed by people you follow)
+      - Based on similar music taste (shared top artists/genres)
+      - Each shows: photo, name, why suggested ("Followed by @user" or "Likes indie rock")
+
+   c. Contacts (optional)
+      - "Find contacts on Vibes" button
+      - Requests contacts permission
+      - Shows contacts who have Vibes accounts
+
+3. Tap "Follow" on any user
+4. They appear in your following list
+5. Their shared songs now appear in your Feed
+```
+
+### Create Blend Flow
+
+When creating a Blend with someone:
+
+```
+1. User Profile Detail → "Create Blend" button
+   OR Explore → Blends section → "New Blend"
+2. If from Explore, select a person you follow
+3. Loading screen: "Mixing your music tastes..."
+   - Shows both profile photos merging
+4. Blend preview appears:
+   - Blend name: "[Your name] + [Their name]"
+   - Blend cover (merged profile photos or album art collage)
+   - Track list (20-30 songs)
+   - Taste match percentage (e.g., "72% match")
+5. Actions:
+   - "Save to Spotify" - saves as collaborative playlist
+   - "Share with [name]" - sends them the blend
+   - "Refresh" - generate new songs
+6. Blend saved and shared
+```
+
+---
+
+# Navigation Model
 
 ## Overview
 
-### Product Name
-vibes
-
-### Version
-1.0 - November 2025
-
-### Author(s)
-Product Team
-
-## Executive Summary
-vibes is a social music sharing app that connects friends through music. Built on Spotify's platform, vibes makes it easy to discover, share, and organize music with your social circle. With AI-powered playlist recommendations, users can find the perfect songs that fit multiple moods and contexts, then instantly share them with friends.
-
-## Problem Statement
-Music lovers struggle to share their favorite discoveries with friends in a meaningful way. Existing platforms like Spotify have limited social features - sharing is often one-directional and lacks context. Additionally, finding songs that work across multiple playlists is time-consuming and manual. Users need a dedicated space to build music-based connections and get intelligent help organizing their music across different moods and occasions.
-
-## Goals & Objectives
-
-### Primary Goals
-- Create a social-first music sharing experience that strengthens connections between friends
-- Simplify music discovery and sharing through intuitive friend-to-friend song recommendations
-- Use AI to help users intelligently organize and discover music across multiple playlists
-- Build on top of Spotify's ecosystem to leverage existing music libraries and playback
-
-### Secondary Goals
-- Create a visually appealing and polished user interface that delights users
-- Design engaging animations and transitions that enhance the user experience
-- Implement modern iOS design patterns and visual aesthetics
-- **Note**: UI polish and visual appeal are important but should be prioritized after core functionality is complete and stable
-
-## Target Users
-
-### User Personas
-- **The Music Curator**: Ages 18-28, constantly discovering new music, maintains multiple themed playlists, loves sharing finds with friends, wants their recommendations to be heard and appreciated
-- **The Social Listener**: Ages 22-35, music is a way to connect with friends, values recommendations from trusted sources over algorithms, wants to know what friends are listening to
-- **The Playlist Perfectionist**: Ages 25-40, spends hours organizing music into playlists for different moods/activities, struggles to find songs that fit multiple contexts, needs help managing large music library
-
-## Requirements
-
-### Functional Requirements
-
-#### 1. Authentication & User Management
-- Users can create accounts with email/password
-- Users can sign in with Google (Google OAuth)
-- Users can choose a unique username during onboarding
-- Users can connect their Spotify account via OAuth
-- Users can manage profile settings (username, display name, profile picture)
-- Secure password reset and account recovery
-
-- **Customizable Profiles ("Spaces"):**
-  - Add favorite artists (top 5-10 with auto-sync from Spotify)
-  - Add favorite songs/albums
-  - Custom bio/about section (200 character limit)
-  - Profile background/theme customization
-  - Display favorite lyrics or song quotes
-  - Music taste tags (genres, moods, vibes)
-  - Auto-generated profile from listening history option
-  - Pinned songs/playlists
-  - Custom profile badges (achievements unlocked)
-
-- **Privacy Controls:**
-  - Public vs friends-only profile visibility
-  - Real-time listening privacy toggle (show/hide "Now Playing" status)
-  - When disabled, display as "Listening privately" to friends
-  - Control who can see listening statistics
-  - Control who can send friend requests (everyone, friends of friends, no one)
-  - Block users from sending messages/songs
-
-#### 2. Friend System
-- Users can search for friends by username
-- Users can send friend requests
-- Users can accept or decline friend requests
-- Users can view their friends list
-- Users can remove friends
-- Users can see friend activity/recently shared songs
-
-- **Music Taste Compatibility:**
-  - Calculate compatibility score between users (0-100%)
-  - Based on shared artists, genres, and listening patterns
-  - Display compatibility percentage on friend profiles
-  - "You both love [Artist Name]" insights
-  - Show top 5 shared artists between friends
-  - Compatibility badge levels (Low <30%, Medium 30-70%, High >70%)
-
-- **Friend Discovery & Suggestions:**
-  - Suggest friends with similar music taste
-  - "Users who listen to [Artist] you might like"
-  - Find friends based on genre preferences
-  - Mutual friend suggestions
-  - Import from contacts with music compatibility shown
-  - Leaderboard of most compatible friends
-
-#### 3. Messaging & Song Sharing
-- In-app messaging system for one-on-one conversations with friends
-- Users can send text messages to friends
-- Users can send songs within message threads
-- Users can search for songs using Spotify's catalog (search triggers on return/submit)
-- Search returns songs only (not artists or albums)
-- Users can play 30-second previews of songs directly in-app
-- Users can tap "Share" button on any song to open sharing options
-- Share sheet displays options similar to TikTok:
-  - **Send to Friends**: Shows list of friends to select (opens message thread)
-  - **Top Friends**: Quick access to frequently shared-with friends
-  - **Export to Messages**: Share via Apple Messages (iMessage/SMS)
-- Users can add captions/messages when sharing songs
-- Users can optionally rate songs they send (1-5 stars or similar rating system)
-- Users can view message history with each friend (text + songs)
-- Users can play shared songs as 30-second previews in-app
-- Users can open full songs in Spotify app via deep link
-- Users can save shared songs to their Spotify playlists
-- Message threads show both text messages and song shares chronologically
-
-- **Quick Reactions:**
-  - React to songs with emoji reactions (❤️, 🔥, 💀, 😍, 🎵)
-  - Custom vibes-branded stickers ("SLAY", "BANGER", "VIBE")
-  - Animated reactions (confetti, flames, hearts)
-  - Tap reaction to see who reacted
-  - Reactions visible in message thread
-  - Quick double-tap to react with default emoji (like Instagram)
-  - Low-friction alternative to text responses
-
-#### 4. AI Playlist Recommendations & Discovery
-- AI analyzes song characteristics (genre, mood, tempo, energy, etc.)
-- AI suggests which user playlists a song would fit into
-- AI can find songs that work across multiple specified playlists
-- AI can analyze an existing playlist and recommend new songs to add
-  - Analyzes the playlist's overall vibe, mood, and characteristics
-  - Suggests 5-10 songs that would fit well with the playlist
-  - Provides explanations for why each song matches the playlist
-  - Users can preview suggested songs before adding
-- AI discovers new song releases that match user's music taste
-  - Analyzes user's listening habits, playlists, and shared songs
-  - Notifies users of new releases that fit their style
-  - Shows these recommendations in the notifications section at the top of the Friends tab
-  - Users can listen, share, or add to playlists
-- Users can accept or reject AI suggestions
-- AI learns from user feedback to improve recommendations
-- AI provides explanations for why songs match certain playlists
-
-#### 5. Spotify Integration
-- Full integration with Spotify Web API
-- Access to user's Spotify playlists
-- Playback of 30-second song previews in-app using Spotify's preview URLs
-- Deep linking to Spotify app for full track playback
-- Sync with user's Spotify library
-- Add songs to Spotify playlists directly from vibes
-- AVPlayer used for in-app preview playback (no Spotify SDK required for v1.0)
-
-#### 6. Social Engagement & Vibestreaks
-- Each friendship has a "vibestreak" counter
-- Vibestreak increases when both users interact on the same day
-- Valid interactions include: sending songs, sending text messages, any communication in the thread
-- Streak increments by 1 for each consecutive day both users engage
-- Streak resets if either user fails to engage for a day
-- Users can view current streak count with each friend (displayed in message thread)
-- Visual indicators celebrate milestone streaks (7 days, 30 days, 100 days, etc.)
-- Push notifications remind users to maintain streaks with friends
-- Leaderboard or stats showing longest streaks
-
-#### 7. Statistics & Friendly Competition
-- **Personal Stats Dashboard:**
-  - Total listening time (daily, weekly, monthly, all-time)
-  - Top artists with listening time breakdown
-  - Top songs with play counts
-  - Top genres with percentage distribution
-  - Songs shared vs received counts
-  - Active vibestreaks count
-  - Music diversity score (variety of artists/genres)
-
-- **Friend Comparisons:**
-  - Compare listening time with friends (weekly/monthly)
-  - Compare top artists overlap ("You both love [Artist]")
-  - Music compatibility score (percentage match)
-  - Who sent more songs this week/month
-  - Friendly leaderboards for listening time
-  - Genre taste comparison charts
-
-- **Competition Features:**
-  - Weekly listening time leaderboard among friends
-  - Artist listening time challenges ("Who can listen to [Artist] more this week?")
-  - Most songs shared leaderboard
-  - Badges and achievements:
-    - "Night Owl" (most late-night listening)
-    - "Early Bird" (most morning listening)
-    - "Genre Explorer" (listened to 10+ genres)
-    - "Loyal Fan" (100+ hours with one artist)
-    - "Social Butterfly" (shared songs with 10+ friends)
-
-- **Weekly/Monthly Recaps:**
-  - Spotify Wrapped-style summaries
-  - Top 5 songs of the week/month
-  - Most listened artist
-  - Total listening time
-  - Top friend interactions
-  - Shareable graphics for social media
-  - Year-end "vibes Wrapped" feature
-
-### Non-Functional Requirements
-
-1. **Performance**:
-   - App launch time under 2 seconds
-   - Search results return within 1 second
-   - AI recommendations generate within 3 seconds
-   - Smooth scrolling at 60fps
-
-2. **Security**:
-   - All user data encrypted at rest and in transit
-   - Secure OAuth implementation for Spotify
-   - Password hashing with industry-standard algorithms (bcrypt/Argon2)
-   - Rate limiting on API endpoints to prevent abuse
-   - Secure token storage for authentication
-
-3. **Scalability**:
-   - Support for 100K users in initial launch
-   - Database architecture that can scale horizontally
-   - Efficient caching for Spotify API calls to stay within rate limits
-   - Asynchronous processing for AI recommendations
-
-4. **Accessibility**:
-   - VoiceOver support for iOS
-   - Dynamic type support
-   - Sufficient color contrast (WCAG AA standards)
-   - Haptic feedback for key interactions
-
-5. **Design & Aesthetics** (Secondary Priority):
-   - Modern, clean interface following iOS Human Interface Guidelines
-   - Smooth animations and transitions (120fps on ProMotion displays)
-   - Cohesive color scheme and visual identity
-   - Custom iconography and illustrations
-   - Delightful micro-interactions (streak celebrations, achievement unlocks)
-   - Glassmorphism or modern iOS design trends
-   - Dark mode support
-   - **Implementation Timeline**: Polish UI after core features are functional and tested
-
-### Out of Scope (v1.0)
-- **iOS Widgets** (home screen and lock screen widgets - moved to v2.0)
-- **Full music streaming/playback** (v1.0 uses 30-second previews only; full playback via Spotify app deep link)
-- **Spotify iOS SDK integration** (using preview URLs and AVPlayer instead for v1.0)
-- Group chats (only one-on-one messaging in v1.0)
-- Public profiles or social feed beyond friends
-- Creating custom playlists within vibes (users manage playlists in Spotify)
-- Support for music platforms other than Spotify
-- Desktop/web versions (iOS only for v1.0)
-- In-app purchases or monetization
-- Read receipts or typing indicators
-- Voice messages or video messages
-- Real-time search (search triggers on return/submit only)
-
-## User Experience
-
-### Key User Flows
-
-#### 1. Onboarding Flow
-- Download app → Create account → Choose username → Connect Spotify account → Find/add friends → Receive tutorial on sending first song
-
-#### 2. Sending a Song Flow
-- Type song query in search field → Press return/submit to trigger search → Results appear (songs only) → Tap song to play 30-second preview (optional) → Tap "Share" button → Share sheet appears with options:
-  - Select "Send to Friends" → Choose friend or "Top Friends" → Opens message thread → Song appears in thread with optional caption/rating → Send
-  - OR select "Export to Messages" → Opens iOS share sheet → Share via iMessage/SMS with Spotify link
-  - OR tap "Open in Spotify" → Deep link to Spotify app for full playback
-
-#### 3. Messaging Flow
-- Go to Friends tab → Tap friend from friends list → Opens message thread → View conversation history (text + songs) → Type text message OR tap + to search/send song → Message appears in thread → Vibestreak increments if both users engaged today
-
-#### 4. Notifications Flow
-- Open Friends tab → See notifications section at top showing recent messages, new song recommendations, friend requests, and milestones
-  - Tap message notification → Opens message thread with that friend
-  - Tap song recommendation → Preview song → Share with friends or add to playlist
-
-#### 5. AI Playlist Discovery Flow
-- Have a song in mind → Tap "Find Playlists" → AI analyzes song → Shows matching playlists with match scores → User selects playlists → Song added to selected playlists in Spotify
-
-#### 6. Cross-Playlist Discovery Flow
-- Select multiple playlists → Request AI to find songs that fit all selected playlists → Review AI suggestions with explanations → Add songs to playlists
-
-#### 7. AI Playlist Enhancement Flow
-- Select a playlist → Tap "Get Recommendations" → AI analyzes playlist characteristics → Shows 5-10 recommended songs with explanations → Preview songs → Select songs to add → Songs added to playlist in Spotify
-
-#### 8. Friend Discovery Flow
-- Tap "Add Friends" → Search by username or sync contacts → Send friend requests → Wait for acceptance → Start sharing music
-
-#### 9. Vibestreak Maintenance Flow
-- Receive notification "Keep your streak alive with [Friend Name]" → Open app → Send song or message to maintain streak → View updated streak count with celebration animation → Share milestone achievements
-
-#### 10. Stats & Competition Flow
-- Open Stats tab → View personal listening stats → Tap "Compare with Friends" → Select friend → See side-by-side comparison → View leaderboards → Share weekly recap to social media
-
-#### 11. Profile Customization Flow
-- Open Profile tab → Tap "Edit Space" → Add favorite artists (auto-sync or manual) → Add bio and lyrics → Choose background theme → Add music taste tags → Save → Profile updates for friends to see
-
-### Wireframes/Mockups
-- Tab-based navigation with 4 main tabs: Search, Friends, Stats, Profile
-
-- **Search tab**:
-  - Song search with Spotify catalog (search triggers on return/submit)
-  - Search returns songs only (not artists or albums)
-  - Tap song to play 30-second preview in-app
-  - Each song shows: album art, title, artist, duration
-  - Share button opens TikTok-style share sheet
-  - "Open in Spotify" button for full track playback
-  - Recently searched songs displayed below search field
-
-- **Friends tab**:
-  - **Notifications section at top**:
-    - Recent messages from friends
-    - New song releases that might fit your style (AI-powered)
-    - Friend requests and vibestreak milestones
-    - Achievement unlocks
-  - Friend list with vibestreak counts and profile pictures
-  - Real-time "Now Playing" section showing what friends are listening to
-  - Tapping a friend opens message thread with text + songs
-  - Quick add friend button
-
-- **Stats tab**:
-  - Personal listening statistics
-  - Friend comparison leaderboards
-  - Weekly/monthly recaps
-  - Badges and achievements display
-  - Shareable graphics
-  - Competition challenges
-
-- **Profile tab**:
-  - User's customizable "Space" (profile)
-  - Favorite artists, songs, albums
-  - Custom bio and lyrics
-  - Settings and account management
-  - Privacy settings
-
-## Technical Considerations
-
-### Dependencies
-- **Spotify Web API**: Core dependency for music catalog, authentication, playlist access, listening history, currently playing, 30-second preview URLs
-- **AVPlayer/AVFoundation**: For in-app 30-second preview playback (no Spotify iOS SDK required)
-- **Backend/Database**: Firebase, Supabase, or custom backend for user data, friendships, song shares, stats, achievements
-- **AI/ML Service**: OpenAI API, custom model, or music intelligence API (e.g., Spotify's own audio features)
-- **Authentication**: OAuth 2.0 for Spotify and Google sign-in, Firebase Auth or similar for user accounts
-- **Push Notifications**: APNs for iOS notifications when friends send songs, vibestreak reminders, achievements
-- **Networking**: URLSession or Alamofire for API calls
-- **SwiftUI**: For main app UI
-- **CloudKit/Firebase**: For real-time sync of listening activity across devices
-- **Image Processing**: For generating shareable recap graphics
-
-### Constraints
-- **Spotify API Rate Limits**: Must implement caching and efficient API usage
-- **Spotify Terms of Service**: Cannot download or store audio files, must comply with usage restrictions
-- **iOS Platform**: Requires iOS development expertise (Swift/SwiftUI)
-- **AI Costs**: Token costs for AI API calls may require optimization
-- **Music Availability**: Song availability varies by region in Spotify's catalog
-
-### Technical Approach
-
-#### Architecture
-- **iOS App**: Native SwiftUI application
-- **Backend**: RESTful API or GraphQL for user management, friendships, sharing
-- **Database**: Relational database (PostgreSQL) or NoSQL (Firestore) for user data, relationships, share history
-- **Caching Layer**: Redis or in-memory cache for Spotify API responses
-
-#### Spotify Integration
-- OAuth 2.0 flow for user authorization
-- Store access tokens securely in iOS Keychain
-- Implement token refresh logic
-- Use Spotify Web API endpoints for:
-  - Search (`/search?type=track`) - songs only
-  - Track details (`/tracks/{id}`) - get 30-second preview URLs
-  - User playlists (`/me/playlists`)
-  - Audio features (`/audio-features/{id}`)
-  - Add to playlist (`/playlists/{id}/tracks`)
-  - New releases (`/browse/new-releases`)
-  - Recently played (`/me/player/recently-played`)
-  - Currently playing (`/me/player/currently-playing`)
-  - Top artists and tracks (`/me/top/artists`, `/me/top/tracks`)
-  - User listening history for statistics
-- Song Playback:
-  - Extract `preview_url` from track objects (30-second MP3 URLs)
-  - Use AVPlayer to stream preview URLs in-app
-  - Handle cases where `preview_url` is null (not all tracks have previews)
-  - Deep link format: `spotify:track:{id}` for opening in Spotify app
-
-#### AI Implementation
-- Fetch song audio features from Spotify (danceability, energy, valence, tempo, etc.)
-- Analyze user's playlist characteristics to build playlist "profiles"
-- Use similarity algorithms or LLM with embeddings to match songs to playlists
-- For playlist enhancement:
-  - Analyze all songs in a playlist to determine overall characteristics
-  - Search Spotify catalog for songs with similar audio features
-  - Rank and filter recommendations based on fit score
-  - Generate 5-10 top recommendations with explanations
-- For new release discovery:
-  - Build user taste profile from their playlists, listening history, and shared songs
-  - Monitor Spotify's new releases API for recent additions
-  - Match new releases against user taste profile
-  - Push notifications to Notifications tab when good matches are found
-  - Include explanation for why the release fits their taste
-- Provide reasoning for matches (e.g., "High energy and upbeat, matches your Workout playlist")
-- Store AI feedback to improve future recommendations
-
-#### Data Models
-- **User**: id, username, email, spotifyId, profilePicture, bio, favoriteArtists (array), favoriteSongs (array), musicTasteTags (array), profileTheme, customLyrics, privacySettings, createdAt
-- **Friendship**: userId, friendId, status (pending/accepted), vibestreak (integer), lastInteractionDate, compatibilityScore (percentage), createdAt
-- **Message**: id, senderId, recipientId, messageType (text/song), content (text or spotifyTrackId), caption, rating (1-5, optional for songs), timestamp, read
-- **MessageThread**: id, userId1, userId2, lastMessageTimestamp, unreadCount
-- **Notification**: id, userId, notificationType (message/songRecommendation/friendRequest/vibestreakMilestone/achievement), relatedId (messageId/trackId/friendshipId), content, timestamp, read
-- **PlaylistProfile**: userId, spotifyPlaylistId, characteristics (JSON), updatedAt
-- **Interaction**: id, friendshipId, userId, interactionType (song/message), timestamp (for streak tracking)
-- **ListeningStats**: userId, date, totalListeningTime, topArtists (JSON), topSongs (JSON), topGenres (JSON), songsSent, songsReceived
-- **Achievement**: id, userId, achievementType (nightOwl/earlyBird/genreExplorer/loyalFan/socialButterfly), unlockedAt, progress
-- **Competition**: id, competitionType (weeklyListening/artistChallenge), participants (array of userIds), startDate, endDate, leaderboard (JSON)
-- **WeeklyRecap**: id, userId, weekStart, topSongs (array), topArtist, totalListeningTime, topFriendInteractions, shareableGraphic (URL)
-
-## Launch Plan
-
-### Milestones
-- **Phase 1: MVP Development** - Core features (auth, friends, basic sharing)
-- **Phase 2: Spotify Integration** - Full Spotify API integration and testing
-- **Phase 3: AI Features** - Implement AI playlist recommendations
-- **Phase 4: Beta Testing** - Invite-only beta with 100-500 users
-- **Phase 5: Public Launch** - App Store release
-
-### Rollout Strategy
-- Closed beta with friends and family (50 users)
-- Expanded beta with music enthusiasts (500 users)
-- Collect feedback and iterate
-- Soft launch to App Store
-- Marketing push to music communities (Reddit, Twitter, TikTok)
-- Consider partnerships with music influencers
-
-## Open Questions
-- [ ] Should we support Apple Music in addition to Spotify in future versions?
-- [ ] How do we handle songs without preview URLs (display message, disable play button)?
-- [ ] What AI model/service provides best balance of cost and quality for playlist matching?
-- [ ] Should friend requests be mutual or can users follow without acceptance?
-- [ ] Do we need content moderation for messages sent with songs?
-- [ ] Should there be daily/weekly limits on songs sent to prevent spam?
-- [ ] How do we handle users in different Spotify regions (catalog differences)?
-- [ ] Should we build our own music recommendation algorithm or use existing services?
-- [ ] Should we cache preview URLs or fetch them fresh each time?
-
-## Future Enhancements (v2.0+)
-
-### Planned Features for Future Releases
-
-#### iOS Widgets (High Priority for v2.0)
-- **Vibestreak Widget:**
-  - Shows active vibestreaks with top friends
-  - Compact, medium, and large sizes
-  - Tap to open message thread with friend
-  - Visual streak flame indicators
-
-- **Now Playing Widget:**
-  - Display what friends are currently listening to
-  - Scrollable list of active listeners
-  - Tap friend to see full song details
-  - Quick share button
-
-- **Stats Widget:**
-  - Weekly listening time
-  - Top artist of the week
-  - Songs shared count
-  - Compact size for lock screen
-
-- **Quick Share Widget:**
-  - Recently played songs
-  - One-tap share to top friends
-  - Quick access to search
-
-- **Lock Screen Widgets (iOS 16+):**
-  - Circular vibestreak counter
-  - Rectangular friend activity
-  - Inline stats display
-  - Customizable colors/styles
-
-#### Other Future Features
-- Group chats and group listening sessions
-- Apple Music support
-- Desktop/web versions
-- Advanced AI features (mood-based recommendations, AI DJ)
-- In-app purchases and premium features
-- Voice/video messages
-- Read receipts and typing indicators
-- Story/Status feature (24-hour song stories)
-- Song challenges and weekly themes
-
-## Appendix
-
-### References
-- [Spotify Web API Documentation](https://developer.spotify.com/documentation/web-api)
-- [Spotify Audio Features](https://developer.spotify.com/documentation/web-api/reference/get-audio-features)
-- [OAuth 2.0 Authorization Guide](https://developer.spotify.com/documentation/general/guides/authorization/)
-- [Apple Human Interface Guidelines](https://developer.apple.com/design/human-interface-guidelines/)
-
-### Changelog
-| Date | Version | Changes | Author |
-|------|---------|---------|--------|
-| Nov 2025 | 1.0 | Initial draft with core features defined | Product Team |
-| Nov 2025 | 1.1 | Updated playback approach to use 30-second previews with AVPlayer; search triggers on return/submit only; search limited to songs only | Product Team |
+Vibes uses a simple 3-tab navigation focused on music sharing with people you follow.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                         App                             │
+├─────────────┬─────────────────────┬─────────────────────┤
+│    Feed     │       Explore       │       Profile       │
+│   (Tab 0)   │       (Tab 1)       │       (Tab 2)       │
+└─────────────┴─────────────────────┴─────────────────────┘
+```
+
+## Tab Structure
+
+### Feed (Tab 0)
+A unified scrollable feed mixing all content types. Tap any card to expand to full screen with details.
+
+```
+Feed
+├── Header ("Feed" + date)
+├── Quick Actions Bar (sticky)
+│   ├── Send Song
+│   ├── Shazam
+│   └── Search
+└── Mixed Content Stream (scrollable)
+    └── Cards sorted by relevance/recency
+```
+
+#### Feed Item Types
+
+All items appear as tappable cards in a single scrollable stream:
+
+| Type | Card Preview | Full Screen Detail |
+|------|--------------|-------------------|
+| **Song Share** | Album art, title, artist, "from [username]", play button | Full player, lyrics, add to library, reply, artist info |
+| **Concert** | Artist image, venue, date, price range | Full event details, lineup, venue map, buy tickets |
+| **New Follow** | Avatar, "You started following [Name]" | User profile, their recent shares, shared interests |
+| **New Release** | Album art, artist, "New album from [artist]" | Full album view, tracklist, play samples |
+| **AI Recommendation** | Album art, "Based on your taste...", reason | Why we picked it, similar tracks, add to library |
+
+#### Card Design
+
+```
+┌─────────────────────────────────────┐
+│ ┌──────┐                            │
+│ │      │  Title                     │
+│ │ Art  │  Subtitle                  │
+│ │      │  Context (from X, 2h ago)  │
+│ └──────┘                     [▶]    │
+└─────────────────────────────────────┘
+         ↓ tap anywhere
+┌─────────────────────────────────────┐
+│                                     │
+│         FULL SCREEN DETAIL          │
+│                                     │
+│  • Large artwork/image              │
+│  • Full info                        │
+│  • Action buttons                   │
+│  • Related content                  │
+│                                     │
+│              [X] Close              │
+└─────────────────────────────────────┘
+```
+
+#### Content Sorting
+
+Feed items are sorted by a weighted score:
+1. **Recency** - newer items ranked higher
+2. **Relevance** - items from frequently interacted users rank higher
+3. **Engagement** - unread/unplayed items prioritized
+4. **Variety** - don't show 5 concert cards in a row
+
+**Empty State**: "No activity yet - follow users and share songs!"
+
+### Explore (Tab 1)
+Discover new music through search and recommendations.
+
+```
+Explore
+├── Search Bar (Spotify API)
+│   └── Search tracks, artists, albums, playlists via Spotify
+├── For You
+│   └── Personalized recommendations from Spotify
+├── Grow Your Playlist
+│   ├── Playlist Selector (dropdown of user's playlists)
+│   └── Recommended Tracks (based on selected playlist)
+│       └── Track rows with Add button
+└── (Search Results when searching)
+    └── Tracks, artists, albums, playlists from Spotify
+```
+
+**Requires**: Spotify connection for recommendations
+
+#### Grow Your Playlist
+
+AI-powered feature that recommends tracks based on an existing playlist's content.
+
+```
+┌─────────────────────────────────────┐
+│ Grow Your Playlist                  │
+│ Based on what's in this playlist    │
+├─────────────────────────────────────┤
+│ ▼ Select a playlist...              │
+│   ┌───────────────────────────────┐ │
+│   │ My Playlist 1                 │ │
+│   │ Workout Mix                   │ │
+│   │ Chill Vibes                   │ │
+│   └───────────────────────────────┘ │
+└─────────────────────────────────────┘
+         ↓ after selection
+┌─────────────────────────────────────┐
+│ Grow Your Playlist                  │
+│ Based on "Workout Mix"              │
+├─────────────────────────────────────┤
+│ ┌──────┐                            │
+│ │ Art  │ Song Title           [Add] │
+│ └──────┘ Artist • Album             │
+│ ─────────────────────────────────── │
+│ ┌──────┐                            │
+│ │ Art  │ Song Title           [Add] │
+│ └──────┘ Artist • Album             │
+│ ─────────────────────────────────── │
+│           ...more tracks...         │
+└─────────────────────────────────────┘
+```
+
+**UI Components**:
+| Component | Description |
+|-----------|-------------|
+| Header | "Grow Your Playlist" title with subtitle "Based on what's in this playlist" |
+| Playlist Dropdown | User's playlists, sorted by recently modified |
+| Track Row | Album art (50x50), song title (bold), artist • album, Add button |
+| Add Button | Green button, adds track to selected playlist |
+| Success Toast | "Added to [playlist name]" confirmation |
+
+**Behavior**:
+1. User taps playlist dropdown to select a playlist
+2. App fetches recommendations based on playlist's tracks using Spotify API
+3. Shows 10-20 recommended tracks not already in the playlist
+4. Tapping "Add" adds track to playlist and removes it from recommendations
+5. Can refresh recommendations with pull-to-refresh
+
+**Data Source**: Spotify Recommendations API (seed_tracks from playlist)
+
+### Profile (Tab 2)
+User identity and app settings.
+
+```
+Profile
+├── Header
+│   ├── Profile photo
+│   ├── Display name
+│   ├── @username
+│   └── Edit Profile button
+├── Setup Card (if Spotify not connected)
+│   └── "Connect Spotify" CTA
+├── Following
+│   ├── Following count
+│   └── Find users button
+└── Settings (gear icon in nav bar)
+    ├── Account (sign out, delete)
+    ├── Spotify connection
+    ├── Gemini API key (free)
+    ├── Concert city (searches nearby cities)
+    ├── Replay Tutorial
+    └── About
+```
+
+## Core User Flow
+
+```
+1. Connect Spotify (Profile → Settings)
+        ↓
+2. Follow Users (Profile → Find Users)
+        ↓
+3. Browse Feed (scroll mixed content)
+        ↓
+4. Tap to Expand (full screen detail)
+        ↓
+5. Take Action (play, save, reply, buy tickets)
+        ↓
+6. Share Song (Feed → Send Song)
+```
+
+## Navigation Destinations
+
+From any tab, users can navigate to:
+
+| Destination | From | Trigger |
+|-------------|------|---------|
+| Song Detail (full screen) | Feed | Tap song share card |
+| Concert Detail (full screen) | Feed | Tap concert card |
+| User Profile (full screen) | Feed | Tap new follow card |
+| Album Detail (full screen) | Feed, Explore | Tap album/new release card |
+| Artist Detail | Explore | Tap artist |
+| Playlist Detail | Explore | Tap playlist |
+| Settings | Profile | Gear icon |
+| Edit Profile | Profile | Edit button |
+| User Picker | Feed | Send Song action |
+| Concert Settings | Settings | Concerts row |
+
+### Full Screen Detail Views
+
+Full screen views present as sheets that cover the entire screen. They include:
+- Large visual header (artwork/image)
+- Detailed content
+- Primary action button(s)
+- Close button (X) in top corner
+- Swipe down to dismiss
+
+#### Artist Detail
+
+When tapping on an artist anywhere in the app:
+- Artist image header
+- Artist name
+- Top songs (most popular tracks)
+- Albums (sorted by release date, newest first)
+- Singles (sorted by release date, newest first)
+- Long-press any song for quick actions
+
+#### Album Detail
+
+When tapping on an album anywhere in the app:
+- Album artwork header (large)
+- Album name
+- Artist name (tappable → Artist Detail)
+- Release year
+- Track count and total duration
+- Track list with track numbers
+  - Each track shows: number, title, duration, explicit badge if applicable
+  - Tap track to play preview
+  - Long-press track for quick actions
+- "Play on Spotify" button (opens Spotify app)
+- "Add to Library" button
+
+#### Playlist Detail
+
+When tapping on a playlist anywhere in the app:
+- Playlist cover image header
+- Playlist name
+- Creator name (if not user's own playlist)
+- Track count and total duration
+- Description (if available)
+- Track list
+  - Each track shows: album art thumbnail, title, artist, duration
+  - Tap track to play preview
+  - Long-press track for quick actions
+- "Play on Spotify" button
+- "Add to Library" button (for playlists you don't own)
+
+#### Concert Detail
+
+When tapping on a concert anywhere in the app:
+- Artist image header
+- Artist name (tappable → Artist Detail)
+- Event date and time
+- Venue name
+- Venue address (tappable → opens Maps)
+- Price range (e.g., "$45 - $120")
+- Ticket availability status (Available, Limited, Sold Out)
+- "Buy Tickets" button (opens Ticketmaster)
+- "Add to Calendar" button
+- Additional performers/openers (if any)
+- Venue info section:
+  - Venue photo (if available)
+  - Capacity
+  - Venue type (arena, club, theater, etc.)
+
+#### Song Detail
+
+When tapping on a shared song in the Feed:
+- Album artwork header (large)
+- Song title
+- Artist name (tappable → Artist Detail)
+- Album name (tappable → Album Detail)
+- "From [username]" with timestamp (if shared by someone)
+- Message from sender (if included)
+- 30-second preview player
+  - Play/pause button
+  - Progress bar
+  - If no preview: "Open in Spotify" button
+- Quick action buttons:
+  - Add to Library
+  - Add to Playlist
+  - Share / Send to One
+  - Open in Spotify
+- "Reply with a song" button (opens song picker to send back)
+
+#### User Profile Detail
+
+When tapping on a user anywhere in the app:
+- Profile photo header
+- Display name
+- @username
+- Bio (if set)
+- Following count
+- Follow/Unfollow button
+- Their recent shares (songs they've shared to all)
+- "Create Blend" button (generates playlist for both of you)
+
+## Data Sources
+
+| Content | Source | Update Frequency |
+|---------|--------|------------------|
+| Shared songs | Firestore (messageThreads) | Real-time |
+| Concerts | Ticketmaster API | On refresh |
+| AI Recommendations | Gemini API + Spotify API | On refresh |
+| AI Playlists | Gemini API | On generation |
+| Playlist Recommendations | Spotify API (seed_tracks) | On playlist select |
+| New Releases | Spotify API (new-releases) | Daily |
+| Search results | Spotify API | On search |
+| Following activity | Firestore (following) | Real-time |
+| Following list | Firestore (following) | Real-time |
+| User profile | Firestore (users) | Real-time |
+| User playlists | Spotify API | On refresh |
+
+## Authentication States
+
+```
+Not Logged In
+└── AuthView (Google sign-in or email/password)
+        ↓
+    Tutorial (swipeable cards, ends with Spotify prompt)
+
+Logged In, No Spotify
+└── All tabs accessible
+└── Explore shows "Connect Spotify" prompt
+└── Profile shows Setup Card
+
+Logged In, Spotify Connected
+└── Full functionality
+```
+
+## Settings Structure
+
+```
+Settings
+├── Account
+│   ├── Sign Out
+│   └── Delete Account
+├── Music Service
+│   ├── Spotify status
+│   └── Connect/Manage button
+├── Gemini API (free)
+│   ├── API key status
+│   └── Add/Update key button (links to Google AI Studio)
+├── Concerts
+│   ├── City setting (searches nearby cities)
+│   └── Change City button
+├── Support
+│   └── Replay Tutorial
+└── About
+    └── Version number
+```

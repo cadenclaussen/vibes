@@ -97,9 +97,10 @@ struct Album: Codable, Identifiable, Hashable {
     let releaseDate: String
     let totalTracks: Int
     let uri: String
+    let artists: [Artist]
 
     enum CodingKeys: String, CodingKey {
-        case id, name, images, uri
+        case id, name, images, uri, artists
         case releaseDate = "release_date"
         case totalTracks = "total_tracks"
     }

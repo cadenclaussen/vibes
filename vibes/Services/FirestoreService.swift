@@ -75,7 +75,10 @@ class FirestoreService {
 
     func sendMessage(_ message: Message) async throws {
         let messageData = try Firestore.Encoder().encode(message)
-        try await db.collection("messages").addDocument(data: messageData)
+        try await db.collection("messageThreads")
+            .document(message.threadId)
+            .collection("messages")
+            .addDocument(data: messageData)
 
         try await updateThread(threadId: message.threadId, message: message)
 
@@ -107,15 +110,15 @@ class FirestoreService {
     }
 
     func listenToMessages(threadId: String, completion: @escaping ([Message]) -> Void) -> ListenerRegistration {
-        print("🎧 Setting up listener for thread: \(threadId)")
-        let listener = db.collection("messages")
-            .whereField("threadId", isEqualTo: threadId)
+        print("Setting up listener for thread: \(threadId)")
+        let listener = db.collection("messageThreads")
+            .document(threadId)
+            .collection("messages")
             .order(by: "timestamp", descending: false)
             .addSnapshotListener { snapshot, error in
-                print("🔔 LISTENER CALLBACK FIRED for thread: \(threadId)")
 
                 if let error = error {
-                    print("❌ Firestore listener error: \(error)")
+                    print("Firestore listener error: \(error)")
                     DispatchQueue.main.async {
                         completion([])
                     }
@@ -123,38 +126,28 @@ class FirestoreService {
                 }
 
                 guard let documents = snapshot?.documents else {
-                    print("⚠️ No documents in snapshot")
                     DispatchQueue.main.async {
                         completion([])
                     }
                     return
                 }
 
-                print("📦 Firestore snapshot received: \(documents.count) documents")
                 let messages = documents.compactMap { doc -> Message? in
-                    do {
-                        let message = try doc.data(as: Message.self)
-                        print("✅ Decoded message: id=\(message.id ?? "nil"), text=\(message.textContent ?? "no-text")")
-                        return message
-                    } catch {
-                        print("❌ Failed to decode message: \(error)")
-                        return nil
-                    }
+                    try? doc.data(as: Message.self)
                 }
 
-                print("📨 Dispatching \(messages.count) messages to main thread")
                 DispatchQueue.main.async {
                     completion(messages)
                 }
             }
 
-        print("✅ Listener registered for thread: \(threadId)")
         return listener
     }
 
     func markMessagesAsRead(threadId: String, userId: String) async throws {
-        let messages = try await db.collection("messages")
-            .whereField("threadId", isEqualTo: threadId)
+        let messages = try await db.collection("messageThreads")
+            .document(threadId)
+            .collection("messages")
             .whereField("recipientId", isEqualTo: userId)
             .whereField("read", isEqualTo: false)
             .getDocuments()
@@ -169,9 +162,11 @@ class FirestoreService {
     // MARK: - Reactions
 
     func addReaction(messageId: String, threadId: String, userId: String, reaction: String) async throws {
-        try await db.collection("messages").document(messageId).updateData([
-            "reactions.\(userId)": reaction
-        ])
+        try await db.collection("messageThreads")
+            .document(threadId)
+            .collection("messages")
+            .document(messageId)
+            .updateData(["reactions.\(userId)": reaction])
     }
 
     func addGroupReaction(groupId: String, messageId: String, userId: String, emoji: String) async throws {

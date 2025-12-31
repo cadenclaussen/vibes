@@ -402,7 +402,8 @@ struct TrendingSongRow: View {
             images: song.albumArtUrl.map { [SpotifyImage(url: $0, height: nil, width: nil)] } ?? [],
             releaseDate: "",
             totalTracks: 0,
-            uri: ""
+            uri: "",
+            artists: [Artist(id: "", name: song.songArtist, uri: "", externalUrls: nil, images: nil, genres: nil, followers: nil, popularity: nil)]
         )
         return Track(
             id: song.spotifyTrackId,

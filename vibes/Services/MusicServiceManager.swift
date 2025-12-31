@@ -1,3 +1,10 @@
+//
+//  MusicServiceManager.swift
+//  vibes
+//
+//  Spotify-only music service manager.
+//
+
 import Foundation
 import Combine
 import SwiftUI
@@ -6,260 +13,85 @@ import SwiftUI
 class MusicServiceManager: ObservableObject {
     static let shared = MusicServiceManager()
 
-    @Published private(set) var activeServiceType: MusicServiceType?
     @Published var isAuthenticated: Bool = false
     @Published var userProfile: UnifiedUserProfile?
 
-    private var _spotifyAdapter: SpotifyServiceAdapter?
-    private var _appleMusicService: AppleMusicService?
-
-    private var spotifyAdapter: SpotifyServiceAdapter {
-        if _spotifyAdapter == nil {
-            _spotifyAdapter = SpotifyServiceAdapter.shared
-        }
-        return _spotifyAdapter!
-    }
-
-    private var appleMusicService: AppleMusicService {
-        if _appleMusicService == nil {
-            _appleMusicService = AppleMusicService.shared
-        }
-        return _appleMusicService!
-    }
-
-    private let userDefaults = UserDefaults.standard
-    private let selectedServiceKey = "selectedMusicService"
-
+    private let spotifyAdapter = SpotifyServiceAdapter.shared
     private var cancellables = Set<AnyCancellable>()
 
     private init() {
-        loadSelectedService()
+        setupObservers()
+        updateAuthenticationStatus()
     }
 
     // MARK: - Current Service Access
 
     var currentService: any MusicStreamingService {
-        switch activeServiceType {
-        case .spotify:
-            return spotifyAdapter
-        case .appleMusic:
-            return appleMusicService
-        case .none:
-            return spotifyAdapter
-        }
+        return spotifyAdapter
     }
 
     var capabilities: MusicServiceCapabilities {
-        switch activeServiceType {
-        case .spotify:
-            return .spotify
-        case .appleMusic:
-            return .appleMusic
-        case .none:
-            return .spotify
-        }
-    }
-
-    // MARK: - Service Selection
-
-    func selectService(_ type: MusicServiceType) {
-        userDefaults.set(type.rawValue, forKey: selectedServiceKey)
-        activeServiceType = type
-
-        switch type {
-        case .spotify:
-            setupSpotifyObserversIfNeeded()
-        case .appleMusic:
-            setupAppleMusicObserversIfNeeded()
-        }
-
-        updateAuthenticationStatus()
-        updateUserProfile()
-    }
-
-    func clearServiceSelection() {
-        userDefaults.removeObject(forKey: selectedServiceKey)
-        activeServiceType = nil
-        isAuthenticated = false
-        userProfile = nil
-    }
-
-    private func loadSelectedService() {
-        if let savedType = userDefaults.string(forKey: selectedServiceKey),
-           let type = MusicServiceType(rawValue: savedType) {
-            activeServiceType = type
-
-            switch type {
-            case .spotify:
-                setupSpotifyObserversIfNeeded()
-            case .appleMusic:
-                setupAppleMusicObserversIfNeeded()
-            }
-
-            updateAuthenticationStatus()
-            updateUserProfile()
-        } else if SpotifyService.shared.isAuthenticated {
-            activeServiceType = .spotify
-            userDefaults.set(MusicServiceType.spotify.rawValue, forKey: selectedServiceKey)
-            setupSpotifyObserversIfNeeded()
-            updateAuthenticationStatus()
-            updateUserProfile()
-        }
+        return .spotify
     }
 
     // MARK: - Authentication
 
     func authenticate() async throws {
-        guard let serviceType = activeServiceType else {
-            throw MusicServiceError.notAuthenticated
-        }
-
-        switch serviceType {
-        case .spotify:
-            try await spotifyAdapter.authenticate()
-        case .appleMusic:
-            try await appleMusicService.authenticate()
-        }
-
+        try await spotifyAdapter.authenticate()
         updateAuthenticationStatus()
         updateUserProfile()
     }
 
     func signOut() {
-        switch activeServiceType {
-        case .spotify:
-            spotifyAdapter.signOut()
-        case .appleMusic:
-            appleMusicService.signOut()
-        case .none:
-            break
-        }
-
+        spotifyAdapter.signOut()
         isAuthenticated = false
         userProfile = nil
     }
 
     func checkAuthenticationStatus() {
-        switch activeServiceType {
-        case .spotify:
-            spotifyAdapter.checkAuthenticationStatus()
-        case .appleMusic:
-            appleMusicService.checkAuthenticationStatus()
-        case .none:
-            break
-        }
-
+        spotifyAdapter.checkAuthenticationStatus()
         updateAuthenticationStatus()
         updateUserProfile()
     }
 
     private func updateAuthenticationStatus() {
-        switch activeServiceType {
-        case .spotify:
-            isAuthenticated = spotifyAdapter.isAuthenticated
-        case .appleMusic:
-            isAuthenticated = appleMusicService.isAuthenticated
-        case .none:
-            isAuthenticated = false
-        }
+        isAuthenticated = spotifyAdapter.isAuthenticated
     }
 
     private func updateUserProfile() {
-        switch activeServiceType {
-        case .spotify:
-            userProfile = spotifyAdapter.userProfile
-        case .appleMusic:
-            userProfile = appleMusicService.userProfile
-        case .none:
-            userProfile = nil
-        }
+        userProfile = spotifyAdapter.userProfile
     }
 
     // MARK: - Observers
 
-    private var hasSetupSpotifyObservers = false
-    private var hasSetupAppleMusicObservers = false
-
-    private func setupSpotifyObserversIfNeeded() {
-        guard !hasSetupSpotifyObservers else { return }
-        hasSetupSpotifyObservers = true
-
+    private func setupObservers() {
         spotifyAdapter.$isAuthenticated
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                if self?.activeServiceType == .spotify {
-                    self?.updateAuthenticationStatus()
-                }
+                self?.updateAuthenticationStatus()
             }
             .store(in: &cancellables)
 
         spotifyAdapter.$userProfile
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                if self?.activeServiceType == .spotify {
-                    self?.updateUserProfile()
-                }
+                self?.updateUserProfile()
             }
             .store(in: &cancellables)
     }
 
-    private func setupAppleMusicObserversIfNeeded() {
-        guard !hasSetupAppleMusicObservers else { return }
-        hasSetupAppleMusicObservers = true
+    // MARK: - Convenience
 
-        appleMusicService.$isAuthenticated
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                if self?.activeServiceType == .appleMusic {
-                    self?.updateAuthenticationStatus()
-                }
-            }
-            .store(in: &cancellables)
+    var serviceName: String { "Spotify" }
+    var serviceColor: Color { .green }
+    var serviceIcon: String { "music.note" }
 
-        appleMusicService.$userProfile
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                if self?.activeServiceType == .appleMusic {
-                    self?.updateUserProfile()
-                }
-            }
-            .store(in: &cancellables)
-    }
-
-    // MARK: - Convenience Methods
-
-    var hasSelectedService: Bool {
-        activeServiceType != nil
-    }
-
-    var canShowNowPlaying: Bool {
-        activeServiceType == .spotify && isAuthenticated
-    }
-
-    var requiresSubscription: Bool {
-        activeServiceType == .appleMusic
-    }
-
-    var serviceName: String {
-        activeServiceType?.displayName ?? "Music Service"
-    }
-
-    var serviceColor: Color {
-        activeServiceType?.brandColor ?? .gray
-    }
-
-    var serviceIcon: String {
-        activeServiceType?.iconName ?? "music.note"
-    }
-
-    // MARK: - OAuth Callback Handling (Spotify)
+    // MARK: - OAuth Callback
 
     func handleSpotifyCallback(url: URL) async throws {
         try await spotifyAdapter.handleAuthorizationCallback(url: url)
-        if activeServiceType == .spotify {
-            updateAuthenticationStatus()
-            updateUserProfile()
-        }
+        updateAuthenticationStatus()
+        updateUserProfile()
     }
 
     func getSpotifyAuthorizationURL() -> URL? {

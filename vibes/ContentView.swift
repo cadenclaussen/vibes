@@ -39,37 +39,27 @@ struct MainTabView: View {
     private var mainContent: some View {
         @Bindable var router = router
 
-        return ZStack {
-            TabView(selection: $router.selectedTab) {
-                HomeView()
-                    .tabItem {
-                        Label(Tab.home.title, systemImage: Tab.home.icon)
-                    }
-                    .tag(Tab.home)
+        return TabView(selection: $router.selectedTab) {
+            FeedView()
+                .tabItem {
+                    Label(Tab.feed.title, systemImage: Tab.feed.icon)
+                }
+                .tag(Tab.feed)
 
-                ExploreView()
-                    .tabItem {
-                        Label(Tab.explore.title, systemImage: Tab.explore.icon)
-                    }
-                    .tag(Tab.explore)
+            ExploreView()
+                .tabItem {
+                    Label(Tab.explore.title, systemImage: Tab.explore.icon)
+                }
+                .tag(Tab.explore)
 
-                ChatsView()
-                    .tabItem {
-                        Label(Tab.chats.title, systemImage: Tab.chats.icon)
-                    }
-                    .tag(Tab.chats)
-
-                ProfileView()
-                    .tabItem {
-                        Label(Tab.profile.title, systemImage: Tab.profile.icon)
-                    }
-                    .tag(Tab.profile)
-            }
-            .onChange(of: router.selectedTab) { _, _ in
-                AudioPlayerService.shared.stop()
-            }
-
-            AchievementBannerOverlay()
+            ProfileView()
+                .tabItem {
+                    Label(Tab.profile.title, systemImage: Tab.profile.icon)
+                }
+                .tag(Tab.profile)
+        }
+        .onChange(of: router.selectedTab) { _, _ in
+            AudioPlayerService.shared.stop()
         }
     }
 }

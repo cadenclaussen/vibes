@@ -2,7 +2,7 @@
 //  TicketmasterService.swift
 //  vibes
 //
-//  Created by Claude Code on 12/24/25.
+//  Concert discovery using Ticketmaster API.
 //
 
 import Foundation
@@ -87,41 +87,21 @@ private struct TMPriceRange: Codable {
 class TicketmasterService: ObservableObject {
     static let shared = TicketmasterService()
 
-    @Published var isConfigured = false
     @Published var userCity: String = ""
 
-    private let keychainManager = KeychainManager.shared
-    private var apiKey: String?
+    // Embedded API key - user just needs to set their city
+    private let apiKey = "YOUR_TICKETMASTER_API_KEY"
     private let baseURL = "https://app.ticketmaster.com/discovery/v2/events.json"
 
+    var isConfigured: Bool {
+        return apiKey != "YOUR_TICKETMASTER_API_KEY" && !apiKey.isEmpty
+    }
+
     private init() {
-        checkConfiguration()
         loadUserCity()
     }
 
-    // MARK: - Configuration
-
-    func checkConfiguration() {
-        do {
-            apiKey = try keychainManager.retrieveTicketmasterAPIKey()
-            isConfigured = true
-        } catch {
-            isConfigured = false
-            apiKey = nil
-        }
-    }
-
-    func configure(apiKey: String) throws {
-        try keychainManager.saveTicketmasterAPIKey(apiKey)
-        self.apiKey = apiKey
-        isConfigured = true
-    }
-
-    func removeConfiguration() throws {
-        try keychainManager.deleteTicketmasterAPIKey()
-        apiKey = nil
-        isConfigured = false
-    }
+    // MARK: - City Configuration
 
     func setUserCity(_ city: String) {
         userCity = city
@@ -134,19 +114,13 @@ class TicketmasterService: ObservableObject {
 
     // MARK: - Search Concerts
 
-    func searchConcerts(artistNames: [String], daysAhead: Int = 30) async throws -> [Concert] {
-        guard isConfigured, let apiKey = apiKey else {
-            return []
-        }
-
-        guard !userCity.isEmpty else {
-            return []
-        }
+    func searchConcerts(artistNames: [String], daysAhead: Int = 60) async throws -> [Concert] {
+        guard isConfigured else { return [] }
+        guard !userCity.isEmpty else { return [] }
 
         var allConcerts: [Concert] = []
         var seenEventIds = Set<String>()
 
-        // Calculate date range
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
         dateFormatter.timeZone = TimeZone(identifier: "UTC")
@@ -164,8 +138,7 @@ class TicketmasterService: ObservableObject {
                     artistName: artistName,
                     city: userCity,
                     startDate: startDateStr,
-                    endDate: endDateStr,
-                    apiKey: apiKey
+                    endDate: endDateStr
                 )
 
                 for concert in concerts {
@@ -176,15 +149,13 @@ class TicketmasterService: ObservableObject {
                 }
 
                 // Small delay to avoid rate limiting
-                try await Task.sleep(nanoseconds: 100_000_000) // 0.1s
+                try await Task.sleep(nanoseconds: 100_000_000)
             } catch {
                 continue
             }
         }
 
-        // Sort by date
         allConcerts.sort { $0.date < $1.date }
-
         return Array(allConcerts.prefix(20))
     }
 
@@ -192,8 +163,7 @@ class TicketmasterService: ObservableObject {
         artistName: String,
         city: String,
         startDate: String,
-        endDate: String,
-        apiKey: String
+        endDate: String
     ) async throws -> [Concert] {
         var components = URLComponents(string: baseURL)!
         components.queryItems = [
@@ -207,9 +177,7 @@ class TicketmasterService: ObservableObject {
             URLQueryItem(name: "sort", value: "date,asc")
         ]
 
-        guard let url = components.url else {
-            return []
-        }
+        guard let url = components.url else { return [] }
 
         let (data, response) = try await URLSession.shared.data(from: url)
 
@@ -219,10 +187,7 @@ class TicketmasterService: ObservableObject {
         }
 
         let searchResponse = try JSONDecoder().decode(TMSearchResponse.self, from: data)
-
-        guard let events = searchResponse._embedded?.events else {
-            return []
-        }
+        guard let events = searchResponse._embedded?.events else { return [] }
 
         return events.compactMap { event -> Concert? in
             guard let dateStr = event.dates.start.localDate else { return nil }
@@ -232,7 +197,6 @@ class TicketmasterService: ObservableObject {
 
             var eventDate = eventDateFormatter.date(from: dateStr) ?? Date()
 
-            // Add time if available
             if let timeStr = event.dates.start.localTime {
                 let timeFormatter = DateFormatter()
                 timeFormatter.dateFormat = "HH:mm:ss"
@@ -252,17 +216,14 @@ class TicketmasterService: ObservableObject {
             let eventCity = event._embedded?.venues?.first?.city?.name ?? city
             let attractionName = event._embedded?.attractions?.first?.name ?? artistName
 
-            // Get best image (prefer 16:9 ratio with decent size)
             let bestImage = event.images?
                 .filter { $0.ratio == "16_9" && ($0.width ?? 0) >= 200 }
                 .first?.url ?? event.images?.first?.url
 
-            // Format price range
             var priceRange: String? = nil
             if let range = event.priceRanges?.first,
                let minPrice = range.min,
-               let maxPrice = range.max,
-               range.currency != nil {
+               let maxPrice = range.max {
                 if minPrice == maxPrice {
                     priceRange = "$\(Int(minPrice))"
                 } else {
@@ -284,11 +245,7 @@ class TicketmasterService: ObservableObject {
         }
     }
 
-    // Clear user data (for account deletion)
     func clearUserData() {
-        try? keychainManager.deleteTicketmasterAPIKey()
-        apiKey = nil
-        isConfigured = false
         UserDefaults.standard.removeObject(forKey: "ticketmasterUserCity")
         userCity = ""
     }

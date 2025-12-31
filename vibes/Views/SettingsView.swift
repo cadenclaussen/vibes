@@ -14,8 +14,6 @@ struct SettingsView: View {
     @StateObject private var spotifyService = SpotifyService.shared
     @StateObject private var musicServiceManager = MusicServiceManager.shared
     @State private var showingSpotifyAuth = false
-    @State private var showingMusicServicePicker = false
-    @State private var showingAISettings = false
     @State private var showingConcertSettings = false
     @State private var showingDeleteAccount = false
     @AppStorage("hasCompletedTutorial") private var hasCompletedTutorial = true
@@ -23,8 +21,7 @@ struct SettingsView: View {
     var body: some View {
         List {
             accountSection
-            musicServiceSection
-            aiFeaturesSection
+            spotifySection
             concertFeaturesSection
             supportSection
             aboutSection
@@ -34,17 +31,11 @@ struct SettingsView: View {
         .sheet(isPresented: $showingSpotifyAuth) {
             SpotifyAuthView()
         }
-        .sheet(isPresented: $showingAISettings) {
-            AISettingsView()
-        }
         .sheet(isPresented: $showingConcertSettings) {
             ConcertSettingsView()
         }
         .sheet(isPresented: $showingDeleteAccount) {
             DeleteAccountView()
-        }
-        .sheet(isPresented: $showingMusicServicePicker) {
-            musicServicePickerSheet
         }
     }
 
@@ -84,142 +75,53 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Music Service Section
+    // MARK: - Spotify Section
 
-    private var musicServiceSection: some View {
+    private var spotifySection: some View {
         Section {
-            if musicServiceManager.hasSelectedService {
-                HStack {
-                    Image(systemName: musicServiceManager.serviceIcon)
-                        .foregroundColor(musicServiceManager.serviceColor)
-                        .frame(width: 24)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(musicServiceManager.serviceName)
-                        if musicServiceManager.isAuthenticated {
-                            if let profile = musicServiceManager.userProfile {
-                                Text("Connected as \(profile.displayName ?? "User")")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            } else {
-                                Text("Connected")
-                                    .font(.caption)
-                                    .foregroundColor(.green)
-                            }
-                        } else {
-                            Text("Not connected")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    Spacer()
-                    if musicServiceManager.isAuthenticated {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                    }
-                }
-
-                if musicServiceManager.isAuthenticated {
-                    Button {
-                        if musicServiceManager.activeServiceType == .spotify {
-                            showingSpotifyAuth = true
-                        }
-                    } label: {
-                        HStack {
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                                .frame(width: 24)
-                            Text("Manage Connection")
-                        }
-                    }
-                } else {
-                    Button {
-                        if musicServiceManager.activeServiceType == .spotify {
-                            showingSpotifyAuth = true
-                        } else {
-                            Task {
-                                try? await musicServiceManager.authenticate()
-                            }
-                        }
-                    } label: {
-                        HStack {
-                            Image(systemName: "link")
-                                .frame(width: 24)
-                            Text("Connect \(musicServiceManager.serviceName)")
-                        }
-                    }
-                }
-
-                Button {
-                    showingMusicServicePicker = true
-                } label: {
-                    HStack {
-                        Image(systemName: "repeat")
-                            .frame(width: 24)
-                        Text("Change Music Service")
-                    }
-                }
-            } else {
-                Button {
-                    showingMusicServicePicker = true
-                } label: {
-                    HStack {
-                        Image(systemName: "music.note")
-                            .frame(width: 24)
-                        Text("Choose Music Service")
-                    }
-                }
-            }
-        } header: {
-            Text("Music Service")
-        } footer: {
-            if !musicServiceManager.hasSelectedService {
-                Text("Connect a music service to personalize your experience")
-            }
-        }
-    }
-
-    // MARK: - AI Features Section
-
-    private var aiFeaturesSection: some View {
-        let geminiService = GeminiService.shared
-
-        return Section {
             HStack {
-                Image(systemName: "sparkles")
-                    .foregroundColor(.purple)
+                Image(systemName: "music.note")
+                    .foregroundColor(.green)
                     .frame(width: 24)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("AI Features")
-                    if geminiService.isConfigured {
-                        Text("Gemini API Connected")
-                            .font(.caption)
-                            .foregroundColor(.green)
+                    Text("Spotify")
+                    if musicServiceManager.isAuthenticated {
+                        if let profile = musicServiceManager.userProfile {
+                            Text("Connected as \(profile.displayName ?? "User")")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text("Connected")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                        }
                     } else {
-                        Text("Not configured")
+                        Text("Not connected")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 }
                 Spacer()
-                if geminiService.isConfigured {
+                if musicServiceManager.isAuthenticated {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.green)
                 }
             }
 
             Button {
-                showingAISettings = true
+                showingSpotifyAuth = true
             } label: {
                 HStack {
-                    Image(systemName: "gearshape")
+                    Image(systemName: musicServiceManager.isAuthenticated ? "arrow.triangle.2.circlepath" : "link")
                         .frame(width: 24)
-                    Text(geminiService.isConfigured ? "Manage AI Settings" : "Set Up AI Features")
+                    Text(musicServiceManager.isAuthenticated ? "Manage Connection" : "Connect Spotify")
                 }
             }
         } header: {
-            Text("AI Features")
+            Text("Music Service")
         } footer: {
-            if !geminiService.isConfigured {
-                Text("Enable AI-powered playlist ideas and friend blends")
+            if !musicServiceManager.isAuthenticated {
+                Text("Connect Spotify to personalize your experience")
             }
         }
     }
@@ -228,7 +130,7 @@ struct SettingsView: View {
 
     private var concertFeaturesSection: some View {
         let ticketmasterService = TicketmasterService.shared
-        let isConfigured = ticketmasterService.isConfigured && !ticketmasterService.userCity.isEmpty
+        let hasCity = !ticketmasterService.userCity.isEmpty
 
         return Section {
             HStack {
@@ -237,18 +139,18 @@ struct SettingsView: View {
                     .frame(width: 24)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Concert Discovery")
-                    if isConfigured {
+                    if hasCity {
                         Text("Location: \(ticketmasterService.userCity)")
                             .font(.caption)
                             .foregroundColor(.green)
                     } else {
-                        Text("Not configured")
+                        Text("Set your city")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 }
                 Spacer()
-                if isConfigured {
+                if hasCity {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.green)
                 }
@@ -258,16 +160,16 @@ struct SettingsView: View {
                 showingConcertSettings = true
             } label: {
                 HStack {
-                    Image(systemName: "gearshape")
+                    Image(systemName: hasCity ? "pencil" : "location.fill")
                         .frame(width: 24)
-                    Text(isConfigured ? "Manage Concert Settings" : "Set Up Concerts")
+                    Text(hasCity ? "Change City" : "Set Your City")
                 }
             }
         } header: {
             Text("Concerts")
         } footer: {
-            if !isConfigured {
-                Text("Find concerts from your top artists near you")
+            if !hasCity {
+                Text("Set your city to discover concerts from your top artists")
             }
         }
     }
@@ -278,7 +180,7 @@ struct SettingsView: View {
         Section {
             Button {
                 HapticService.lightImpact()
-                router.selectedTab = .home
+                router.selectedTab = .feed
                 hasCompletedTutorial = false
                 dismiss()
             } label: {
@@ -306,40 +208,5 @@ struct SettingsView: View {
         } header: {
             Text("About")
         }
-    }
-
-    // MARK: - Music Service Picker Sheet
-
-    private var musicServicePickerSheet: some View {
-        NavigationStack {
-            VStack(spacing: 24) {
-                MusicServicePicker { type in
-                    if type == .spotify {
-                        showingMusicServicePicker = false
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            showingSpotifyAuth = true
-                        }
-                    } else {
-                        Task {
-                            try? await musicServiceManager.authenticate()
-                            showingMusicServicePicker = false
-                        }
-                    }
-                }
-                .padding()
-
-                Spacer()
-            }
-            .navigationTitle("Music Service")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        showingMusicServicePicker = false
-                    }
-                }
-            }
-        }
-        .presentationDetents([.medium])
     }
 }
