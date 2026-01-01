@@ -124,6 +124,10 @@ class AppRouter {
         selectedTab = .profile
     }
 
+    func navigateToSetupChecklist() {
+        feedPath.append(SetupDestination.checklist)
+    }
+
     // Sheet presentation
     func presentShareSheet(for song: UnifiedTrack) {
         presentedSheet = .shareSong(song)
@@ -179,4 +183,12 @@ enum SettingsDestination: Hashable {
     case gemini
     case concertCity
     case privacy
+}
+
+// Setup navigation destination
+enum SetupDestination: Hashable {
+    case checklist
+    case spotify
+    case gemini
+    case ticketmaster
 }

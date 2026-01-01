@@ -1,0 +1,11 @@
+{
+    "name": "vibes-scripts",
+    "version": "1.0.0",
+    "type": "module",
+    "scripts": {
+        "delete-users": "node delete-users.js"
+    },
+    "dependencies": {
+        "firebase-admin": "^12.0.0"
+    }
+}

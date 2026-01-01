@@ -9,6 +9,12 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         FirebaseApp.configure()
+
+        // Configure Google Sign-In with client ID from Firebase
+        if let clientID = FirebaseApp.app()?.options.clientID {
+            GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
+        }
+
         return true
     }
 }
@@ -17,12 +23,14 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 struct vibesApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @State private var router = AppRouter()
+    @State private var setupManager = SetupManager()
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(AuthManager.shared)
                 .environment(router)
+                .environment(setupManager)
                 .onOpenURL { url in
                     GIDSignIn.sharedInstance.handle(url)
                 }

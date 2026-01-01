@@ -54,7 +54,6 @@ struct ContentView: View {
 
 struct FeedView: View {
     @Environment(AppRouter.self) private var router
-    @Environment(AuthManager.self) private var authManager
 
     var body: some View {
         @Bindable var router = router
@@ -62,15 +61,8 @@ struct FeedView: View {
         NavigationStack(path: $router.feedPath) {
             ScrollView {
                 VStack(spacing: 16) {
-                    if !authManager.isSpotifyLinked {
-                        SetupCard(
-                            title: "Connect Spotify",
-                            message: "Link your Spotify account to unlock all features",
-                            buttonTitle: "Connect",
-                            action: { router.navigateToSettings() }
-                        )
+                    SetupCard()
                         .padding(.horizontal)
-                    }
 
                     ContentUnavailableView(
                         "No Activity Yet",
@@ -92,6 +84,18 @@ struct FeedView: View {
             }
             .navigationDestination(for: SettingsDestination.self) { destination in
                 SettingsView()
+            }
+            .navigationDestination(for: SetupDestination.self) { destination in
+                switch destination {
+                case .checklist:
+                    SetupChecklistView()
+                case .spotify:
+                    SpotifySetupView()
+                case .gemini:
+                    GeminiSetupView()
+                case .ticketmaster:
+                    TicketmasterSetupView()
+                }
             }
         }
     }
@@ -207,7 +211,7 @@ struct ProfileView: View {
                     // Setup cards
                     VStack(spacing: 12) {
                         if !authManager.isSpotifyLinked {
-                            SetupCard(
+                            PromptCard(
                                 title: "Connect Spotify",
                                 message: "Get personalized recommendations",
                                 buttonTitle: "Connect",
@@ -216,7 +220,7 @@ struct ProfileView: View {
                         }
 
                         if !authManager.isGeminiConfigured {
-                            SetupCard(
+                            PromptCard(
                                 title: "Enable AI Features",
                                 message: "Add your Gemini API key for AI playlists",
                                 buttonTitle: "Setup",
@@ -265,7 +269,7 @@ struct StatItem: View {
     }
 }
 
-struct SetupCard: View {
+struct PromptCard: View {
     let title: String
     let message: String
     let buttonTitle: String
@@ -507,4 +511,5 @@ struct EditProfileSheet: View {
     ContentView()
         .environment(AppRouter())
         .environment(AuthManager.shared)
+        .environment(SetupManager())
 }

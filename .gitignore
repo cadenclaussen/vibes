@@ -66,3 +66,9 @@ build/
 
 # Firebase configuration (contains API keys)
 GoogleService-Info.plist
+
+# Firebase Admin SDK service account key
+scripts/serviceAccountKey.json
+
+# Node modules
+node_modules/

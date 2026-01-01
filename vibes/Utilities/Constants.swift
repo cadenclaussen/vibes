@@ -29,8 +29,8 @@ enum Constants {
     }
 
     enum Spotify {
-        static let clientId = "YOUR_SPOTIFY_CLIENT_ID"
-        static let redirectUri = "vibes://spotify-callback"
+        static let clientId = "ac84e0cce87749f3bce04a8ad3f5542e"
+        static let redirectUri = "vibes://callback"
         static let scopes = [
             "user-read-private",
             "user-read-email",

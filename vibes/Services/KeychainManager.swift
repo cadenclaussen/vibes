@@ -11,6 +11,7 @@ class KeychainManager {
         case spotifyRefreshToken
         case spotifyExpirationDate
         case geminiApiKey
+        case ticketmasterApiKey
     }
 
     private init() {}
@@ -84,12 +85,24 @@ class KeychainManager {
         try save(String(expirationDate.timeIntervalSince1970), for: .spotifyExpirationDate)
     }
 
+    func saveSpotifyAccessToken(_ token: String) throws {
+        try save(token, for: .spotifyAccessToken)
+    }
+
     func getSpotifyAccessToken() -> String? {
         retrieve(key: .spotifyAccessToken)
     }
 
+    func saveSpotifyRefreshToken(_ token: String) throws {
+        try save(token, for: .spotifyRefreshToken)
+    }
+
     func getSpotifyRefreshToken() -> String? {
         retrieve(key: .spotifyRefreshToken)
+    }
+
+    func saveSpotifyExpirationDate(_ date: Date) throws {
+        try save(String(date.timeIntervalSince1970), for: .spotifyExpirationDate)
     }
 
     func getSpotifyExpirationDate() -> Date? {
@@ -120,6 +133,18 @@ class KeychainManager {
         try delete(key: .spotifyAccessToken)
         try delete(key: .spotifyRefreshToken)
         try delete(key: .spotifyExpirationDate)
+    }
+
+    func saveTicketmasterApiKey(_ key: String) throws {
+        try save(key, for: .ticketmasterApiKey)
+    }
+
+    func getTicketmasterApiKey() -> String? {
+        retrieve(key: .ticketmasterApiKey)
+    }
+
+    func clearTicketmasterApiKey() throws {
+        try delete(key: .ticketmasterApiKey)
     }
 }
 
