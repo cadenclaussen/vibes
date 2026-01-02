@@ -128,6 +128,10 @@ class AppRouter {
         feedPath.append(SetupDestination.checklist)
     }
 
+    func navigateToConcertDiscovery() {
+        feedPath.append(ConcertDiscoveryDestination.artistList)
+    }
+
     // Sheet presentation
     func presentShareSheet(for song: UnifiedTrack) {
         presentedSheet = .shareSong(song)
@@ -191,4 +195,9 @@ enum SetupDestination: Hashable {
     case spotify
     case gemini
     case ticketmaster
+}
+
+// Concert Discovery navigation destination
+enum ConcertDiscoveryDestination: Hashable {
+    case artistList
 }

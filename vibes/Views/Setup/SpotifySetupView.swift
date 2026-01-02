@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SpotifySetupView: View {
     @Environment(SetupManager.self) private var setupManager
+    @Environment(AuthManager.self) private var authManager
     @Environment(\.dismiss) private var dismiss
     @State private var isConnecting = false
     @State private var errorMessage: String?
@@ -124,6 +125,7 @@ struct SpotifySetupView: View {
         Task {
             do {
                 try await SpotifyAuthService.shared.startAuthorization()
+                try await authManager.updateSpotifyLinked(true)
                 await MainActor.run {
                     isConnecting = false
                     setupManager.refresh()
@@ -145,6 +147,9 @@ struct SpotifySetupView: View {
 
     private func disconnectSpotify() {
         SpotifyAuthService.shared.disconnect()
+        Task {
+            try? await authManager.updateSpotifyLinked(false)
+        }
         setupManager.refresh()
         dismiss()
     }
@@ -154,5 +159,6 @@ struct SpotifySetupView: View {
     NavigationStack {
         SpotifySetupView()
             .environment(SetupManager())
+            .environment(AuthManager.shared)
     }
 }

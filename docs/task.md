@@ -229,6 +229,83 @@
 - **Failures**: None
 - **Solution**: Pending
 
+### 137. Concert Discovery Feature
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: .specs/concert-discovery/, vibes/Views/ConcertDiscovery/, vibes/Services/, vibes/Models/, vibes/ViewModels/
+- **Requested**: Implement concert discovery feature. Button on feed page pushes to a new screen. Screen shows user's top 10 artists from Spotify (last 3 months). List features: remove items, add artists via search bar with plus button, reorder list, max 20 artists. "Find Concerts" button searches Ticketmaster API for concerts from these artists, ranked by user's artist ranking (e.g., Drake #1 = first in concert results). Special icon for concerts in user's home city. Link to Ticketmaster for ticket purchase.
+- **Context**: New feature to help users discover concerts from their favorite artists, leveraging their Spotify listening data and Ticketmaster's concert database.
+- **Acceptance Criteria**:
+  - [x] Create Kiro spec with PRD
+  - [x] Feed page has button to navigate to concert discovery
+  - [x] Screen shows top 10 Spotify artists (last 3 months)
+  - [x] Can remove artists from list
+  - [x] Can add artists via search bar
+  - [x] Can reorder artist list
+  - [x] Maximum 20 artists enforced
+  - [x] "Find Concerts" button searches Ticketmaster API
+  - [x] Concerts ranked by user's artist ranking
+  - [x] Home city concerts have special icon
+  - [x] Ticketmaster purchase link provided
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented full concert discovery feature using Kiro SDD workflow:
+  - Created `.specs/concert-discovery/` with prd.md, requirements.md, design.md, tasks.md
+  - **New Models**: RankedArtist.swift, RankedConcert.swift
+  - **New Services**: SpotifyDataService.swift (getTopArtists, searchArtists), TicketmasterService.swift (searchConcerts with parallel requests, rate limiting, home city detection)
+  - **New ViewModel**: ConcertDiscoveryViewModel.swift (state management, persistence, debounced search)
+  - **New Views**: ConcertDiscoveryView.swift (artist list with search, reorder, delete), ConcertResultsView.swift (concert list with home city badges), ArtistRow.swift, ConcertRow.swift, ArtistSearchResultRow.swift
+  - **Modified**: AppRouter.swift (added ConcertDiscoveryDestination, navigateToConcertDiscovery), ContentView.swift (added ConcertDiscoveryCard entry point in FeedView)
+  - Build succeeds on iPhone 16 simulator
+
+### 138. Spotify connection state not syncing to profile
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Views/Setup/SpotifySetupView.swift:127-155
+- **Requested**: User connected to Spotify but profile shows not connected even though setup says connected
+- **Context**: SpotifySetupView was updating local SetupManager state (keychain check) but not syncing to AuthManager/Firestore. Profile and other views check AuthManager.isSpotifyLinked which reads from Firestore.
+- **Acceptance Criteria**:
+  - [x] connectSpotify() calls authManager.updateSpotifyLinked(true) after successful auth
+  - [x] disconnectSpotify() calls authManager.updateSpotifyLinked(false) on disconnect
+  - [x] Preview includes AuthManager.shared environment
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Updated SpotifySetupView.swift to sync state with Firestore via AuthManager:
+  1. Added `try await authManager.updateSpotifyLinked(true)` after successful Spotify authorization
+  2. Added `Task { try? await authManager.updateSpotifyLinked(false) }` when disconnecting
+  3. Updated Preview to include `.environment(AuthManager.shared)`
+
+### 139. Concert Discovery returns 0 artists
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/ViewModels/ConcertDiscoveryViewModel.swift:77-79
+- **Requested**: Concert Discovery shows "No Artists" even though user has top artists on Spotify
+- **Context**: The Spotify API was being called with `shortTerm` (4 weeks) time range, but user had no listening data in that window.
+- **Acceptance Criteria**:
+  - [x] Change time range from shortTerm to mediumTerm (6 months)
+  - [x] Artists load successfully
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Changed `SpotifyDataService.getTopArtists()` call from `.shortTerm` to `.mediumTerm` to capture 6 months of listening data instead of just 4 weeks.
+
+### 140. Artist rank numbers don't update when reordering
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Views/ConcertDiscovery/ArtistRow.swift, ConcertDiscoveryView.swift:146-154
+- **Requested**: When switching two artists in edit mode, the rank numbers don't update visually
+- **Context**: ArtistRow received a copy of RankedArtist struct, so when ranks were updated in the array, the view didn't re-render because the struct copy was unchanged.
+- **Acceptance Criteria**:
+  - [x] Rank numbers update immediately when artists are reordered
+  - [x] Display rank based on array position, not stored property
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**:
+  1. Added `displayRank: Int` parameter to ArtistRow
+  2. Changed ForEach to use enumerated array: `ForEach(Array(viewModel.artists.enumerated()), id: \.element.id)`
+  3. Pass `index + 1` as displayRank instead of relying on stored `rankedArtist.rank`
+
 ### 136. Initialize Kiro spec for Setup feature
 - **Status**: COMPLETED
 - **Type**: Feature
@@ -245,8 +322,8 @@
 - **Solution**: Created .specs/setup/prd.md with focused requirements for the 3 required setup steps: Spotify connection, Gemini API key entry, and Concert City selection. Includes setup components, user flow, and success metrics.
 
 ## Task Statistics
-- Total Tasks: 135
-- Completed: 133
+- Total Tasks: 140
+- Completed: 138
 - In Progress: 1
 - Archived: Tasks 1-123
 

@@ -64,12 +64,17 @@ struct FeedView: View {
                     SetupCard()
                         .padding(.horizontal)
 
+                    ConcertDiscoveryCard {
+                        router.navigateToConcertDiscovery()
+                    }
+                    .padding(.horizontal)
+
                     ContentUnavailableView(
                         "No Activity Yet",
                         systemImage: "music.note.list",
                         description: Text("Follow friends and share songs to see activity here")
                     )
-                    .padding(.top, 60)
+                    .padding(.top, 40)
                 }
             }
             .navigationTitle("Feed")
@@ -97,7 +102,46 @@ struct FeedView: View {
                     TicketmasterSetupView()
                 }
             }
+            .navigationDestination(for: ConcertDiscoveryDestination.self) { _ in
+                ConcertDiscoveryView()
+            }
         }
+    }
+}
+
+struct ConcertDiscoveryCard: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: "ticket.fill")
+                    .font(.title2)
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(Color.purple.gradient)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Discover Concerts")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text("Find shows from your favorite artists")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            }
+            .padding()
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
     }
 }
 
