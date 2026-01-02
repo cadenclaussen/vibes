@@ -306,6 +306,26 @@
   2. Changed ForEach to use enumerated array: `ForEach(Array(viewModel.artists.enumerated()), id: \.element.id)`
   3. Pass `index + 1` as displayRank instead of relying on stored `rankedArtist.rank`
 
+### 141. Revoked Spotify token shows unhelpful error
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Services/SpotifyAuthService.swift:74-96, vibes/Views/ConcertDiscovery/ConcertDiscoveryView.swift:170-212
+- **Requested**: Reset to Top Artists shows "Token exchange failed: Refresh token revoked" error with no way to reconnect Spotify
+- **Context**: When Spotify refresh token is revoked (user disconnected app from Spotify settings), the error wasn't clearing invalid tokens or helping user reconnect.
+- **Acceptance Criteria**:
+  - [x] Detect revoked/invalid token errors in refreshAccessToken()
+  - [x] Clear invalid tokens from keychain on auth failure
+  - [x] Show "Spotify Disconnected" message instead of generic error
+  - [x] Provide "Reconnect Spotify" button that navigates to Spotify setup
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**:
+  1. Updated SpotifyAuthService.refreshAccessToken() to catch revoked/invalid token errors and call disconnect() to clear keychain
+  2. Added isSpotifyAuthError() helper in ConcertDiscoveryView to detect auth errors
+  3. Updated errorView() to show friendly "Spotify Disconnected" message with "Reconnect Spotify" button
+  4. Added navigateToSpotifySetup() method to AppRouter
+
 ### 136. Initialize Kiro spec for Setup feature
 - **Status**: COMPLETED
 - **Type**: Feature
@@ -322,8 +342,8 @@
 - **Solution**: Created .specs/setup/prd.md with focused requirements for the 3 required setup steps: Spotify connection, Gemini API key entry, and Concert City selection. Includes setup components, user flow, and success metrics.
 
 ## Task Statistics
-- Total Tasks: 140
-- Completed: 138
+- Total Tasks: 141
+- Completed: 139
 - In Progress: 1
 - Archived: Tasks 1-123
 

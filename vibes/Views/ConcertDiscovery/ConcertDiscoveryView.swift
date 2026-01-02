@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ConcertDiscoveryView: View {
+    @Environment(AppRouter.self) private var router
     @State private var viewModel = ConcertDiscoveryViewModel()
     @State private var isEditing = false
     @State private var showingResults = false
@@ -168,18 +169,47 @@ struct ConcertDiscoveryView: View {
     }
 
     private func errorView(_ error: Error) -> some View {
-        ContentUnavailableView {
-            Label("Error", systemImage: "exclamationmark.triangle")
+        let isAuthError = isSpotifyAuthError(error)
+
+        return ContentUnavailableView {
+            Label(
+                isAuthError ? "Spotify Disconnected" : "Error",
+                systemImage: isAuthError ? "link.badge.plus" : "exclamationmark.triangle"
+            )
         } description: {
-            Text(error.localizedDescription)
+            Text(isAuthError
+                 ? "Your Spotify session has expired. Please reconnect to load your top artists."
+                 : error.localizedDescription)
         } actions: {
-            Button("Try Again") {
-                Task {
-                    await viewModel.loadTopArtists()
+            if isAuthError {
+                Button("Reconnect Spotify") {
+                    router.navigateToSpotifySetup()
                 }
+                .buttonStyle(.borderedProminent)
+            } else {
+                Button("Try Again") {
+                    Task {
+                        await viewModel.loadTopArtists()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
         }
+    }
+
+    private func isSpotifyAuthError(_ error: Error) -> Bool {
+        if let authError = error as? SpotifyAuthError {
+            switch authError {
+            case .notAuthenticated:
+                return true
+            case .tokenExchangeFailed(let message):
+                let lower = message.lowercased()
+                return lower.contains("revoked") || lower.contains("invalid") || lower.contains("expired")
+            default:
+                return false
+            }
+        }
+        return false
     }
 
     private var spotifyPromptView: some View {
@@ -231,4 +261,5 @@ struct ConcertDiscoveryView: View {
     NavigationStack {
         ConcertDiscoveryView()
     }
+    .environment(AppRouter())
 }

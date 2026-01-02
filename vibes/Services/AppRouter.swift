@@ -132,6 +132,10 @@ class AppRouter {
         feedPath.append(ConcertDiscoveryDestination.artistList)
     }
 
+    func navigateToSpotifySetup() {
+        feedPath.append(SetupDestination.spotify)
+    }
+
     // Sheet presentation
     func presentShareSheet(for song: UnifiedTrack) {
         presentedSheet = .shareSong(song)

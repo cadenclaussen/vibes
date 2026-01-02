@@ -82,8 +82,17 @@ class SpotifyAuthService: NSObject, ObservableObject {
             "client_id": Constants.Spotify.clientId
         ]
 
-        let tokens = try await performTokenRequest(parameters: parameters)
-        try saveTokens(tokens)
+        do {
+            let tokens = try await performTokenRequest(parameters: parameters)
+            try saveTokens(tokens)
+        } catch let error as SpotifyAuthError {
+            // If refresh token is revoked/invalid, clear stored tokens
+            if case .tokenExchangeFailed(let message) = error,
+               message.lowercased().contains("revoked") || message.lowercased().contains("invalid") {
+                disconnect()
+            }
+            throw error
+        }
     }
 
     func disconnect() {
