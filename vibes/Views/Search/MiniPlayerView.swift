@@ -1,16 +1,16 @@
 import SwiftUI
 
 struct MiniPlayerView: View {
-    @Environment(AudioPreviewManager.self) private var audioManager
+    @Environment(SpotifyRemoteService.self) private var spotifyRemote
 
     var body: some View {
-        if let track = audioManager.currentTrack {
+        if let track = spotifyRemote.currentTrack {
             VStack(spacing: 0) {
                 // Progress bar
                 GeometryReader { geometry in
                     Rectangle()
                         .fill(Color.green)
-                        .frame(width: geometry.size.width * audioManager.progress)
+                        .frame(width: geometry.size.width * spotifyRemote.progress)
                 }
                 .frame(height: 2)
                 .background(Color(.tertiarySystemFill))
@@ -42,16 +42,16 @@ struct MiniPlayerView: View {
                     Spacer()
 
                     // Time
-                    Text(audioManager.formattedProgress)
+                    Text(spotifyRemote.formattedProgress)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
 
                     // Play/Pause button
                     Button {
-                        audioManager.togglePlayPause()
+                        spotifyRemote.togglePlayPause()
                     } label: {
-                        Image(systemName: audioManager.isPlaying ? "pause.fill" : "play.fill")
+                        Image(systemName: spotifyRemote.isPlaying ? "pause.fill" : "play.fill")
                             .font(.title3)
                             .foregroundStyle(.primary)
                             .frame(width: 32, height: 32)
@@ -59,7 +59,7 @@ struct MiniPlayerView: View {
 
                     // Close button
                     Button {
-                        audioManager.stop()
+                        spotifyRemote.stop()
                     } label: {
                         Image(systemName: "xmark")
                             .font(.subheadline)
@@ -81,5 +81,5 @@ struct MiniPlayerView: View {
         Spacer()
         MiniPlayerView()
     }
-    .environment(AudioPreviewManager.shared)
+    .environment(SpotifyRemoteService.shared)
 }

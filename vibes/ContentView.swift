@@ -235,7 +235,7 @@ struct ReleasesDiscoveryCard: View {
 
 struct ExploreView: View {
     @Environment(AppRouter.self) private var router
-    @Environment(AudioPreviewManager.self) private var audioManager
+    @Environment(SpotifyRemoteService.self) private var spotifyRemote
     @State private var searchViewModel = SearchViewModel()
     @State private var isSearchFocused = false
 
@@ -249,6 +249,8 @@ struct ExploreView: View {
                 Group {
                     if searchViewModel.isSearching {
                         loadingView
+                    } else if let error = searchViewModel.error {
+                        errorView(error)
                     } else if searchViewModel.showResults {
                         SearchResultsView(
                             artists: searchViewModel.artists,
@@ -264,13 +266,13 @@ struct ExploreView: View {
                                     spotifyService.openInSpotify(uri: uri)
                                 }
                             },
-                            onTrackTap: { track in
+                            onTrackPlay: { track in
+                                playPreview(track)
+                            },
+                            onTrackOpenInSpotify: { track in
                                 if let uri = track.spotifyUri {
                                     spotifyService.openInSpotify(uri: uri)
                                 }
-                            },
-                            onTrackPlay: { track in
-                                playPreview(track)
                             }
                         )
                     } else if searchViewModel.showRecentSearches {
@@ -293,7 +295,7 @@ struct ExploreView: View {
                 }
 
                 MiniPlayerView()
-                    .animation(.easeInOut(duration: 0.2), value: audioManager.currentTrack != nil)
+                    .animation(.easeInOut(duration: 0.2), value: spotifyRemote.currentTrack != nil)
             }
             .navigationTitle("Explore")
             .searchable(
@@ -335,6 +337,14 @@ struct ExploreView: View {
         }
     }
 
+    private func errorView(_ error: Error) -> some View {
+        ContentUnavailableView(
+            "Search Failed",
+            systemImage: "exclamationmark.triangle",
+            description: Text(error.localizedDescription)
+        )
+    }
+
     private var defaultContent: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -356,10 +366,10 @@ struct ExploreView: View {
     }
 
     private func playPreview(_ track: UnifiedTrack) {
-        if audioManager.currentTrack?.id == track.id {
-            audioManager.togglePlayPause()
+        if spotifyRemote.currentTrack?.id == track.id {
+            spotifyRemote.togglePlayPause()
         } else {
-            audioManager.play(track)
+            spotifyRemote.play(track)
         }
     }
 }

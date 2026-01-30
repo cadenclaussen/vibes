@@ -31,9 +31,16 @@ struct vibesApp: App {
                 .environment(AuthManager.shared)
                 .environment(router)
                 .environment(setupManager)
-                .environment(AudioPreviewManager.shared)
+                .environment(SpotifyRemoteService.shared)
                 .onOpenURL { url in
-                    GIDSignIn.sharedInstance.handle(url)
+                    // Handle Google Sign-In callback
+                    if GIDSignIn.sharedInstance.handle(url) {
+                        return
+                    }
+                    // Handle Spotify callback
+                    if url.scheme == "vibes" {
+                        SpotifyRemoteService.shared.handleOpenURL(url)
+                    }
                 }
         }
     }

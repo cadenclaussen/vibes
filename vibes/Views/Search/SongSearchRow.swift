@@ -3,31 +3,34 @@ import SwiftUI
 struct SongSearchRow: View {
     let track: UnifiedTrack
     let onPlay: () -> Void
-    let onTap: () -> Void
+    let onOpenInSpotify: () -> Void
 
-    @Environment(AudioPreviewManager.self) private var audioManager
+    @Environment(SpotifyRemoteService.self) private var spotifyRemote
 
     private var isCurrentlyPlaying: Bool {
-        audioManager.currentTrack?.id == track.id && audioManager.isPlaying
-    }
-
-    private var hasPreview: Bool {
-        track.previewURL != nil
+        spotifyRemote.currentTrack?.id == track.id && spotifyRemote.isPlaying
     }
 
     var body: some View {
-        Button(action: onTap) {
+        Button(action: onPlay) {
             HStack(spacing: 12) {
-                AsyncImage(url: URL(string: track.albumArtURL ?? "")) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Rectangle()
-                        .fill(Color(.tertiarySystemFill))
+                ZStack {
+                    AsyncImage(url: URL(string: track.albumArtURL ?? "")) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Rectangle()
+                            .fill(Color(.tertiarySystemFill))
+                    }
+                    .frame(width: 48, height: 48)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                    Image(systemName: isCurrentlyPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.5), radius: 2)
                 }
-                .frame(width: 48, height: 48)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(track.name)
@@ -44,17 +47,6 @@ struct SongSearchRow: View {
 
                 Spacer()
 
-                if hasPreview {
-                    Button {
-                        onPlay()
-                    } label: {
-                        Image(systemName: isCurrentlyPlaying ? "pause.circle.fill" : "play.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(isCurrentlyPlaying ? .green : .primary)
-                    }
-                    .buttonStyle(.plain)
-                }
-
                 Text(track.formattedDuration)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -65,6 +57,13 @@ struct SongSearchRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            Button {
+                onOpenInSpotify()
+            } label: {
+                Label("Open in Spotify", systemImage: "arrow.up.forward.app")
+            }
+        }
     }
 }
 
@@ -80,8 +79,8 @@ struct SongSearchRow: View {
                 durationMs: 177000
             ),
             onPlay: {},
-            onTap: {}
+            onOpenInSpotify: {}
         )
     }
-    .environment(AudioPreviewManager.shared)
+    .environment(SpotifyRemoteService.shared)
 }

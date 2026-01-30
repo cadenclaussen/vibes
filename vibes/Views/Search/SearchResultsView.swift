@@ -6,8 +6,8 @@ struct SearchResultsView: View {
     let tracks: [UnifiedTrack]
     let onArtistTap: (UnifiedArtist) -> Void
     let onAlbumTap: (UnifiedAlbum) -> Void
-    let onTrackTap: (UnifiedTrack) -> Void
     let onTrackPlay: (UnifiedTrack) -> Void
+    let onTrackOpenInSpotify: (UnifiedTrack) -> Void
 
     var body: some View {
         ScrollView {
@@ -97,7 +97,7 @@ struct SearchResultsView: View {
                     SongSearchRow(
                         track: track,
                         onPlay: { onTrackPlay(track) },
-                        onTap: { onTrackTap(track) }
+                        onOpenInSpotify: { onTrackOpenInSpotify(track) }
                     )
 
                     if track.id != tracks.last?.id {
@@ -135,8 +135,8 @@ struct SearchResultsView: View {
         ],
         onArtistTap: { _ in },
         onAlbumTap: { _ in },
-        onTrackTap: { _ in },
-        onTrackPlay: { _ in }
+        onTrackPlay: { _ in },
+        onTrackOpenInSpotify: { _ in }
     )
-    .environment(AudioPreviewManager.shared)
+    .environment(SpotifyRemoteService.shared)
 }

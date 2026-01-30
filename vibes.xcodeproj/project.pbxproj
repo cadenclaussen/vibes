@@ -13,6 +13,7 @@
 		DC90CC622ED252ED00A956CD /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = DC90CC612ED252ED00A956CD /* FirebaseMessaging */; };
 		DC90CC642ED252ED00A956CD /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = DC90CC632ED252ED00A956CD /* GoogleSignIn */; };
 		DC90CC662ED252ED00A956CD /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = DC90CC652ED252ED00A956CD /* GoogleSignInSwift */; };
+		DC93FF102F2D4B3E00264EBE /* SpotifyiOS in Frameworks */ = {isa = PBXBuildFile; productRef = DC90CC712ED252ED00A956CD /* SpotifyiOS */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +33,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DC93FF102F2D4B3E00264EBE /* SpotifyiOS in Frameworks */,
 				DC90CC5C2ED252ED00A956CD /* FirebaseAuth in Frameworks */,
 				DC90CC5E2ED252ED00A956CD /* FirebaseFirestore in Frameworks */,
 				DC90CC602ED252ED00A956CD /* FirebaseStorage in Frameworks */,
@@ -86,6 +88,7 @@
 				DC90CC612ED252ED00A956CD /* FirebaseMessaging */,
 				DC90CC632ED252ED00A956CD /* GoogleSignIn */,
 				DC90CC652ED252ED00A956CD /* GoogleSignInSwift */,
+				DC90CC712ED252ED00A956CD /* SpotifyiOS */,
 			);
 			productName = vibes;
 			productReference = DCEF8FE52ED220D3006CF6B6 /* vibes.app */;
@@ -118,6 +121,7 @@
 			packageReferences = (
 				DC90CC5A2ED252ED00A956CD /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				DC90CC672ED252ED00A956CD /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+				DC90CC702ED252ED00A956CD /* XCRemoteSwiftPackageReference "ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = DCEF8FE62ED220D3006CF6B6 /* Products */;
@@ -377,6 +381,14 @@
 				minimumVersion = 8.0.0;
 			};
 		};
+		DC90CC702ED252ED00A956CD /* XCRemoteSwiftPackageReference "ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/spotify/ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -409,6 +421,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = DC90CC672ED252ED00A956CD /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
 			productName = GoogleSignInSwift;
+		};
+		DC90CC712ED252ED00A956CD /* SpotifyiOS */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = DC90CC702ED252ED00A956CD /* XCRemoteSwiftPackageReference "ios-sdk" */;
+			productName = SpotifyiOS;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

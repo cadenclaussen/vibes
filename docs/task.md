@@ -513,9 +513,40 @@
   - **Views**: SongSearchRow, ArtistSearchRow, AlbumSearchRow, SearchResultsView, RecentSearchesView, MiniPlayerView
   - **Integration**: Updated ExploreView with search UI, mini player, and audio preview controls
 
+### 152. Tapping songs should play preview, not open Spotify
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Views/Search/SongSearchRow.swift, vibes/Views/Search/SearchResultsView.swift, vibes/ContentView.swift
+- **Requested**: Clicking on songs just opens the song in Spotify instead of playing the 30-second preview
+- **Context**: Current behavior: tapping song row opens Spotify, play button plays preview. Expected: tapping song row should play preview.
+- **Acceptance Criteria**:
+  - [x] Tapping on a song row plays the 30-second audio preview
+  - [x] Add "Open in Spotify" as context menu action
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Reversed tap behavior in SongSearchRow - tapping anywhere on the row now plays the preview. Added context menu with "Open in Spotify" option for long-press. Added play/pause icon overlay on album art to indicate preview availability. Shows "No preview" label for tracks without preview URLs.
+
+### 153. Integrate Spotify iOS SDK for 30-second previews
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Services/SpotifyRemoteService.swift, vibes/vibesApp.swift, vibes/Views/Search/
+- **Requested**: Integrate Spotify iOS SDK to enable 30-second previews since Web API no longer provides preview URLs
+- **Context**: Spotify deprecated preview_url in Nov 2024. iOS SDK can control playback in the Spotify app.
+- **Acceptance Criteria**:
+  - [x] Add SpotifyiOS SDK package dependency
+  - [x] Create SpotifyRemoteService for app remote connection
+  - [x] Replace AudioPreviewManager with SpotifyRemoteService
+  - [x] Handle case when Spotify app not installed
+  - [x] Tapping song plays 30-second preview via Spotify
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Added SpotifyiOS SDK via SPM from github.com/spotify/ios-sdk. Created SpotifyRemoteService.swift with SPTAppRemote integration for playback control. When user taps a song, it opens Spotify app to authorize and play the track for 30 seconds. Updated MiniPlayerView and SongSearchRow to use SpotifyRemoteService. Added URL handler in vibesApp for Spotify callbacks. Removed old AudioPreviewManager.
+
 ## Task Statistics
-- Total Tasks: 151
-- Completed: 149
+- Total Tasks: 153
+- Completed: 151
 - In Progress: 0
 - Archived: Tasks 1-123
 
