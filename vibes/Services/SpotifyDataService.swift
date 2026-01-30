@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 enum SpotifyTimeRange: String {
     case shortTerm = "short_term"   // ~4 weeks
@@ -484,6 +485,99 @@ class SpotifyDataService {
         allTracks.shuffle()
         return Array(allTracks.prefix(limit))
     }
+
+    func getRecentlyPlayed(limit: Int = 20) async throws -> [RecentTrack] {
+        let token = try await SpotifyAuthService.shared.getValidAccessToken()
+
+        guard var components = URLComponents(string: "\(baseURL)/me/player/recently-played") else {
+            throw SpotifyDataError.invalidURL
+        }
+
+        components.queryItems = [
+            URLQueryItem(name: "limit", value: String(min(limit, 50)))
+        ]
+
+        guard let url = components.url else {
+            throw SpotifyDataError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw SpotifyDataError.invalidResponse(0, "Not an HTTP response")
+            }
+
+            if httpResponse.statusCode == 401 {
+                throw SpotifyDataError.notAuthenticated
+            }
+
+            if httpResponse.statusCode == 403 {
+                throw SpotifyDataError.forbidden
+            }
+
+            if httpResponse.statusCode != 200 {
+                let body = String(data: data, encoding: .utf8)
+                throw SpotifyDataError.invalidResponse(httpResponse.statusCode, body)
+            }
+
+            let decoded = try JSONDecoder().decode(SpotifyRecentlyPlayedResponse.self, from: data)
+            return decoded.items.compactMap { item -> RecentTrack? in
+                guard let date = ISO8601DateFormatter().date(from: item.playedAt) else {
+                    return nil
+                }
+                return RecentTrack(
+                    id: "\(item.track.id)_\(item.playedAt)",
+                    track: item.track.toUnifiedTrack(),
+                    playedAt: date
+                )
+            }
+        } catch let error as SpotifyDataError {
+            throw error
+        } catch let error as DecodingError {
+            throw SpotifyDataError.decodingError(error)
+        } catch {
+            throw SpotifyDataError.networkError(error)
+        }
+    }
+
+    func extractTopGenres(from artists: [UnifiedArtist], count: Int = 5) -> [String] {
+        var genreCounts: [String: Int] = [:]
+
+        for artist in artists {
+            for genre in artist.genres {
+                genreCounts[genre, default: 0] += 1
+            }
+        }
+
+        let sorted = genreCounts.sorted { $0.value > $1.value }
+        return Array(sorted.prefix(count).map { $0.key })
+    }
+
+    func openInSpotify(uri: String) {
+        guard let url = URL(string: uri) else { return }
+
+        if UIApplication.shared.canOpenURL(url) {
+            UIApplication.shared.open(url)
+        } else if let webURL = spotifyWebURL(from: uri) {
+            UIApplication.shared.open(webURL)
+        }
+    }
+
+    private func spotifyWebURL(from uri: String) -> URL? {
+        // Convert spotify:track:123 to https://open.spotify.com/track/123
+        let components = uri.split(separator: ":")
+        guard components.count == 3,
+              components[0] == "spotify" else {
+            return nil
+        }
+        let type = String(components[1])
+        let id = String(components[2])
+        return URL(string: "https://open.spotify.com/\(type)/\(id)")
+    }
 }
 
 // MARK: - Spotify API Response Models
@@ -498,6 +592,20 @@ private struct SpotifySearchResponse: Decodable {
 
 private struct SpotifyArtistsPaging: Decodable {
     let items: [SpotifyArtist]
+}
+
+private struct SpotifyRecentlyPlayedResponse: Decodable {
+    let items: [SpotifyPlayHistoryItem]
+}
+
+private struct SpotifyPlayHistoryItem: Decodable {
+    let track: SpotifyTrack
+    let playedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case track
+        case playedAt = "played_at"
+    }
 }
 
 private struct SpotifyArtist: Decodable {

@@ -429,9 +429,59 @@
 - **Failures**: None
 - **Solution**: Changed filtering logic from substring matching (`contains()`) to exact matching. Now checks if any attraction (performer) in the Ticketmaster event exactly matches the searched artist name (case-insensitive). This ensures "Drake" only matches events where "Drake" is listed as a performer, not "Drake Milligan" or "Drake Bell".
 
+### 147. Create use cases spec document
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: .specs/use-cases.md
+- **Requested**: Create a file in .specs containing core use cases information for the app: Music Collaboration, Music Discovery, Trending, Playlist Creation, Gamification, Setup, Stats, Profile management
+- **Context**: Document outlining all planned features and their details
+- **Acceptance Criteria**:
+  - [x] Create .specs/use-cases.md with all core use cases
+  - [x] Format nicely with feature details
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Created .specs/use-cases.md with 8 core use cases and detailed feature breakdowns
+
+### 148. Create Kiro spec for Stats feature
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: .specs/stats/
+- **Requested**: Create Kiro-style spec for Stats feature showing top artists, songs, genres, and recently played
+- **Context**: Stats is the next logical feature - no dependencies, immediate value after Spotify connection
+- **Acceptance Criteria**:
+  - [x] Create .specs/stats/prd.md
+  - [x] Create .specs/stats/requirements.md
+  - [x] Create .specs/stats/design.md
+  - [x] Create .specs/stats/tasks.md
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Created full Kiro spec with PRD (problem, solution, user stories, scope), requirements (9 functional, 2 non-functional in EARS format), design (architecture, UI mockups, API endpoints, state management), and tasks (5 phases with dependency graph)
+
+### 149. Implement Stats feature
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/Stats/, vibes/ViewModels/, vibes/Services/, vibes/Models/
+- **Requested**: Implement Stats feature per .specs/stats/ - preview card on Profile, full stats view with top artists/songs/genres/recently played
+- **Context**: First feature after setup, shows users their listening data
+- **Acceptance Criteria**:
+  - [x] Phase 1: Data layer (Spotify API methods, TimeRange, RecentTrack)
+  - [x] Phase 2: StatsViewModel
+  - [x] Phase 3: Profile integration (StatsPreviewCard, navigation)
+  - [x] Phase 4: Full StatsView with all sections
+  - [x] Phase 5: Polish and testing
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented full Stats feature:
+  - **Models**: RecentTrack.swift (track + playedAt with relative time)
+  - **Services**: Added getRecentlyPlayed(), extractTopGenres(), openInSpotify() to SpotifyDataService
+  - **ViewModel**: StatsViewModel.swift with preview/full load, time range selection
+  - **Views**: StatsPreviewCard (Profile integration), StatsView (full screen), TopArtistsSection, TopSongsSection, TopGenresSection, RecentlyPlayedSection
+  - **Navigation**: StatsDestination enum, navigateToStats() in AppRouter
+  - **Profile**: Added StatsPreviewCard showing top 3 artists, tap navigates to full StatsView
+
 ## Task Statistics
-- Total Tasks: 146
-- Completed: 144
+- Total Tasks: 149
+- Completed: 147
 - In Progress: 0
 - Archived: Tasks 1-123
 

@@ -144,6 +144,10 @@ class AppRouter {
         feedPath.append(SetupDestination.spotify)
     }
 
+    func navigateToStats() {
+        profilePath.append(StatsDestination.main)
+    }
+
     // Sheet presentation
     func presentShareSheet(for song: UnifiedTrack) {
         presentedSheet = .shareSong(song)
@@ -221,5 +225,10 @@ enum ReleasesDiscoveryDestination: Hashable {
 
 // Discover Music navigation destination
 enum DiscoverMusicDestination: Hashable {
+    case main
+}
+
+// Stats navigation destination
+enum StatsDestination: Hashable {
     case main
 }

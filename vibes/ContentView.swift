@@ -294,6 +294,7 @@ struct ExploreView: View {
 struct ProfileView: View {
     @Environment(AppRouter.self) private var router
     @Environment(AuthManager.self) private var authManager
+    @State private var statsViewModel = StatsViewModel()
 
     var body: some View {
         @Bindable var router = router
@@ -340,6 +341,10 @@ struct ProfileView: View {
                         StatItem(value: "0", label: "Followers")
                     }
 
+                    // Your Stats card
+                    StatsPreviewCard(viewModel: statsViewModel)
+                        .padding(.horizontal)
+
                     // Setup cards
                     VStack(spacing: 12) {
                         if !authManager.isSpotifyLinked {
@@ -375,6 +380,9 @@ struct ProfileView: View {
             }
             .navigationDestination(for: SettingsDestination.self) { _ in
                 SettingsView()
+            }
+            .navigationDestination(for: StatsDestination.self) { _ in
+                StatsView()
             }
             .navigationDestination(for: UserProfile.self) { user in
                 UserProfilePlaceholder(user: user)
