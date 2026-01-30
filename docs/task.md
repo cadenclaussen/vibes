@@ -479,9 +479,23 @@
   - **Navigation**: StatsDestination enum, navigateToStats() in AppRouter
   - **Profile**: Added StatsPreviewCard showing top 3 artists, tap navigates to full StatsView
 
+### 150. Profile shows "Connect Spotify" even though Spotify is connected
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Services/AuthManager.swift
+- **Requested**: Profile and Settings still show "Connect Spotify" prompts even though Spotify API is working
+- **Context**: Two sources of truth: SetupManager checks keychain (token exists), AuthManager.isSpotifyLinked checks Firestore. Firestore value was never synced.
+- **Acceptance Criteria**:
+  - [x] Sync keychain state to Firestore on profile load
+  - [x] If token exists but Firestore says not linked, update Firestore
+  - [x] Same for Gemini API key
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Added syncSpotifyLinkedState() to AuthManager that runs on loadUserProfile(). Syncs both Spotify and Gemini keychain state to Firestore.
+
 ## Task Statistics
-- Total Tasks: 149
-- Completed: 147
+- Total Tasks: 150
+- Completed: 148
 - In Progress: 0
 - Archived: Tasks 1-123
 

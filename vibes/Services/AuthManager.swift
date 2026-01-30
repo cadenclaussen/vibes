@@ -121,9 +121,30 @@ final class AuthManager {
 
             if document.exists {
                 self.userProfile = try document.data(as: UserProfile.self)
+                await syncSpotifyLinkedState()
             }
         } catch {
             self.error = error
+        }
+    }
+
+    private func syncSpotifyLinkedState() async {
+        let hasToken = keychain.getSpotifyAccessToken() != nil
+        let firestoreSaysLinked = userProfile?.spotifyLinked ?? false
+
+        if hasToken && !firestoreSaysLinked {
+            try? await updateSpotifyLinked(true)
+        } else if !hasToken && firestoreSaysLinked {
+            try? await updateSpotifyLinked(false)
+        }
+
+        let hasGeminiKey = keychain.getGeminiApiKey() != nil
+        let firestoreSaysGemini = userProfile?.geminiKeyConfigured ?? false
+
+        if hasGeminiKey && !firestoreSaysGemini {
+            try? await updateGeminiConfigured(true)
+        } else if !hasGeminiKey && firestoreSaysGemini {
+            try? await updateGeminiConfigured(false)
         }
     }
 
