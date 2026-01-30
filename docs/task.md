@@ -544,9 +544,24 @@
 - **Failures**: None
 - **Solution**: Added SpotifyiOS SDK via SPM from github.com/spotify/ios-sdk. Created SpotifyRemoteService.swift with SPTAppRemote integration for playback control. When user taps a song, it opens Spotify app to authorize and play the track for 30 seconds. Updated MiniPlayerView and SongSearchRow to use SpotifyRemoteService. Added URL handler in vibesApp for Spotify callbacks. Removed old AudioPreviewManager.
 
+### 154. Play full songs instead of 30-second previews
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Services/SpotifyRemoteService.swift
+- **Requested**: Instead of doing a 30-second preview, play the entire song
+- **Context**: Currently SpotifyRemoteService limits playback to 30 seconds via previewDuration constant and schedulePreviewStop()
+- **Acceptance Criteria**:
+  - [x] Remove 30-second preview limit
+  - [x] Songs play to completion
+  - [x] Progress bar shows full song duration
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Removed previewDuration constant, schedulePreviewStop() method, and all related timers. Updated playerStateDidChange delegate to use actual track duration and playback position from Spotify player state. Songs now play to completion with accurate progress tracking.
+
 ## Task Statistics
-- Total Tasks: 153
-- Completed: 151
+- Total Tasks: 154
+- Completed: 152
 - In Progress: 0
 - Archived: Tasks 1-123
 

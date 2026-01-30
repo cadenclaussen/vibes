@@ -28,9 +28,10 @@ class SpotifyRemoteService: NSObject {
 
     private(set) var isConnected = false
     private(set) var isPlaying = false
+    private(set) var isPlayingAd = false
     private(set) var currentTrack: UnifiedTrack?
     private(set) var playbackPosition: TimeInterval = 0
-    private(set) var trackDuration: TimeInterval = 30
+    private(set) var trackDuration: TimeInterval = 0
 
     var progress: Double {
         guard trackDuration > 0 else { return 0 }
@@ -46,8 +47,7 @@ class SpotifyRemoteService: NSObject {
     private var appRemote: SPTAppRemote?
     private var connectionCompletion: ((Result<Void, Error>) -> Void)?
     private var pendingTrack: UnifiedTrack?
-
-    private let previewDuration: TimeInterval = 30
+    private var progressTimer: Task<Void, Never>?
 
     private override init() {
         super.init()
@@ -132,7 +132,6 @@ class SpotifyRemoteService: NSObject {
                 } else {
                     self?.isPlaying = true
                     self?.playbackPosition = 0
-                    self?.schedulePreviewStop()
                     self?.startProgressTimer()
                 }
             }
@@ -143,7 +142,6 @@ class SpotifyRemoteService: NSObject {
         guard let playerAPI = appRemote?.playerAPI else { return }
         playerAPI.pause(nil)
         isPlaying = false
-        previewStopTask?.cancel()
         progressTimer?.cancel()
     }
 
@@ -151,7 +149,6 @@ class SpotifyRemoteService: NSObject {
         guard let playerAPI = appRemote?.playerAPI else { return }
         playerAPI.resume(nil)
         isPlaying = true
-        schedulePreviewStop()
         startProgressTimer()
     }
 
@@ -161,28 +158,13 @@ class SpotifyRemoteService: NSObject {
         playbackPosition = 0
     }
 
-    private var previewStopTask: Task<Void, Never>?
-    private var progressTimer: Task<Void, Never>?
-
-    private func schedulePreviewStop() {
-        previewStopTask?.cancel()
-        let remaining = previewDuration - playbackPosition
-        previewStopTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(max(remaining, 0)))
-            if !Task.isCancelled {
-                self?.pause()
-            }
-        }
-    }
-
     private func startProgressTimer() {
         progressTimer?.cancel()
         progressTimer = Task { @MainActor [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(100))
-                if let self = self, self.isPlaying {
-                    self.playbackPosition = min(self.playbackPosition + 0.1, self.previewDuration)
-                }
+                try? await Task.sleep(for: .milliseconds(500))
+                guard let self = self, self.isPlaying, self.trackDuration > 0 else { continue }
+                self.playbackPosition = min(self.playbackPosition + 0.5, self.trackDuration)
             }
         }
     }
@@ -238,9 +220,22 @@ extension SpotifyRemoteService: SPTAppRemoteDelegate {
 extension SpotifyRemoteService: SPTAppRemotePlayerStateDelegate {
     nonisolated func playerStateDidChange(_ playerState: SPTAppRemotePlayerState) {
         Task { @MainActor in
+            let wasPlaying = isPlaying
             isPlaying = !playerState.isPaused
-            let actualDuration = TimeInterval(playerState.track.duration) / 1000
-            trackDuration = min(actualDuration, previewDuration)
+            trackDuration = TimeInterval(playerState.track.duration) / 1000
+            playbackPosition = TimeInterval(playerState.playbackPosition) / 1000
+
+            // Detect if current track is an ad
+            let trackUri = playerState.track.uri
+            isPlayingAd = trackUri.hasPrefix("spotify:ad:") ||
+                          playerState.track.name.lowercased().contains("advertisement")
+
+            // Start/stop timer based on playback state
+            if isPlaying && !wasPlaying {
+                startProgressTimer()
+            } else if !isPlaying && wasPlaying {
+                progressTimer?.cancel()
+            }
         }
     }
 }

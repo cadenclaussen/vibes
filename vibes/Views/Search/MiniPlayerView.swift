@@ -16,36 +16,61 @@ struct MiniPlayerView: View {
                 .background(Color(.tertiarySystemFill))
 
                 HStack(spacing: 12) {
-                    AsyncImage(url: URL(string: track.albumArtURL ?? "")) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Rectangle()
+                    if spotifyRemote.isPlayingAd {
+                        // Ad indicator
+                        RoundedRectangle(cornerRadius: 4)
                             .fill(Color(.tertiarySystemFill))
-                    }
-                    .frame(width: 40, height: 40)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                            .frame(width: 40, height: 40)
+                            .overlay {
+                                Image(systemName: "speaker.slash.fill")
+                                    .foregroundStyle(.secondary)
+                            }
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(track.name)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .lineLimit(1)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Ad Playing")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundStyle(.secondary)
 
-                        Text(track.artistName)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                            Text("Your song will resume shortly")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                                .lineLimit(1)
+                        }
+                    } else {
+                        AsyncImage(url: URL(string: track.albumArtURL ?? "")) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Rectangle()
+                                .fill(Color(.tertiarySystemFill))
+                        }
+                        .frame(width: 40, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(track.name)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .lineLimit(1)
+
+                            Text(track.artistName)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
                     }
 
                     Spacer()
 
-                    // Time
-                    Text(spotifyRemote.formattedProgress)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
+                    if !spotifyRemote.isPlayingAd {
+                        // Time (hide during ads)
+                        Text(spotifyRemote.formattedProgress)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
 
                     // Play/Pause button
                     Button {
