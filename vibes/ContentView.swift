@@ -235,46 +235,78 @@ struct ReleasesDiscoveryCard: View {
 
 struct ExploreView: View {
     @Environment(AppRouter.self) private var router
-    @State private var searchText = ""
+    @Environment(AudioPreviewManager.self) private var audioManager
+    @State private var searchViewModel = SearchViewModel()
+    @State private var isSearchFocused = false
+
+    private let spotifyService = SpotifyDataService.shared
 
     var body: some View {
         @Bindable var router = router
 
         NavigationStack(path: $router.explorePath) {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // For You section placeholder
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("For You")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .padding(.horizontal)
-
-                        ContentUnavailableView(
-                            "Connect Spotify",
-                            systemImage: "sparkles",
-                            description: Text("Get personalized recommendations")
+            ZStack(alignment: .bottom) {
+                Group {
+                    if searchViewModel.isSearching {
+                        loadingView
+                    } else if searchViewModel.showResults {
+                        SearchResultsView(
+                            artists: searchViewModel.artists,
+                            albums: searchViewModel.albums,
+                            tracks: searchViewModel.tracks,
+                            onArtistTap: { artist in
+                                if let uri = artist.spotifyUri {
+                                    spotifyService.openInSpotify(uri: uri)
+                                }
+                            },
+                            onAlbumTap: { album in
+                                if let uri = album.spotifyUri {
+                                    spotifyService.openInSpotify(uri: uri)
+                                }
+                            },
+                            onTrackTap: { track in
+                                if let uri = track.spotifyUri {
+                                    spotifyService.openInSpotify(uri: uri)
+                                }
+                            },
+                            onTrackPlay: { track in
+                                playPreview(track)
+                            }
                         )
-                    }
-
-                    // Concerts section placeholder
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Concerts Near You")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .padding(.horizontal)
-
-                        ContentUnavailableView(
-                            "Set Your City",
-                            systemImage: "ticket",
-                            description: Text("Set your city in Settings to discover concerts")
-                        )
+                    } else if searchViewModel.showRecentSearches {
+                        ScrollView {
+                            RecentSearchesView(
+                                searches: searchViewModel.recentSearches,
+                                onSelect: { search in
+                                    searchViewModel.selectRecentSearch(search)
+                                    searchViewModel.search()
+                                },
+                                onClear: {
+                                    searchViewModel.clearRecentSearches()
+                                }
+                            )
+                            .padding(.top)
+                        }
+                    } else {
+                        defaultContent
                     }
                 }
-                .padding(.top)
+
+                MiniPlayerView()
+                    .animation(.easeInOut(duration: 0.2), value: audioManager.currentTrack != nil)
             }
             .navigationTitle("Explore")
-            .searchable(text: $searchText, prompt: "Search songs, artists, albums")
+            .searchable(
+                text: Binding(
+                    get: { searchViewModel.query },
+                    set: { searchViewModel.query = $0 }
+                ),
+                isPresented: $isSearchFocused,
+                prompt: "Search songs, artists, albums"
+            )
+            .onChange(of: searchViewModel.query) { _, _ in
+                searchViewModel.search()
+            }
             .navigationDestination(for: UnifiedTrack.self) { track in
                 SongDetailPlaceholder(track: track)
             }
@@ -287,6 +319,47 @@ struct ExploreView: View {
             .navigationDestination(for: Concert.self) { concert in
                 ConcertDetailPlaceholder(concert: concert)
             }
+        }
+    }
+
+    private var loadingView: some View {
+        VStack {
+            Spacer()
+            ProgressView()
+                .scaleEffect(1.2)
+            Text("Searching...")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .padding(.top, 8)
+            Spacer()
+        }
+    }
+
+    private var defaultContent: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("For You")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .padding(.horizontal)
+
+                    ContentUnavailableView(
+                        "Search for Music",
+                        systemImage: "magnifyingglass",
+                        description: Text("Find songs, artists, and albums")
+                    )
+                }
+            }
+            .padding(.top)
+        }
+    }
+
+    private func playPreview(_ track: UnifiedTrack) {
+        if audioManager.currentTrack?.id == track.id {
+            audioManager.togglePlayPause()
+        } else {
+            audioManager.play(track)
         }
     }
 }

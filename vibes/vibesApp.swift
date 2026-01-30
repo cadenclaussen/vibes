@@ -31,6 +31,7 @@ struct vibesApp: App {
                 .environment(AuthManager.shared)
                 .environment(router)
                 .environment(setupManager)
+                .environment(AudioPreviewManager.shared)
                 .onOpenURL { url in
                     GIDSignIn.sharedInstance.handle(url)
                 }

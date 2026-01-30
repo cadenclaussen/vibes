@@ -33,10 +33,12 @@ Social music sharing using a follow model (Twitter/Instagram style).
 
 ---
 
-## 3. Simple Search [ ]
+## 3. Simple Search [x]
 
-- Search artists, playlists, albums, songs
-- 30-second preview for any song
+- [x] Search artists, albums, songs
+- [x] 30-second preview for any song
+- [x] Recent searches
+- [x] Open in Spotify on tap
 
 ---
 

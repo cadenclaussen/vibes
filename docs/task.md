@@ -493,9 +493,29 @@
 - **Failures**: None
 - **Solution**: Added syncSpotifyLinkedState() to AuthManager that runs on loadUserProfile(). Syncs both Spotify and Gemini keychain state to Firestore.
 
+### 151. Implement Search feature
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/Search/, vibes/ViewModels/, vibes/Services/
+- **Requested**: Implement search with audio previews per .specs/search/
+- **Context**: Core utility feature for finding music
+- **Acceptance Criteria**:
+  - [x] Search songs, artists, albums via Spotify API
+  - [x] 30-second audio preview with AVPlayer
+  - [x] Mini player when preview playing
+  - [x] Recent searches persistence
+  - [x] Open in Spotify on tap
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented full search feature:
+  - **Services**: Added search() method to SpotifyDataService, created AudioPreviewManager with AVPlayer
+  - **ViewModel**: SearchViewModel with debounced search, recent searches persistence
+  - **Views**: SongSearchRow, ArtistSearchRow, AlbumSearchRow, SearchResultsView, RecentSearchesView, MiniPlayerView
+  - **Integration**: Updated ExploreView with search UI, mini player, and audio preview controls
+
 ## Task Statistics
-- Total Tasks: 150
-- Completed: 148
+- Total Tasks: 151
+- Completed: 149
 - In Progress: 0
 - Archived: Tasks 1-123
 

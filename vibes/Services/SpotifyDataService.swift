@@ -226,6 +226,74 @@ class SpotifyDataService {
         return nil
     }
 
+    struct SearchResults {
+        var artists: [UnifiedArtist] = []
+        var albums: [UnifiedAlbum] = []
+        var tracks: [UnifiedTrack] = []
+    }
+
+    func search(query: String, limit: Int = 5) async throws -> SearchResults {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return SearchResults()
+        }
+
+        let token = try await SpotifyAuthService.shared.getValidAccessToken()
+
+        guard var components = URLComponents(string: "\(baseURL)/search") else {
+            throw SpotifyDataError.invalidURL
+        }
+
+        components.queryItems = [
+            URLQueryItem(name: "q", value: trimmed),
+            URLQueryItem(name: "type", value: "artist,album,track"),
+            URLQueryItem(name: "limit", value: String(limit)),
+            URLQueryItem(name: "market", value: "US")
+        ]
+
+        guard let url = components.url else {
+            throw SpotifyDataError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw SpotifyDataError.invalidResponse(0, "Not an HTTP response")
+            }
+
+            if httpResponse.statusCode == 401 {
+                throw SpotifyDataError.notAuthenticated
+            }
+
+            if httpResponse.statusCode == 403 {
+                throw SpotifyDataError.forbidden
+            }
+
+            if httpResponse.statusCode != 200 {
+                let body = String(data: data, encoding: .utf8)
+                throw SpotifyDataError.invalidResponse(httpResponse.statusCode, body)
+            }
+
+            let decoded = try JSONDecoder().decode(SpotifyFullSearchResponse.self, from: data)
+
+            return SearchResults(
+                artists: decoded.artists?.items.map { $0.toUnifiedArtist() } ?? [],
+                albums: decoded.albums?.items.map { $0.toUnifiedAlbum() } ?? [],
+                tracks: decoded.tracks?.items.map { $0.toUnifiedTrack() } ?? []
+            )
+        } catch let error as SpotifyDataError {
+            throw error
+        } catch let error as DecodingError {
+            throw SpotifyDataError.decodingError(error)
+        } catch {
+            throw SpotifyDataError.networkError(error)
+        }
+    }
+
     func searchArtists(query: String, limit: Int = 10) async throws -> [UnifiedArtist] {
         if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return []
@@ -588,6 +656,20 @@ private struct SpotifyTopArtistsResponse: Decodable {
 
 private struct SpotifySearchResponse: Decodable {
     let artists: SpotifyArtistsPaging
+}
+
+private struct SpotifyFullSearchResponse: Decodable {
+    let artists: SpotifyArtistsPaging?
+    let albums: SpotifyAlbumsPaging?
+    let tracks: SpotifyTracksPaging?
+}
+
+private struct SpotifyAlbumsPaging: Decodable {
+    let items: [SpotifyAlbum]
+}
+
+private struct SpotifyTracksPaging: Decodable {
+    let items: [SpotifyTrack]
 }
 
 private struct SpotifyArtistsPaging: Decodable {
