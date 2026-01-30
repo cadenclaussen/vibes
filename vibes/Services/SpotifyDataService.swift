@@ -399,6 +399,47 @@ class SpotifyDataService {
         }
     }
 
+    func getArtist(artistId: String) async throws -> UnifiedArtist {
+        let token = try await SpotifyAuthService.shared.getValidAccessToken()
+
+        guard let url = URL(string: "\(baseURL)/artists/\(artistId)") else {
+            throw SpotifyDataError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw SpotifyDataError.invalidResponse(0, "Not an HTTP response")
+            }
+
+            if httpResponse.statusCode == 401 {
+                throw SpotifyDataError.notAuthenticated
+            }
+
+            if httpResponse.statusCode == 403 {
+                throw SpotifyDataError.forbidden
+            }
+
+            if httpResponse.statusCode != 200 {
+                let body = String(data: data, encoding: .utf8)
+                throw SpotifyDataError.invalidResponse(httpResponse.statusCode, body)
+            }
+
+            let decoded = try JSONDecoder().decode(SpotifyArtist.self, from: data)
+            return decoded.toUnifiedArtist()
+        } catch let error as SpotifyDataError {
+            throw error
+        } catch let error as DecodingError {
+            throw SpotifyDataError.decodingError(error)
+        } catch {
+            throw SpotifyDataError.networkError(error)
+        }
+    }
+
     func getArtistTopTracks(artistId: String) async throws -> [UnifiedTrack] {
         let token = try await SpotifyAuthService.shared.getValidAccessToken()
 
@@ -693,18 +734,18 @@ private struct SpotifyPlayHistoryItem: Decodable {
 private struct SpotifyArtist: Decodable {
     let id: String
     let name: String
-    let images: [SpotifyImage]
-    let genres: [String]
-    let popularity: Int
+    let images: [SpotifyImage]?
+    let genres: [String]?
+    let popularity: Int?
     let uri: String
 
     func toUnifiedArtist() -> UnifiedArtist {
-        let imageURL = images.first?.url
+        let imageURL = images?.first?.url
         return UnifiedArtist(
             id: id,
             name: name,
             imageURL: imageURL,
-            genres: genres,
+            genres: genres ?? [],
             popularity: popularity,
             spotifyUri: uri
         )
@@ -738,14 +779,16 @@ private struct SpotifyAlbum: Decodable {
 
     func toUnifiedAlbum() -> UnifiedAlbum {
         let imageURL = images.first?.url
-        let artistName = artists.first?.name ?? "Unknown Artist"
-        let artistId = artists.first?.id
+        let artistNames = artists.map { $0.name }.joined(separator: ", ")
+        let artistName = artistNames.isEmpty ? "Unknown Artist" : artistNames
+        let artistCredits = artists.map { ArtistCredit(id: $0.id, name: $0.name) }
 
         return UnifiedAlbum(
             id: id,
             name: name,
             artistName: artistName,
-            artistId: artistId,
+            artistId: artists.first?.id,
+            artists: artistCredits,
             albumArtURL: imageURL,
             releaseDate: releaseDate,
             totalTracks: totalTracks,
@@ -787,7 +830,8 @@ private struct SpotifyTrack: Decodable {
     }
 
     func toUnifiedTrack() -> UnifiedTrack {
-        let artistName = artists.first?.name ?? "Unknown Artist"
+        let artistNames = artists.map { $0.name }.joined(separator: ", ")
+        let artistName = artistNames.isEmpty ? "Unknown Artist" : artistNames
         let artistId = artists.first?.id
         let albumArtURL = album.safeImages.first?.url
 
@@ -854,7 +898,8 @@ private struct SpotifySimplifiedTrack: Decodable {
     }
 
     func toUnifiedTrack(albumName: String, albumId: String, albumArtURL: String?) -> UnifiedTrack {
-        let artistName = artists.first?.name ?? "Unknown Artist"
+        let artistNames = artists.map { $0.name }.joined(separator: ", ")
+        let artistName = artistNames.isEmpty ? "Unknown Artist" : artistNames
         let artistId = artists.first?.id
 
         return UnifiedTrack(

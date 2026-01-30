@@ -59,11 +59,17 @@ struct UnifiedTrack: Codable, Identifiable, Hashable {
     }
 }
 
+struct ArtistCredit: Codable, Identifiable, Hashable {
+    var id: String
+    var name: String
+}
+
 struct UnifiedAlbum: Codable, Identifiable, Hashable {
     var id: String
     var name: String
     var artistName: String
     var artistId: String?
+    var artists: [ArtistCredit]
     var albumArtURL: String?
     var releaseDate: String?
     var totalTracks: Int?
@@ -74,6 +80,7 @@ struct UnifiedAlbum: Codable, Identifiable, Hashable {
         name: String,
         artistName: String,
         artistId: String? = nil,
+        artists: [ArtistCredit] = [],
         albumArtURL: String? = nil,
         releaseDate: String? = nil,
         totalTracks: Int? = nil,
@@ -83,6 +90,9 @@ struct UnifiedAlbum: Codable, Identifiable, Hashable {
         self.name = name
         self.artistName = artistName
         self.artistId = artistId
+        self.artists = artists.isEmpty && artistId != nil
+            ? [ArtistCredit(id: artistId!, name: artistName)]
+            : artists
         self.albumArtURL = albumArtURL
         self.releaseDate = releaseDate
         self.totalTracks = totalTracks

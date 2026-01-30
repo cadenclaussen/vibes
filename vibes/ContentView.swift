@@ -121,6 +121,12 @@ struct FeedView: View {
             .navigationDestination(for: DiscoverMusicDestination.self) { _ in
                 DiscoverMusicView()
             }
+            .navigationDestination(for: UnifiedArtist.self) { artist in
+                ArtistProfileView(artist: artist)
+            }
+            .navigationDestination(for: UnifiedAlbum.self) { album in
+                AlbumDetailView(album: album)
+            }
         }
     }
 }
@@ -257,14 +263,10 @@ struct ExploreView: View {
                             albums: searchViewModel.albums,
                             tracks: searchViewModel.tracks,
                             onArtistTap: { artist in
-                                if let uri = artist.spotifyUri {
-                                    spotifyService.openInSpotify(uri: uri)
-                                }
+                                router.navigateToArtistDetail(artist)
                             },
                             onAlbumTap: { album in
-                                if let uri = album.spotifyUri {
-                                    spotifyService.openInSpotify(uri: uri)
-                                }
+                                router.navigateToAlbumDetail(album)
                             },
                             onTrackPlay: { track in
                                 playPreview(track)
@@ -313,10 +315,10 @@ struct ExploreView: View {
                 SongDetailPlaceholder(track: track)
             }
             .navigationDestination(for: UnifiedArtist.self) { artist in
-                ArtistDetailPlaceholder(artist: artist)
+                ArtistProfileView(artist: artist)
             }
             .navigationDestination(for: UnifiedAlbum.self) { album in
-                AlbumDetailPlaceholder(album: album)
+                AlbumDetailView(album: album)
             }
             .navigationDestination(for: Concert.self) { concert in
                 ConcertDetailPlaceholder(concert: concert)
