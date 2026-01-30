@@ -341,10 +341,84 @@
 - **Failures**: None
 - **Solution**: Created .specs/setup/prd.md with focused requirements for the 3 required setup steps: Spotify connection, Gemini API key entry, and Concert City selection. Includes setup components, user flow, and success metrics.
 
+### 142. Releases Discovery Feature (Duplicate Concert Pattern)
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/ReleasesDiscovery/, vibes/ViewModels/, vibes/Services/, vibes/Models/
+- **Requested**: Duplicate the concert discovery pattern with artists removal, adding, and reordering. Instead of concerts, get upcoming releases and recent releases (within the last month) by these artists.
+- **Context**: Users want to discover new music from their favorite artists. Mirrors the concert discovery UX pattern.
+- **Acceptance Criteria**:
+  - [x] Create RankedRelease model
+  - [x] Add SpotifyDataService methods for artist albums
+  - [x] Create ReleasesDiscoveryViewModel (mirror ConcertDiscoveryViewModel)
+  - [x] Create ReleasesDiscoveryView with artist management
+  - [x] Create ReleaseRow and ReleaseResultsView
+  - [x] Add navigation from Feed/Explore
+  - [x] Show upcoming and recent releases (last month)
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented releases discovery feature mirroring concert discovery pattern:
+  - **New Model**: `RankedRelease.swift` - wraps UnifiedAlbum with artistRank and isNew flag
+  - **SpotifyDataService**: Added `getArtistAlbums()`, `getReleasesForArtists()`, and `parseReleaseDate()` methods
+  - **New ViewModel**: `ReleasesDiscoveryViewModel.swift` - manages artist list and releases with persistence
+  - **New Views**: `ReleasesDiscoveryView.swift` (artist management with search/add/remove/reorder), `ReleaseRow.swift` (album display with new badge), `ReleaseResultsView.swift` (results with Recent/Upcoming sections)
+  - **Navigation**: Added `ReleasesDiscoveryDestination`, `navigateToReleasesDiscovery()` to AppRouter, `ReleasesDiscoveryCard` to Feed
+  - Features: Top 10 Spotify artists (medium term), add/remove/reorder artists (max 20), search artists, persist selection, find releases from last 30 days + upcoming, open in Spotify
+
+### 143. Discover Music Feature (Spotify Recommendations)
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: .specs/discover-music/, vibes/Views/, vibes/ViewModels/, vibes/Services/
+- **Requested**: Create a push-nav widget on the feed page called "Discover Music". Uses Spotify recommendations API based on user's song library. Gets 10 songs from Spotify, displays 5. When user clicks a song (dissatisfied, already has it, or added to playlist), that song disappears and the 6th song takes its place. When queue drops below 7, fetch more songs to reach 10 again.
+- **Context**: Personal music discovery feature using Spotify's recommendation engine with smart queue management.
+- **Acceptance Criteria**:
+  - [x] Create Kiro spec with PRD, requirements, design, tasks
+  - [x] Push-nav widget on Feed page titled "Discover Music"
+  - [x] Integrate with Spotify Recommendations API
+  - [x] Display 5 visible songs at a time
+  - [x] Queue of 10 songs (5 visible, 5 buffered)
+  - [x] Tap to dismiss song, next queued song slides in
+  - [x] Auto-replenish queue when below 7 songs
+  - [x] Song cards show title, artist, album art
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented via Kiro spec-driven development. Initially added getRecommendations() to SpotifyDataService, but Spotify deprecated the Recommendations API on Nov 27, 2024. Implemented workaround using artist-based discovery: added getArtistTopTracks() and discoverTracks() methods that fetch top tracks from user's top artists, filter out tracks user already knows, and shuffle. Created DiscoverMusicViewModel with queue management using new discoverTracks() method. Created DiscoverMusicView and SongDiscoveryCard with animations and context menu actions. All files at .specs/discover-music/.
+
+### 144. Add Popularity Filter to Discover Music
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Services/SpotifyDataService.swift, vibes/ViewModels/DiscoverMusicViewModel.swift, vibes/Views/DiscoverMusic/DiscoverMusicView.swift
+- **Requested**: User found recommended songs too popular/mainstream. Add a popularity setting that filters for less popular (more obscure) songs when the setting is higher.
+- **Context**: Spotify tracks have a popularity score (0-100). Filtering by max popularity lets users discover hidden gems from their favorite artists.
+- **Acceptance Criteria**:
+  - [x] Add maxPopularity parameter to discoverTracks() in SpotifyDataService
+  - [x] Add maxPopularity setting to DiscoverMusicViewModel
+  - [x] Add UI slider in DiscoverMusicView for adjusting obscurity level
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Added maxPopularity parameter to discoverTracks() that filters tracks above the threshold. Added maxPopularity property to ViewModel. Created PopularitySettingsSheet with slider UI showing "Obscurity Level" from Mainstream to Hidden Gems. Slider button in toolbar opens settings sheet. Tapping "Find Songs" reloads with new filter.
+
+### 145. Simplify PRD to user list with search
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: .specs/prd.md
+- **Requested**: Update the PRD to just have a list of people on the app with search functionality, and mark the follow/unfollow feature for the future
+- **Context**: Simplifying the app scope to focus on core user discovery functionality first
+- **Acceptance Criteria**:
+  - [x] PRD shows simple user list feature
+  - [x] Search through users functionality documented
+  - [x] Follow/unfollow marked as future feature
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Rewrote PRD to focus on MVP user discovery. Core feature is user list with search (filter by name/username). Future Features section includes follow/unfollow and all music features (Spotify, sharing, concerts, AI).
+
 ## Task Statistics
-- Total Tasks: 141
-- Completed: 139
-- In Progress: 1
+- Total Tasks: 145
+- Completed: 143
+- In Progress: 0
 - Archived: Tasks 1-123
 
 ---

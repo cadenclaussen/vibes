@@ -132,6 +132,14 @@ class AppRouter {
         feedPath.append(ConcertDiscoveryDestination.artistList)
     }
 
+    func navigateToReleasesDiscovery() {
+        feedPath.append(ReleasesDiscoveryDestination.artistList)
+    }
+
+    func navigateToDiscoverMusic() {
+        feedPath.append(DiscoverMusicDestination.main)
+    }
+
     func navigateToSpotifySetup() {
         feedPath.append(SetupDestination.spotify)
     }
@@ -204,4 +212,14 @@ enum SetupDestination: Hashable {
 // Concert Discovery navigation destination
 enum ConcertDiscoveryDestination: Hashable {
     case artistList
+}
+
+// Releases Discovery navigation destination
+enum ReleasesDiscoveryDestination: Hashable {
+    case artistList
+}
+
+// Discover Music navigation destination
+enum DiscoverMusicDestination: Hashable {
+    case main
 }

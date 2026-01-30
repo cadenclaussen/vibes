@@ -69,6 +69,16 @@ struct FeedView: View {
                     }
                     .padding(.horizontal)
 
+                    ReleasesDiscoveryCard {
+                        router.navigateToReleasesDiscovery()
+                    }
+                    .padding(.horizontal)
+
+                    DiscoverMusicCard {
+                        router.navigateToDiscoverMusic()
+                    }
+                    .padding(.horizontal)
+
                     ContentUnavailableView(
                         "No Activity Yet",
                         systemImage: "music.note.list",
@@ -105,7 +115,49 @@ struct FeedView: View {
             .navigationDestination(for: ConcertDiscoveryDestination.self) { _ in
                 ConcertDiscoveryView()
             }
+            .navigationDestination(for: ReleasesDiscoveryDestination.self) { _ in
+                ReleasesDiscoveryView()
+            }
+            .navigationDestination(for: DiscoverMusicDestination.self) { _ in
+                DiscoverMusicView()
+            }
         }
+    }
+}
+
+struct DiscoverMusicCard: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: "sparkles")
+                    .font(.title2)
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(Color.orange.gradient)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Discover Music")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text("Find new songs you'll love")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            }
+            .padding()
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -127,6 +179,42 @@ struct ConcertDiscoveryCard: View {
                         .font(.headline)
                         .foregroundStyle(.primary)
                     Text("Find shows from your favorite artists")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            }
+            .padding()
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct ReleasesDiscoveryCard: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: "music.note.list")
+                    .font(.title2)
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(Color.green.gradient)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("New Releases")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text("Discover new music from your artists")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
