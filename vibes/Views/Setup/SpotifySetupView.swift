@@ -125,7 +125,6 @@ struct SpotifySetupView: View {
         Task {
             do {
                 try await SpotifyAuthService.shared.startAuthorization()
-                try await authManager.updateSpotifyLinked(true)
                 await MainActor.run {
                     isConnecting = false
                     setupManager.refresh()
@@ -147,9 +146,6 @@ struct SpotifySetupView: View {
 
     private func disconnectSpotify() {
         SpotifyAuthService.shared.disconnect()
-        Task {
-            try? await authManager.updateSpotifyLinked(false)
-        }
         setupManager.refresh()
         dismiss()
     }

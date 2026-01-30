@@ -35,6 +35,7 @@ enum Constants {
             "user-read-private",
             "user-read-email",
             "user-top-read",
+            "user-read-recently-played",
             "user-library-read",
             "user-library-modify",
             "playlist-read-private",

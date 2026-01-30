@@ -35,8 +35,8 @@ struct StatsPreviewCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
-        .task {
-            if authManager.isSpotifyLinked && viewModel.previewArtists.isEmpty {
+        .task(id: authManager.isSpotifyLinked) {
+            if authManager.isSpotifyLinked {
                 await viewModel.loadPreview()
             }
         }
@@ -110,7 +110,7 @@ struct StatsPreviewCard: View {
                 .foregroundStyle(.primary)
                 .lineLimit(1)
 
-            Text("Your top artists this month")
+            Text("Your top artists")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

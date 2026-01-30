@@ -2,7 +2,7 @@ import Foundation
 
 @Observable
 class StatsViewModel {
-    var timeRange: SpotifyTimeRange = .shortTerm
+    var timeRange: SpotifyTimeRange = .mediumTerm
     var topArtists: [UnifiedArtist] = []
     var topSongs: [UnifiedTrack] = []
     var topGenres: [String] = []
@@ -29,9 +29,10 @@ class StatsViewModel {
         error = nil
 
         do {
-            previewArtists = try await spotifyService.getTopArtists(limit: 3, timeRange: .shortTerm)
+            previewArtists = try await spotifyService.getTopArtists(limit: 3, timeRange: .mediumTerm)
         } catch {
             self.error = error
+            print("Stats preview error: \(error)")
         }
 
         isLoadingPreview = false
