@@ -17,11 +17,11 @@ final class AuthManager {
     var error: Error?
 
     var isSpotifyLinked: Bool {
-        userProfile?.spotifyLinked ?? false
+        keychain.getSpotifyAccessToken() != nil
     }
 
     var isGeminiConfigured: Bool {
-        userProfile?.geminiKeyConfigured ?? false
+        keychain.getGeminiApiKey() != nil
     }
 
     private var authStateListener: AuthStateDidChangeListenerHandle?
