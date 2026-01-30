@@ -72,16 +72,18 @@ class TicketmasterService {
             }
 
             // Filter to only events where the searched artist is actually performing
+            // Use exact matching to avoid "Drake" matching "Drake Milligan"
             return events.compactMap { event -> Concert? in
-                let concert = event.toConcert(searchedArtist: artistName)
                 let searchedLower = artistName.lowercased()
-                let concertArtistLower = concert.artistName.lowercased()
-                let eventNameLower = event.name.lowercased()
 
-                if concertArtistLower.contains(searchedLower) ||
-                   searchedLower.contains(concertArtistLower) ||
-                   eventNameLower.contains(searchedLower) {
-                    return concert
+                // Check if any attraction (performer) exactly matches the searched artist
+                let attractions = event._embedded?.attractions ?? []
+                let hasExactMatch = attractions.contains { attraction in
+                    attraction.name.lowercased() == searchedLower
+                }
+
+                if hasExactMatch {
+                    return event.toConcert(searchedArtist: artistName)
                 }
                 return nil
             }

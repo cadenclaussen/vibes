@@ -415,9 +415,23 @@
 - **Failures**: None
 - **Solution**: Rewrote PRD to focus on MVP user discovery. Core feature is user list with search (filter by name/username). Future Features section includes follow/unfollow and all music features (Spotify, sharing, concerts, AI).
 
+### 146. Concert discovery shows wrong artists (substring matching bug)
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Services/TicketmasterService.swift:75-87
+- **Requested**: Having "Drake" on artist list shows concerts from "Drake Milligan" and "Drake Bell". Need exact artist matching, not substring matching.
+- **Context**: The filtering logic uses `contains()` which matches substrings. "Drake Milligan".contains("Drake") returns true incorrectly.
+- **Acceptance Criteria**:
+  - [x] Searching for "Drake" only returns Drake concerts, not Drake Milligan/Bell
+  - [x] Fix works generally for all artists (exact matching)
+  - [x] Build and test
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Changed filtering logic from substring matching (`contains()`) to exact matching. Now checks if any attraction (performer) in the Ticketmaster event exactly matches the searched artist name (case-insensitive). This ensures "Drake" only matches events where "Drake" is listed as a performer, not "Drake Milligan" or "Drake Bell".
+
 ## Task Statistics
-- Total Tasks: 145
-- Completed: 143
+- Total Tasks: 146
+- Completed: 144
 - In Progress: 0
 - Archived: Tasks 1-123
 
