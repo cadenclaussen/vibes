@@ -33,6 +33,50 @@ class SpotifyRemoteService: NSObject {
     private(set) var playbackPosition: TimeInterval = 0
     private(set) var trackDuration: TimeInterval = 0
 
+    // Queue management
+    private(set) var queue: [UnifiedTrack] = []
+    private(set) var currentQueueIndex: Int = -1
+    var isShuffleEnabled = false
+    private var shuffledIndices: [Int] = []
+    private var shufflePosition: Int = -1
+
+    var isNowPlayingPresented = false
+    var isSeeking = false
+
+    var upNext: UnifiedTrack? {
+        guard !queue.isEmpty else { return nil }
+        if isShuffleEnabled {
+            let nextPos = shufflePosition + 1
+            guard nextPos < shuffledIndices.count else { return nil }
+            return queue[shuffledIndices[nextPos]]
+        } else {
+            let nextIndex = currentQueueIndex + 1
+            guard nextIndex < queue.count else { return nil }
+            return queue[nextIndex]
+        }
+    }
+
+    var hasNextTrack: Bool {
+        upNext != nil
+    }
+
+    var previousTrack: UnifiedTrack? {
+        guard !queue.isEmpty else { return nil }
+        if isShuffleEnabled {
+            let prevPos = shufflePosition - 1
+            guard prevPos >= 0 else { return nil }
+            return queue[shuffledIndices[prevPos]]
+        } else {
+            let prevIndex = currentQueueIndex - 1
+            guard prevIndex >= 0 else { return nil }
+            return queue[prevIndex]
+        }
+    }
+
+    var hasPreviousTrack: Bool {
+        previousTrack != nil
+    }
+
     var progress: Double {
         guard trackDuration > 0 else { return 0 }
         return min(playbackPosition / trackDuration, 1.0)
@@ -92,6 +136,80 @@ class SpotifyRemoteService: NSObject {
     }
 
     func play(_ track: UnifiedTrack) {
+        // Clear queue when playing a single track
+        queue = []
+        currentQueueIndex = -1
+        playTrackInternal(track)
+    }
+
+    func playWithQueue(_ track: UnifiedTrack, queue: [UnifiedTrack]) {
+        self.queue = queue
+        self.currentQueueIndex = queue.firstIndex(where: { $0.id == track.id }) ?? -1
+        setupShuffleIndices()
+        playTrackInternal(track)
+    }
+
+    func playNext() {
+        guard let nextTrack = upNext else { return }
+        if isShuffleEnabled {
+            shufflePosition += 1
+            currentQueueIndex = shuffledIndices[shufflePosition]
+        } else {
+            currentQueueIndex += 1
+        }
+        playTrackInternal(nextTrack)
+    }
+
+    func playPrevious() {
+        // If more than 10 seconds into the song, restart current track
+        if playbackPosition > 10 {
+            if let track = currentTrack {
+                playTrackInternal(track)
+            }
+            return
+        }
+
+        // Otherwise, go to previous track if available
+        guard let prevTrack = previousTrack else {
+            // No previous track, just restart current
+            if let track = currentTrack {
+                playTrackInternal(track)
+            }
+            return
+        }
+
+        if isShuffleEnabled {
+            shufflePosition -= 1
+            currentQueueIndex = shuffledIndices[shufflePosition]
+        } else {
+            currentQueueIndex -= 1
+        }
+        playTrackInternal(prevTrack)
+    }
+
+    func toggleShuffle() {
+        isShuffleEnabled.toggle()
+        if isShuffleEnabled {
+            setupShuffleIndices()
+        }
+    }
+
+    private func setupShuffleIndices() {
+        guard !queue.isEmpty else {
+            shuffledIndices = []
+            shufflePosition = -1
+            return
+        }
+        // Create shuffled order starting from current track
+        var indices = Array(0..<queue.count)
+        indices.removeAll { $0 == currentQueueIndex }
+        indices.shuffle()
+        // Current track is at position 0, rest are shuffled
+        shuffledIndices = [currentQueueIndex] + indices
+        shufflePosition = 0
+    }
+
+    private func playTrackInternal(_ track: UnifiedTrack) {
         currentTrack = track
         pendingTrack = track
         playbackPosition = 0
@@ -156,6 +274,28 @@ class SpotifyRemoteService: NSObject {
         pause()
         currentTrack = nil
         playbackPosition = 0
+        queue = []
+        currentQueueIndex = -1
+        isShuffleEnabled = false
+        shuffledIndices = []
+        shufflePosition = -1
+    }
+
+    // Note: Seeking requires Spotify Premium. This function is kept for future use.
+    func seek(to position: TimeInterval) {
+        guard isConnected, let playerAPI = appRemote?.playerAPI else { return }
+
+        isSeeking = true
+        let positionMs = Int(position * 1000)
+
+        playerAPI.seek(toPosition: positionMs) { [weak self] _, error in
+            Task { @MainActor [weak self] in
+                self?.isSeeking = false
+                if error == nil {
+                    self?.playbackPosition = position
+                }
+            }
+        }
     }
 
     private func startProgressTimer() {
@@ -163,7 +303,10 @@ class SpotifyRemoteService: NSObject {
         progressTimer = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(500))
-                guard let self = self, self.isPlaying, self.trackDuration > 0 else { continue }
+                guard let self = self,
+                      self.isPlaying,
+                      self.trackDuration > 0,
+                      !self.isSeeking else { continue }
                 self.playbackPosition = min(self.playbackPosition + 0.5, self.trackDuration)
             }
         }

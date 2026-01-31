@@ -2,6 +2,31 @@
 
 ## Active Tasks
 
+### 156. Now Playing View with Synced Lyrics
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/NowPlaying/, vibes/Views/Search/MiniPlayerView.swift, vibes/Services/
+- **Requested**: Remove play/shuffle buttons from MiniPlayer, make it tappable to expand to full-screen Now Playing view with album art, song info, synced scrolling lyrics, and draggable progress bar
+- **Context**: Enhanced music playback experience with lyrics support
+- **Acceptance Criteria**:
+  - [x] Create Kiro specs in .specs/now-playing/
+  - [x] MiniPlayer simplified (removed buttons, tap to expand)
+  - [x] NowPlayingView with large album art and track info
+  - [x] Synced scrolling lyrics from LRCLIB API
+  - [x] Current lyric line highlighted, auto-scrolls
+  - [x] Draggable progress bar with seek functionality
+  - [x] Play/pause button in full view
+  - [x] Sheet presentation with swipe to dismiss
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented full Now Playing feature:
+  - **Models**: SyncedLyrics.swift with LRC parser
+  - **Services**: LyricsService.swift (LRCLIB API), added seek() and isNowPlayingPresented to SpotifyRemoteService
+  - **ViewModel**: NowPlayingViewModel.swift for lyrics loading and current line tracking
+  - **Views**: NowPlayingView.swift (full-screen), LyricsView.swift (auto-scroll, highlighting), InteractiveProgressBar.swift (draggable)
+  - **MiniPlayer**: Simplified to album art + track info + progress bar, tap presents NowPlayingView sheet
+
 ### 155. Implement Album Detail & Artist Profile Views
 - **Status**: COMPLETED
 - **Type**: Feature

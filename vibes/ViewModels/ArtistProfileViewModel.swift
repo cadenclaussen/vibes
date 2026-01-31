@@ -41,7 +41,7 @@ class ArtistProfileViewModel {
         if spotifyRemote.currentTrack?.id == track.id {
             spotifyRemote.togglePlayPause()
         } else {
-            spotifyRemote.play(track)
+            spotifyRemote.playWithQueue(track, queue: topTracks)
         }
     }
 }

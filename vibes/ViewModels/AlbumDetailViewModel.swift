@@ -43,17 +43,18 @@ class AlbumDetailViewModel {
         if spotifyRemote.currentTrack?.id == track.id {
             spotifyRemote.togglePlayPause()
         } else {
-            spotifyRemote.play(track)
+            spotifyRemote.playWithQueue(track, queue: tracks)
         }
     }
 
     func playAll(using spotifyRemote: SpotifyRemoteService) {
         guard let firstTrack = tracks.first else { return }
-        spotifyRemote.play(firstTrack)
+        spotifyRemote.playWithQueue(firstTrack, queue: tracks)
     }
 
     func shuffle(using spotifyRemote: SpotifyRemoteService) {
         guard let randomTrack = tracks.randomElement() else { return }
-        spotifyRemote.play(randomTrack)
+        spotifyRemote.playWithQueue(randomTrack, queue: tracks)
+        spotifyRemote.toggleShuffle()
     }
 }
