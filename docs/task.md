@@ -2,6 +2,34 @@
 
 ## Active Tasks
 
+### 157. Music Collaboration Feature
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Services/SocialService.swift, vibes/ViewModels/UserSearchViewModel.swift, vibes/ViewModels/FollowViewModel.swift, vibes/ViewModels/ShareViewModel.swift, vibes/Views/Social/, vibes/ContentView.swift, vibes/Views/NowPlaying/NowPlayingView.swift, vibes/Services/AppRouter.swift
+- **Requested**: Implement social music sharing with follow model (Twitter/Instagram style). Users can follow each other, share songs directly, and see what friends are listening to.
+- **Context**: Core differentiator - transforms app from Spotify frontend to social music platform
+- **Acceptance Criteria**:
+  - [x] Create Kiro specs in .specs/music-collaboration/
+  - [x] SocialService with Firestore operations for follows/shares
+  - [x] User search with debounced input
+  - [x] Follow/unfollow functionality
+  - [x] Followers/following lists on profile
+  - [x] Share button on Now Playing view
+  - [x] Share from search results (context menu)
+  - [x] Activity feed with song shares from followed users
+  - [x] Tap shared song to play
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented full Music Collaboration feature (Phase 1: Following System):
+  - **Kiro Specs**: Created .specs/music-collaboration/ with prd.md, requirements.md, design.md, tasks.md
+  - **Services**: SocialService.swift with searchUsers, follow/unfollow, getFollowers/getFollowing, shareSong, getSharesFromFollowing
+  - **ViewModels**: UserSearchViewModel (debounced search), FollowViewModel (followers/following lists), ShareViewModel (song sharing)
+  - **Views**: UserSearchView (find people sheet), UserSearchRow (user card with follow button), FollowListView (followers/following), UserProfileView (other user's profile), ShareSheetView (share song to followers), SongShareCard (shared song in feed)
+  - **Navigation**: Added SocialDestination enum, navigateToUserProfile, navigateToFollowers, navigateToFollowing, presentShareSheet to AppRouter
+  - **Integration**: FindPeopleCard in Feed, share button in NowPlayingView actionRow, share context menu in SongSearchRow, profile followers/following counts
+  - Build succeeds on iPhone 16e simulator
+
 ### 156. Now Playing View with Synced Lyrics
 - **Status**: COMPLETED
 - **Type**: Feature
@@ -607,9 +635,9 @@
 - **Solution**: Removed previewDuration constant, schedulePreviewStop() method, and all related timers. Updated playerStateDidChange delegate to use actual track duration and playback position from Spotify player state. Songs now play to completion with accurate progress tracking.
 
 ## Task Statistics
-- Total Tasks: 154
-- Completed: 152
-- In Progress: 0
+- Total Tasks: 157
+- Completed: 155
+- In Progress: 1
 - Archived: Tasks 1-123
 
 ---

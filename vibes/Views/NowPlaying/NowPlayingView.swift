@@ -2,6 +2,7 @@ import SwiftUI
 
 struct NowPlayingView: View {
     @Environment(SpotifyRemoteService.self) private var spotifyRemote
+    @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel = NowPlayingViewModel()
 
@@ -23,6 +24,11 @@ struct NowPlayingView: View {
                     // Track info
                     trackInfo(track)
                         .padding(.top, 16)
+
+                    // Action row with share button
+                    actionRow(track)
+                        .padding(.top, 12)
+                        .padding(.horizontal, 24)
 
                     // Lyrics
                     LyricsView(
@@ -130,6 +136,27 @@ struct NowPlayingView: View {
         .padding(.horizontal)
     }
 
+    private func actionRow(_ track: UnifiedTrack) -> some View {
+        HStack(spacing: 32) {
+            Spacer()
+
+            // Share button
+            Button {
+                router.presentShareSheet(for: track)
+            } label: {
+                VStack(spacing: 4) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 22))
+                    Text("Share")
+                        .font(.caption2)
+                }
+                .foregroundStyle(.white.opacity(0.7))
+            }
+
+            Spacer()
+        }
+    }
+
     private var upNextView: some View {
         HStack(spacing: 8) {
             if let nextTrack = spotifyRemote.upNext {
@@ -203,4 +230,5 @@ struct NowPlayingView: View {
 #Preview {
     NowPlayingView()
         .environment(SpotifyRemoteService.shared)
+        .environment(AppRouter())
 }

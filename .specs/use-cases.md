@@ -4,15 +4,19 @@ Status: [x] Done | [~] Partial | [ ] Not Started
 
 ---
 
-## 1. Music Collaboration [ ]
+## 1. Music Collaboration [~]
 
 Social music sharing using a follow model (Twitter/Instagram style).
 
-- Follow/unfollow users
-- Send songs to followers
-- Trending recommendations across all users
-- Direct sharing between friends
-- Request songs from friends
+- [x] Follow/unfollow users
+- [x] User search with Find People sheet
+- [x] Followers/following lists
+- [x] User profiles with counts
+- [x] Send songs to followers (ShareSheetView)
+- [x] Activity feed with shared songs
+- [x] Direct sharing from Now Playing and search
+- [ ] Trending recommendations across all users
+- [ ] Request songs from friends
 
 ---
 

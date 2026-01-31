@@ -148,6 +148,28 @@ class AppRouter {
         profilePath.append(StatsDestination.main)
     }
 
+    func navigateToFollowers(for userId: String) {
+        switch selectedTab {
+        case .feed:
+            feedPath.append(SocialDestination.followers(userId))
+        case .explore:
+            explorePath.append(SocialDestination.followers(userId))
+        case .profile:
+            profilePath.append(SocialDestination.followers(userId))
+        }
+    }
+
+    func navigateToFollowing(for userId: String) {
+        switch selectedTab {
+        case .feed:
+            feedPath.append(SocialDestination.following(userId))
+        case .explore:
+            explorePath.append(SocialDestination.following(userId))
+        case .profile:
+            profilePath.append(SocialDestination.following(userId))
+        }
+    }
+
     // Sheet presentation
     func presentShareSheet(for song: UnifiedTrack) {
         presentedSheet = .shareSong(song)
@@ -231,4 +253,10 @@ enum DiscoverMusicDestination: Hashable {
 // Stats navigation destination
 enum StatsDestination: Hashable {
     case main
+}
+
+// Social navigation destination
+enum SocialDestination: Hashable {
+    case followers(String) // userId
+    case following(String) // userId
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import FirebaseAuth
 
 struct ContentView: View {
     @Environment(AppRouter.self) private var router
@@ -35,15 +36,15 @@ struct ContentView: View {
     private func sheetContent(for sheet: AppRouter.Sheet) -> some View {
         switch sheet {
         case .shareSong(let track):
-            ShareSongSheet(track: track)
+            ShareSheetView(track: track)
         case .userPicker(let track):
-            UserPickerSheet(track: track)
+            ShareSheetView(track: track)
         case .playlistPicker(let track):
             PlaylistPickerSheet(track: track)
         case .aiPlaylist:
             AIPlaylistSheet()
         case .findUsers:
-            FindUsersSheet()
+            UserSearchView()
         case .editProfile:
             EditProfileSheet()
         }
@@ -54,45 +55,81 @@ struct ContentView: View {
 
 struct FeedView: View {
     @Environment(AppRouter.self) private var router
+    @Environment(SpotifyRemoteService.self) private var spotifyRemote
+    @State private var songShares: [SongShare] = []
+    @State private var isLoadingShares = false
+
+    private let socialService = SocialService.shared
 
     var body: some View {
         @Bindable var router = router
 
         NavigationStack(path: $router.feedPath) {
-            ScrollView {
-                VStack(spacing: 16) {
-                    SetupCard()
+            ZStack(alignment: .bottom) {
+                ScrollView {
+                    VStack(spacing: 16) {
+                        SetupCard()
+                            .padding(.horizontal)
+
+                        // Find People card
+                        FindPeopleCard {
+                            router.presentFindUsers()
+                        }
                         .padding(.horizontal)
 
-                    ConcertDiscoveryCard {
-                        router.navigateToConcertDiscovery()
-                    }
-                    .padding(.horizontal)
+                        ConcertDiscoveryCard {
+                            router.navigateToConcertDiscovery()
+                        }
+                        .padding(.horizontal)
 
-                    ReleasesDiscoveryCard {
-                        router.navigateToReleasesDiscovery()
-                    }
-                    .padding(.horizontal)
+                        ReleasesDiscoveryCard {
+                            router.navigateToReleasesDiscovery()
+                        }
+                        .padding(.horizontal)
 
-                    DiscoverMusicCard {
-                        router.navigateToDiscoverMusic()
-                    }
-                    .padding(.horizontal)
+                        DiscoverMusicCard {
+                            router.navigateToDiscoverMusic()
+                        }
+                        .padding(.horizontal)
 
-                    ContentUnavailableView(
-                        "No Activity Yet",
-                        systemImage: "music.note.list",
-                        description: Text("Follow friends and share songs to see activity here")
-                    )
-                    .padding(.top, 40)
+                        // Song shares section
+                        if isLoadingShares {
+                            ProgressView()
+                                .padding(.top, 40)
+                        } else if songShares.isEmpty {
+                            ContentUnavailableView(
+                                "No Activity Yet",
+                                systemImage: "music.note.list",
+                                description: Text("Follow friends and share songs to see activity here")
+                            )
+                            .padding(.top, 40)
+                        } else {
+                            LazyVStack(spacing: 0) {
+                                ForEach(songShares) { share in
+                                    SongShareCard(share: share)
+                                    Divider()
+                                }
+                            }
+                            .padding(.top, 8)
+                        }
+
+                        // Bottom padding for mini player
+                        Color.clear.frame(height: 80)
+                    }
                 }
+                .refreshable {
+                    await loadShares()
+                }
+
+                MiniPlayerView()
+                    .animation(.easeInOut(duration: 0.2), value: spotifyRemote.currentTrack != nil)
             }
             .navigationTitle("Feed")
             .navigationDestination(for: UnifiedTrack.self) { track in
                 SongDetailPlaceholder(track: track)
             }
             .navigationDestination(for: UserProfile.self) { user in
-                UserProfilePlaceholder(user: user)
+                UserProfileView(user: user)
             }
             .navigationDestination(for: Concert.self) { concert in
                 ConcertDetailPlaceholder(concert: concert)
@@ -127,7 +164,64 @@ struct FeedView: View {
             .navigationDestination(for: UnifiedAlbum.self) { album in
                 AlbumDetailView(album: album)
             }
+            .navigationDestination(for: SocialDestination.self) { destination in
+                switch destination {
+                case .followers(let userId):
+                    FollowListView(viewModel: FollowViewModel(mode: .followers, userId: userId))
+                case .following(let userId):
+                    FollowListView(viewModel: FollowViewModel(mode: .following, userId: userId))
+                }
+            }
+            .task {
+                await loadShares()
+            }
         }
+    }
+
+    private func loadShares() async {
+        isLoadingShares = true
+        do {
+            songShares = try await socialService.getSharesFromFollowing(limit: 50)
+        } catch {
+            // Silently fail
+        }
+        isLoadingShares = false
+    }
+}
+
+struct FindPeopleCard: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: "person.badge.plus")
+                    .font(.title2)
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(Color.blue.gradient)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Find People")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text("Follow friends and share music")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            }
+            .padding()
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -323,6 +417,17 @@ struct ExploreView: View {
             .navigationDestination(for: Concert.self) { concert in
                 ConcertDetailPlaceholder(concert: concert)
             }
+            .navigationDestination(for: UserProfile.self) { user in
+                UserProfileView(user: user)
+            }
+            .navigationDestination(for: SocialDestination.self) { destination in
+                switch destination {
+                case .followers(let userId):
+                    FollowListView(viewModel: FollowViewModel(mode: .followers, userId: userId))
+                case .following(let userId):
+                    FollowListView(viewModel: FollowViewModel(mode: .following, userId: userId))
+                }
+            }
         }
     }
 
@@ -380,6 +485,10 @@ struct ProfileView: View {
     @Environment(AppRouter.self) private var router
     @Environment(AuthManager.self) private var authManager
     @State private var statsViewModel = StatsViewModel()
+    @State private var followerCount = 0
+    @State private var followingCount = 0
+
+    private let socialService = SocialService.shared
 
     var body: some View {
         @Bindable var router = router
@@ -420,10 +529,39 @@ struct ProfileView: View {
                     }
                     .padding(.top)
 
-                    // Stats row placeholder
+                    // Follower/Following counts
                     HStack(spacing: 40) {
-                        StatItem(value: "0", label: "Following")
-                        StatItem(value: "0", label: "Followers")
+                        Button {
+                            if let userId = authManager.user?.uid {
+                                router.navigateToFollowers(for: userId)
+                            }
+                        } label: {
+                            VStack(spacing: 4) {
+                                Text("\(followerCount)")
+                                    .font(.title3)
+                                    .fontWeight(.bold)
+                                Text("Followers")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            if let userId = authManager.user?.uid {
+                                router.navigateToFollowing(for: userId)
+                            }
+                        } label: {
+                            VStack(spacing: 4) {
+                                Text("\(followingCount)")
+                                    .font(.title3)
+                                    .fontWeight(.bold)
+                                Text("Following")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .buttonStyle(.plain)
                     }
 
                     // Your Stats card
@@ -470,29 +608,36 @@ struct ProfileView: View {
                 StatsView()
             }
             .navigationDestination(for: UserProfile.self) { user in
-                UserProfilePlaceholder(user: user)
+                UserProfileView(user: user)
             }
+            .navigationDestination(for: SocialDestination.self) { destination in
+                switch destination {
+                case .followers(let userId):
+                    FollowListView(viewModel: FollowViewModel(mode: .followers, userId: userId))
+                case .following(let userId):
+                    FollowListView(viewModel: FollowViewModel(mode: .following, userId: userId))
+                }
+            }
+            .task {
+                await loadFollowCounts()
+            }
+        }
+    }
+
+    private func loadFollowCounts() async {
+        guard let userId = authManager.user?.uid else { return }
+        do {
+            async let followers = socialService.getFollowerCount(for: userId)
+            async let following = socialService.getFollowingCount(for: userId)
+            followerCount = try await followers
+            followingCount = try await following
+        } catch {
+            // Silently fail
         }
     }
 }
 
 // MARK: - Supporting Views
-
-struct StatItem: View {
-    let value: String
-    let label: String
-
-    var body: some View {
-        VStack(spacing: 4) {
-            Text(value)
-                .font(.title3)
-                .fontWeight(.bold)
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-    }
-}
 
 struct PromptCard: View {
     let title: String
@@ -560,14 +705,6 @@ struct ConcertDetailPlaceholder: View {
     }
 }
 
-struct UserProfilePlaceholder: View {
-    let user: UserProfile
-
-    var body: some View {
-        Text("User: \(user.displayName)")
-            .navigationTitle(user.displayName)
-    }
-}
 
 struct SettingsView: View {
     @Environment(AuthManager.self) private var authManager
@@ -627,41 +764,6 @@ struct SettingsView: View {
 
 // MARK: - Placeholder Sheets
 
-struct ShareSongSheet: View {
-    let track: UnifiedTrack
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            Text("Share: \(track.name)")
-                .navigationTitle("Share Song")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { dismiss() }
-                    }
-                }
-        }
-    }
-}
-
-struct UserPickerSheet: View {
-    let track: UnifiedTrack
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            Text("Send to friend: \(track.name)")
-                .navigationTitle("Send to Friend")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { dismiss() }
-                    }
-                }
-        }
-    }
-}
 
 struct PlaylistPickerSheet: View {
     let track: UnifiedTrack
@@ -698,22 +800,6 @@ struct AIPlaylistSheet: View {
     }
 }
 
-struct FindUsersSheet: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            Text("Find Users")
-                .navigationTitle("Find Users")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { dismiss() }
-                    }
-                }
-        }
-    }
-}
 
 struct EditProfileSheet: View {
     @Environment(\.dismiss) private var dismiss

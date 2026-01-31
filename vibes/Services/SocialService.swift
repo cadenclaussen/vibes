@@ -1,0 +1,270 @@
+import Foundation
+import FirebaseAuth
+import FirebaseFirestore
+
+@Observable
+@MainActor
+final class SocialService {
+    static let shared = SocialService()
+
+    private let db = Firestore.firestore()
+
+    private init() {}
+
+    // MARK: - User Search
+
+    func searchUsers(query: String) async throws -> [UserProfile] {
+        guard !query.isEmpty else { return [] }
+
+        let lowercasedQuery = query.lowercased()
+
+        // Search by username prefix
+        let usernameSnapshot = try await db.collection(Constants.Firestore.users)
+            .whereField("username", isGreaterThanOrEqualTo: lowercasedQuery)
+            .whereField("username", isLessThan: lowercasedQuery + "\u{f8ff}")
+            .limit(to: 20)
+            .getDocuments()
+
+        var results: [UserProfile] = []
+        var seenIds = Set<String>()
+
+        for doc in usernameSnapshot.documents {
+            if let profile = try? doc.data(as: UserProfile.self),
+               profile.uid != AuthManager.shared.user?.uid {
+                results.append(profile)
+                seenIds.insert(profile.uid)
+            }
+        }
+
+        // Also search by display name if we have room
+        if results.count < 20 {
+            let displayNameSnapshot = try await db.collection(Constants.Firestore.users)
+                .whereField("displayName", isGreaterThanOrEqualTo: query)
+                .whereField("displayName", isLessThan: query + "\u{f8ff}")
+                .limit(to: 20 - results.count)
+                .getDocuments()
+
+            for doc in displayNameSnapshot.documents {
+                if let profile = try? doc.data(as: UserProfile.self),
+                   profile.uid != AuthManager.shared.user?.uid,
+                   !seenIds.contains(profile.uid) {
+                    results.append(profile)
+                }
+            }
+        }
+
+        return results
+    }
+
+    // MARK: - Follow Operations
+
+    func follow(userId: String) async throws {
+        guard let currentUserId = AuthManager.shared.user?.uid else {
+            throw VibesError.notAuthenticated
+        }
+
+        let friendship = Friendship(
+            followerId: currentUserId,
+            followingId: userId,
+            createdAt: Date()
+        )
+
+        try await db.collection(Constants.Firestore.friendships)
+            .addDocument(from: friendship)
+    }
+
+    func unfollow(userId: String) async throws {
+        guard let currentUserId = AuthManager.shared.user?.uid else {
+            throw VibesError.notAuthenticated
+        }
+
+        let snapshot = try await db.collection(Constants.Firestore.friendships)
+            .whereField("followerId", isEqualTo: currentUserId)
+            .whereField("followingId", isEqualTo: userId)
+            .getDocuments()
+
+        for doc in snapshot.documents {
+            try await doc.reference.delete()
+        }
+    }
+
+    func isFollowing(userId: String) async throws -> Bool {
+        guard let currentUserId = AuthManager.shared.user?.uid else {
+            return false
+        }
+
+        let snapshot = try await db.collection(Constants.Firestore.friendships)
+            .whereField("followerId", isEqualTo: currentUserId)
+            .whereField("followingId", isEqualTo: userId)
+            .limit(to: 1)
+            .getDocuments()
+
+        return !snapshot.documents.isEmpty
+    }
+
+    func getFollowingIds() async throws -> [String] {
+        guard let currentUserId = AuthManager.shared.user?.uid else {
+            return []
+        }
+
+        let snapshot = try await db.collection(Constants.Firestore.friendships)
+            .whereField("followerId", isEqualTo: currentUserId)
+            .getDocuments()
+
+        return snapshot.documents.compactMap { doc in
+            doc.data()["followingId"] as? String
+        }
+    }
+
+    func getFollowers(for userId: String) async throws -> [UserProfile] {
+        let snapshot = try await db.collection(Constants.Firestore.friendships)
+            .whereField("followingId", isEqualTo: userId)
+            .order(by: "createdAt", descending: true)
+            .getDocuments()
+
+        let followerIds = snapshot.documents.compactMap { doc in
+            doc.data()["followerId"] as? String
+        }
+
+        return try await fetchUserProfiles(ids: followerIds)
+    }
+
+    func getFollowing(for userId: String) async throws -> [UserProfile] {
+        let snapshot = try await db.collection(Constants.Firestore.friendships)
+            .whereField("followerId", isEqualTo: userId)
+            .order(by: "createdAt", descending: true)
+            .getDocuments()
+
+        let followingIds = snapshot.documents.compactMap { doc in
+            doc.data()["followingId"] as? String
+        }
+
+        return try await fetchUserProfiles(ids: followingIds)
+    }
+
+    func getFollowerCount(for userId: String) async throws -> Int {
+        let snapshot = try await db.collection(Constants.Firestore.friendships)
+            .whereField("followingId", isEqualTo: userId)
+            .count
+            .getAggregation(source: .server)
+
+        return Int(truncating: snapshot.count)
+    }
+
+    func getFollowingCount(for userId: String) async throws -> Int {
+        let snapshot = try await db.collection(Constants.Firestore.friendships)
+            .whereField("followerId", isEqualTo: userId)
+            .count
+            .getAggregation(source: .server)
+
+        return Int(truncating: snapshot.count)
+    }
+
+    private func fetchUserProfiles(ids: [String]) async throws -> [UserProfile] {
+        guard !ids.isEmpty else { return [] }
+
+        // Firestore 'in' queries limited to 30 items
+        var profiles: [UserProfile] = []
+        for chunk in ids.chunked(into: 30) {
+            let snapshot = try await db.collection(Constants.Firestore.users)
+                .whereField("uid", in: chunk)
+                .getDocuments()
+
+            for doc in snapshot.documents {
+                if let profile = try? doc.data(as: UserProfile.self) {
+                    profiles.append(profile)
+                }
+            }
+        }
+
+        // Preserve original order
+        let idOrder = Dictionary(uniqueKeysWithValues: ids.enumerated().map { ($1, $0) })
+        return profiles.sorted { (idOrder[$0.uid] ?? 0) < (idOrder[$1.uid] ?? 0) }
+    }
+
+    // MARK: - Song Sharing
+
+    func shareSong(_ track: UnifiedTrack, to userIds: [String], message: String?) async throws {
+        guard let currentUser = AuthManager.shared.userProfile else {
+            throw VibesError.notAuthenticated
+        }
+
+        let batch = db.batch()
+
+        for userId in userIds {
+            let share = SongShare(
+                senderId: currentUser.uid,
+                senderUsername: currentUser.username,
+                senderProfilePicture: currentUser.profilePictureURL,
+                recipientId: userId,
+                spotifyTrackId: track.id,
+                trackName: track.name,
+                artistName: track.artistName,
+                albumArtURL: track.albumArtURL ?? "",
+                previewURL: track.previewURL,
+                message: message,
+                timestamp: Date()
+            )
+
+            let docRef = db.collection(Constants.Firestore.songShares).document()
+            try batch.setData(from: share, forDocument: docRef)
+        }
+
+        try await batch.commit()
+    }
+
+    func getSharesFromFollowing(limit: Int = 50) async throws -> [SongShare] {
+        let followingIds = try await getFollowingIds()
+        guard !followingIds.isEmpty else { return [] }
+
+        // Query shares from people we follow
+        var allShares: [SongShare] = []
+
+        // Firestore 'in' queries limited to 30 items
+        for chunk in followingIds.chunked(into: 30) {
+            let snapshot = try await db.collection(Constants.Firestore.songShares)
+                .whereField("senderId", in: chunk)
+                .order(by: "timestamp", descending: true)
+                .limit(to: limit)
+                .getDocuments()
+
+            for doc in snapshot.documents {
+                if let share = try? doc.data(as: SongShare.self) {
+                    allShares.append(share)
+                }
+            }
+        }
+
+        // Sort by timestamp and limit
+        return allShares
+            .sorted { $0.timestamp > $1.timestamp }
+            .prefix(limit)
+            .map { $0 }
+    }
+
+    func getReceivedShares(limit: Int = 50) async throws -> [SongShare] {
+        guard let currentUserId = AuthManager.shared.user?.uid else {
+            return []
+        }
+
+        let snapshot = try await db.collection(Constants.Firestore.songShares)
+            .whereField("recipientId", isEqualTo: currentUserId)
+            .order(by: "timestamp", descending: true)
+            .limit(to: limit)
+            .getDocuments()
+
+        return snapshot.documents.compactMap { doc in
+            try? doc.data(as: SongShare.self)
+        }
+    }
+}
+
+// MARK: - Array Extension
+
+private extension Array {
+    func chunked(into size: Int) -> [[Element]] {
+        stride(from: 0, to: count, by: size).map {
+            Array(self[$0..<Swift.min($0 + size, count)])
+        }
+    }
+}

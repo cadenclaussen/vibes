@@ -6,6 +6,7 @@ struct SongSearchRow: View {
     let onOpenInSpotify: () -> Void
 
     @Environment(SpotifyRemoteService.self) private var spotifyRemote
+    @Environment(AppRouter.self) private var router
 
     private var isCurrentlyPlaying: Bool {
         spotifyRemote.currentTrack?.id == track.id && spotifyRemote.isPlaying
@@ -59,6 +60,12 @@ struct SongSearchRow: View {
         .buttonStyle(.plain)
         .contextMenu {
             Button {
+                router.presentShareSheet(for: track)
+            } label: {
+                Label("Share", systemImage: "square.and.arrow.up")
+            }
+
+            Button {
                 onOpenInSpotify()
             } label: {
                 Label("Open in Spotify", systemImage: "arrow.up.forward.app")
@@ -83,4 +90,5 @@ struct SongSearchRow: View {
         )
     }
     .environment(SpotifyRemoteService.shared)
+    .environment(AppRouter())
 }

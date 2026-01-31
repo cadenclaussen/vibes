@@ -194,7 +194,7 @@ final class AuthManager {
     func signOut() throws {
         try Auth.auth().signOut()
         GIDSignIn.sharedInstance.signOut()
-        try keychain.clearAll()
+        // Don't clear keychain - Spotify/Gemini/Ticketmaster connections persist across sign-ins
         userProfile = nil
         isAuthenticated = false
         needsTutorial = false
