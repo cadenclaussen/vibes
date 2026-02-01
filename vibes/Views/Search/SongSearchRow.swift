@@ -27,17 +27,22 @@ struct SongSearchRow: View {
                     .frame(width: 48, height: 48)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
 
-                    Image(systemName: isCurrentlyPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(.white)
-                        .shadow(color: .black.opacity(0.5), radius: 2)
+                    if isCurrentlyPlaying {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(.black.opacity(0.4))
+                            .frame(width: 48, height: 48)
+                        Image(systemName: "waveform")
+                            .font(.body)
+                            .foregroundStyle(.white)
+                            .symbolEffect(.variableColor.iterative, isActive: true)
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(track.name)
                         .font(.subheadline)
                         .fontWeight(.medium)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(isCurrentlyPlaying ? Color.accentColor : .primary)
                         .lineLimit(1)
 
                     Text(track.artistName)
@@ -52,6 +57,26 @@ struct SongSearchRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .frame(width: 40, alignment: .trailing)
+
+                Menu {
+                    Button {
+                        router.presentShareSheet(for: track)
+                    } label: {
+                        Label("Send", systemImage: "paperplane")
+                    }
+
+                    Button {
+                        onOpenInSpotify()
+                    } label: {
+                        Label("Open in Spotify", systemImage: "arrow.up.forward.app")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
+                }
             }
             .padding(.vertical, 8)
             .padding(.horizontal)
@@ -62,7 +87,7 @@ struct SongSearchRow: View {
             Button {
                 router.presentShareSheet(for: track)
             } label: {
-                Label("Share", systemImage: "square.and.arrow.up")
+                Label("Send", systemImage: "paperplane")
             }
 
             Button {

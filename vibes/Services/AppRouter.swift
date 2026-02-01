@@ -148,6 +148,18 @@ class AppRouter {
         profilePath.append(StatsDestination.main)
     }
 
+    func navigateToArtistTopSongs(artist: UnifiedArtist) {
+        let destination = ArtistTopSongsDestination(artist: artist)
+        switch selectedTab {
+        case .feed:
+            feedPath.append(destination)
+        case .explore:
+            explorePath.append(destination)
+        case .profile:
+            profilePath.append(destination)
+        }
+    }
+
     func navigateToFollowers(for userId: String) {
         switch selectedTab {
         case .feed:
@@ -259,4 +271,9 @@ enum StatsDestination: Hashable {
 enum SocialDestination: Hashable {
     case followers(String) // userId
     case following(String) // userId
+}
+
+// Artist top songs navigation destination
+struct ArtistTopSongsDestination: Hashable {
+    let artist: UnifiedArtist
 }

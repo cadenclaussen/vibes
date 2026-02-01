@@ -8,6 +8,11 @@ struct SongDiscoveryCard: View {
     var onSendToFriend: (() -> Void)?
 
     @Environment(\.openURL) private var openURL
+    @Environment(SpotifyRemoteService.self) private var spotifyRemote
+
+    private var isPlaying: Bool {
+        spotifyRemote.currentTrack?.id == track.id && spotifyRemote.isPlaying
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -16,6 +21,7 @@ struct SongDiscoveryCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(track.name)
                     .font(.headline)
+                    .foregroundStyle(isPlaying ? Color.accentColor : .primary)
                     .lineLimit(1)
 
                 Text(track.artistName)
@@ -31,14 +37,13 @@ struct SongDiscoveryCard: View {
 
             Spacer()
 
+            moreMenu
+
             dismissButton
         }
         .padding()
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
-        .contextMenu {
-            contextMenuContent
-        }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(track.name) by \(track.artistName)")
         .accessibilityHint("Tap X to dismiss, or long press for more options")
@@ -50,6 +55,27 @@ struct SongDiscoveryCard: View {
         }
         .accessibilityAction(named: "Send to Friend") {
             onSendToFriend?()
+        }
+        .contextMenu {
+            Button {
+                onSendToFriend?()
+            } label: {
+                Label("Send", systemImage: "paperplane")
+            }
+
+            Button {
+                openInSpotify()
+            } label: {
+                Label("Open in Spotify", systemImage: "arrow.up.forward.app")
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                onDismiss()
+            } label: {
+                Label("Not Interested", systemImage: "xmark")
+            }
         }
     }
 
@@ -100,29 +126,41 @@ struct SongDiscoveryCard: View {
     }
 
     private var albumArt: some View {
-        Group {
-            if let urlString = track.albumArtURL,
-               let url = URL(string: urlString) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    case .failure:
-                        albumPlaceholder
-                    case .empty:
-                        ProgressView()
-                    @unknown default:
-                        albumPlaceholder
+        ZStack {
+            Group {
+                if let urlString = track.albumArtURL,
+                   let url = URL(string: urlString) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        case .failure:
+                            albumPlaceholder
+                        case .empty:
+                            ProgressView()
+                        @unknown default:
+                            albumPlaceholder
+                        }
                     }
+                } else {
+                    albumPlaceholder
                 }
-            } else {
-                albumPlaceholder
+            }
+            .frame(width: 64, height: 64)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            if isPlaying {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(.black.opacity(0.4))
+                    .frame(width: 64, height: 64)
+                Image(systemName: "waveform")
+                    .font(.title3)
+                    .foregroundStyle(.white)
+                    .symbolEffect(.variableColor.iterative, isActive: true)
             }
         }
-        .frame(width: 64, height: 64)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     private var albumPlaceholder: some View {
@@ -131,6 +169,28 @@ struct SongDiscoveryCard: View {
             Image(systemName: "music.note")
                 .font(.title2)
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    private var moreMenu: some View {
+        Menu {
+            Button {
+                onSendToFriend?()
+            } label: {
+                Label("Send", systemImage: "paperplane")
+            }
+
+            Button {
+                openInSpotify()
+            } label: {
+                Label("Open in Spotify", systemImage: "arrow.up.forward.app")
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .frame(width: 32, height: 32)
+                .contentShape(Rectangle())
         }
     }
 
@@ -168,4 +228,5 @@ struct SongDiscoveryCard: View {
         )
     }
     .padding()
+    .environment(SpotifyRemoteService.shared)
 }

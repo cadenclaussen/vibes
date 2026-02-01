@@ -7,7 +7,11 @@ struct StatsPreviewCard: View {
 
     var body: some View {
         Button {
-            router.navigateToStats()
+            if isSpotifyAuthError {
+                router.navigateToSpotifySetup()
+            } else {
+                router.navigateToStats()
+            }
         } label: {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
@@ -24,6 +28,8 @@ struct StatsPreviewCard: View {
                     noSpotifyContent
                 } else if viewModel.isLoadingPreview {
                     loadingContent
+                } else if isSpotifyAuthError {
+                    reconnectContent
                 } else if viewModel.previewArtists.isEmpty {
                     emptyContent
                 } else {
@@ -39,6 +45,39 @@ struct StatsPreviewCard: View {
             if authManager.isSpotifyLinked {
                 await viewModel.loadPreview()
             }
+        }
+    }
+
+    private var isSpotifyAuthError: Bool {
+        guard let error = viewModel.error else { return false }
+        if let dataError = error as? SpotifyDataError {
+            switch dataError {
+            case .forbidden, .notAuthenticated:
+                return true
+            default:
+                return false
+            }
+        }
+        return false
+    }
+
+    private var reconnectContent: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.title2)
+                .foregroundStyle(.orange)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Spotify Disconnected")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.primary)
+                Text("Tap to reconnect and grant permissions")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
         }
     }
 

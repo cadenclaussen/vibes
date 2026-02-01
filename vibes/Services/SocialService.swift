@@ -184,44 +184,44 @@ final class SocialService {
 
     // MARK: - Song Sharing
 
-    func shareSong(_ track: UnifiedTrack, to userIds: [String], message: String?) async throws {
+    func shareSong(_ track: UnifiedTrack, message: String?) async throws {
         guard let currentUser = AuthManager.shared.userProfile else {
             throw VibesError.notAuthenticated
         }
 
-        let batch = db.batch()
+        let share = SongShare(
+            senderId: currentUser.uid,
+            senderUsername: currentUser.username,
+            senderProfilePicture: currentUser.profilePictureURL,
+            recipientId: nil,
+            spotifyTrackId: track.id,
+            trackName: track.name,
+            artistName: track.artistName,
+            albumArtURL: track.albumArtURL ?? "",
+            previewURL: track.previewURL,
+            message: message,
+            timestamp: Date()
+        )
 
-        for userId in userIds {
-            let share = SongShare(
-                senderId: currentUser.uid,
-                senderUsername: currentUser.username,
-                senderProfilePicture: currentUser.profilePictureURL,
-                recipientId: userId,
-                spotifyTrackId: track.id,
-                trackName: track.name,
-                artistName: track.artistName,
-                albumArtURL: track.albumArtURL ?? "",
-                previewURL: track.previewURL,
-                message: message,
-                timestamp: Date()
-            )
-
-            let docRef = db.collection(Constants.Firestore.songShares).document()
-            try batch.setData(from: share, forDocument: docRef)
-        }
-
-        try await batch.commit()
+        try db.collection(Constants.Firestore.songShares).addDocument(from: share)
     }
 
     func getSharesFromFollowing(limit: Int = 50) async throws -> [SongShare] {
         let followingIds = try await getFollowingIds()
         guard !followingIds.isEmpty else { return [] }
 
-        // Query shares from people we follow
+        // Get muted user IDs to filter them out
+        let mutedIds = Set(try await getMutedIds())
+
+        // Filter out muted users from following list
+        let unmutedFollowingIds = followingIds.filter { !mutedIds.contains($0) }
+        guard !unmutedFollowingIds.isEmpty else { return [] }
+
+        // Query shares from people we follow (excluding muted)
         var allShares: [SongShare] = []
 
         // Firestore 'in' queries limited to 30 items
-        for chunk in followingIds.chunked(into: 30) {
+        for chunk in unmutedFollowingIds.chunked(into: 30) {
             let snapshot = try await db.collection(Constants.Firestore.songShares)
                 .whereField("senderId", in: chunk)
                 .order(by: "timestamp", descending: true)
@@ -255,6 +255,86 @@ final class SocialService {
 
         return snapshot.documents.compactMap { doc in
             try? doc.data(as: SongShare.self)
+        }
+    }
+
+    func getUserShares(userId: String, limit: Int = 50) async throws -> [SongShare] {
+        let snapshot = try await db.collection(Constants.Firestore.songShares)
+            .whereField("senderId", isEqualTo: userId)
+            .order(by: "timestamp", descending: true)
+            .limit(to: limit)
+            .getDocuments()
+
+        return snapshot.documents.compactMap { doc in
+            try? doc.data(as: SongShare.self)
+        }
+    }
+
+    func getUserProfile(userId: String) async throws -> UserProfile? {
+        let doc = try await db.collection(Constants.Firestore.users)
+            .document(userId)
+            .getDocument()
+
+        return try? doc.data(as: UserProfile.self)
+    }
+
+    // MARK: - Mute Operations
+
+    func mute(userId: String) async throws {
+        guard let currentUserId = AuthManager.shared.user?.uid else {
+            throw VibesError.notAuthenticated
+        }
+
+        let muteData: [String: Any] = [
+            "muterId": currentUserId,
+            "mutedId": userId,
+            "createdAt": Timestamp(date: Date())
+        ]
+
+        try await db.collection(Constants.Firestore.mutes)
+            .addDocument(data: muteData)
+    }
+
+    func unmute(userId: String) async throws {
+        guard let currentUserId = AuthManager.shared.user?.uid else {
+            throw VibesError.notAuthenticated
+        }
+
+        let snapshot = try await db.collection(Constants.Firestore.mutes)
+            .whereField("muterId", isEqualTo: currentUserId)
+            .whereField("mutedId", isEqualTo: userId)
+            .getDocuments()
+
+        for doc in snapshot.documents {
+            try await doc.reference.delete()
+        }
+    }
+
+    func isMuted(userId: String) async throws -> Bool {
+        guard let currentUserId = AuthManager.shared.user?.uid else {
+            return false
+        }
+
+        let snapshot = try await db.collection(Constants.Firestore.mutes)
+            .whereField("muterId", isEqualTo: currentUserId)
+            .whereField("mutedId", isEqualTo: userId)
+            .limit(to: 1)
+            .getDocuments()
+
+        return !snapshot.documents.isEmpty
+    }
+
+    func getMutedIds() async throws -> [String] {
+        guard let currentUserId = AuthManager.shared.user?.uid else {
+            return []
+        }
+
+        let snapshot = try await db.collection(Constants.Firestore.mutes)
+            .whereField("muterId", isEqualTo: currentUserId)
+            .getDocuments()
+
+        return snapshot.documents.compactMap { doc in
+            doc.data()["mutedId"] as? String
         }
     }
 }

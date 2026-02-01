@@ -17,7 +17,7 @@ final class AuthManager {
     var error: Error?
 
     var isSpotifyLinked: Bool {
-        keychain.getSpotifyAccessToken() != nil
+        userProfile?.spotifyLinked ?? false || keychain.getSpotifyAccessToken() != nil
     }
 
     var isGeminiConfigured: Bool {

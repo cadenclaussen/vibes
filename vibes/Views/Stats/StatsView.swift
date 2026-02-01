@@ -1,17 +1,23 @@
 import SwiftUI
 
 struct StatsView: View {
+    @Environment(AppRouter.self) private var router
+    @Environment(SpotifyRemoteService.self) private var spotifyRemote
     @State private var viewModel = StatsViewModel()
 
     var body: some View {
-        Group {
-            if viewModel.isLoading && viewModel.topArtists.isEmpty {
-                loadingView
-            } else if let error = viewModel.error {
-                errorView(error)
-            } else {
-                statsContent
+        ZStack(alignment: .bottom) {
+            Group {
+                if viewModel.isLoading && viewModel.topArtists.isEmpty {
+                    loadingView
+                } else if let error = viewModel.error {
+                    errorView(error)
+                } else {
+                    statsContent
+                }
             }
+
+            MiniPlayerView()
         }
         .navigationTitle("Stats")
         .navigationBarTitleDisplayMode(.large)
@@ -32,14 +38,25 @@ struct StatsView: View {
             VStack(spacing: 24) {
                 if !viewModel.topArtists.isEmpty {
                     TopArtistsSection(artists: viewModel.topArtists) { artist in
-                        viewModel.openArtistInSpotify(artist)
+                        router.navigateToArtistDetail(artist)
                     }
                 }
 
                 if !viewModel.topSongs.isEmpty {
-                    TopSongsSection(songs: viewModel.topSongs) { song in
-                        viewModel.openTrackInSpotify(song)
-                    }
+                    TopSongsSection(
+                        songs: viewModel.topSongs,
+                        onSongTap: { song in
+                            spotifyRemote.playWithQueue(song, queue: viewModel.topSongs)
+                        },
+                        onShare: { song in
+                            router.presentShareSheet(for: song)
+                        },
+                        onOpenInSpotify: { song in
+                            if let uri = song.spotifyUri {
+                                SpotifyDataService.shared.openInSpotify(uri: uri)
+                            }
+                        }
+                    )
                 }
 
                 if !viewModel.topGenres.isEmpty {
@@ -47,10 +64,26 @@ struct StatsView: View {
                 }
 
                 if !viewModel.recentlyPlayed.isEmpty {
-                    RecentlyPlayedSection(tracks: viewModel.recentlyPlayed) { track in
-                        viewModel.openTrackInSpotify(track)
-                    }
+                    RecentlyPlayedSection(
+                        tracks: viewModel.recentlyPlayed,
+                        onTrackTap: { track in
+                            let allTracks = viewModel.recentlyPlayed.map { $0.track }
+                            spotifyRemote.playWithQueue(track, queue: allTracks)
+                        },
+                        onShare: { track in
+                            router.presentShareSheet(for: track)
+                        },
+                        onOpenInSpotify: { track in
+                            if let uri = track.spotifyUri {
+                                SpotifyDataService.shared.openInSpotify(uri: uri)
+                            }
+                        }
+                    )
                 }
+
+                // Bottom padding for MiniPlayer
+                Spacer()
+                    .frame(height: 80)
             }
             .padding(.vertical)
         }
@@ -70,18 +103,55 @@ struct StatsView: View {
     }
 
     private func errorView(_ error: Error) -> some View {
-        ContentUnavailableView {
-            Label("Couldn't Load Stats", systemImage: "exclamationmark.triangle")
+        let isAuthError = isSpotifyAuthError(error)
+
+        return ContentUnavailableView {
+            Label(
+                isAuthError ? "Spotify Disconnected" : "Couldn't Load Stats",
+                systemImage: isAuthError ? "link.badge.plus" : "exclamationmark.triangle"
+            )
         } description: {
-            Text(error.localizedDescription)
+            Text(isAuthError
+                 ? "Your Spotify session has expired or is missing permissions. Please reconnect to load your stats."
+                 : error.localizedDescription)
         } actions: {
-            Button("Try Again") {
-                Task {
-                    await viewModel.loadStats()
+            if isAuthError {
+                Button("Reconnect Spotify") {
+                    router.navigateToSpotifySetup()
                 }
+                .buttonStyle(.borderedProminent)
+            } else {
+                Button("Try Again") {
+                    Task {
+                        await viewModel.loadStats()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
         }
+    }
+
+    private func isSpotifyAuthError(_ error: Error) -> Bool {
+        if let authError = error as? SpotifyAuthError {
+            switch authError {
+            case .notAuthenticated:
+                return true
+            case .tokenExchangeFailed(let message):
+                let lower = message.lowercased()
+                return lower.contains("revoked") || lower.contains("invalid") || lower.contains("expired")
+            default:
+                return false
+            }
+        }
+        if let dataError = error as? SpotifyDataError {
+            switch dataError {
+            case .notAuthenticated, .forbidden:
+                return true
+            default:
+                return false
+            }
+        }
+        return false
     }
 
     private var timeRangePicker: some View {

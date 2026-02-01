@@ -106,7 +106,9 @@ struct FeedView: View {
                         } else {
                             LazyVStack(spacing: 0) {
                                 ForEach(songShares) { share in
-                                    SongShareCard(share: share)
+                                    SongShareCard(share: share) {
+                                        navigateToSender(share: share)
+                                    }
                                     Divider()
                                 }
                             }
@@ -172,6 +174,9 @@ struct FeedView: View {
                     FollowListView(viewModel: FollowViewModel(mode: .following, userId: userId))
                 }
             }
+            .navigationDestination(for: ArtistTopSongsDestination.self) { destination in
+                ArtistTopSongsView(artist: destination.artist)
+            }
             .task {
                 await loadShares()
             }
@@ -186,6 +191,17 @@ struct FeedView: View {
             // Silently fail
         }
         isLoadingShares = false
+    }
+
+    private func navigateToSender(share: SongShare) {
+        let senderProfile = UserProfile(
+            uid: share.senderId,
+            email: "",
+            username: share.senderUsername,
+            displayName: share.senderUsername,
+            profilePictureURL: share.senderProfilePicture
+        )
+        router.navigateToUserProfile(senderProfile)
     }
 }
 
@@ -428,6 +444,9 @@ struct ExploreView: View {
                     FollowListView(viewModel: FollowViewModel(mode: .following, userId: userId))
                 }
             }
+            .navigationDestination(for: ArtistTopSongsDestination.self) { destination in
+                ArtistTopSongsView(artist: destination.artist)
+            }
         }
     }
 
@@ -485,8 +504,10 @@ struct ProfileView: View {
     @Environment(AppRouter.self) private var router
     @Environment(AuthManager.self) private var authManager
     @State private var statsViewModel = StatsViewModel()
+    @State private var profileViewModel = ProfileViewModel()
     @State private var followerCount = 0
     @State private var followingCount = 0
+    @State private var showEditSheet = false
 
     private let socialService = SocialService.shared
 
@@ -526,6 +547,15 @@ struct ProfileView: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
+
+                        // Bio
+                        if let bio = authManager.userProfile?.bio, !bio.isEmpty {
+                            Text(bio)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 32)
+                        }
                     }
                     .padding(.top)
 
@@ -564,6 +594,12 @@ struct ProfileView: View {
                         .buttonStyle(.plain)
                     }
 
+                    // Genre chips
+                    GenreChipsView(
+                        genres: profileViewModel.topGenres,
+                        isLoading: profileViewModel.isLoadingGenres
+                    )
+
                     // Your Stats card
                     StatsPreviewCard(viewModel: statsViewModel)
                         .padding(.horizontal)
@@ -593,11 +629,27 @@ struct ProfileView: View {
             }
             .navigationTitle("Profile")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showEditSheet = true
+                    } label: {
+                        Text("Edit")
+                    }
+                }
+
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         router.navigateToSettings()
                     } label: {
                         Image(systemName: "gearshape")
+                    }
+                }
+            }
+            .sheet(isPresented: $showEditSheet) {
+                if let profile = authManager.userProfile {
+                    EditProfileView(profile: profile) {
+                        // Refresh genres after profile update
+                        await profileViewModel.refreshGenres()
                     }
                 }
             }
@@ -618,8 +670,15 @@ struct ProfileView: View {
                     FollowListView(viewModel: FollowViewModel(mode: .following, userId: userId))
                 }
             }
+            .navigationDestination(for: UnifiedArtist.self) { artist in
+                ArtistProfileView(artist: artist)
+            }
+            .navigationDestination(for: ArtistTopSongsDestination.self) { destination in
+                ArtistTopSongsView(artist: destination.artist)
+            }
             .task {
                 await loadFollowCounts()
+                await profileViewModel.loadGenres()
             }
         }
     }

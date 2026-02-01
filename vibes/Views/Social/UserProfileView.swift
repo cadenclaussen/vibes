@@ -3,6 +3,7 @@ import FirebaseAuth
 
 struct UserProfileView: View {
     @Environment(AppRouter.self) private var router
+    @Environment(SpotifyRemoteService.self) private var spotifyRemote
     let user: UserProfile
 
     @State private var followerCount = 0
@@ -10,7 +11,10 @@ struct UserProfileView: View {
     @State private var isFollowing = false
     @State private var isLoading = true
     @State private var isFollowLoading = false
-    @State private var showUnfollowConfirm = false
+    @State private var sharedSongs: [SongShare] = []
+    @State private var isLoadingShares = false
+    @State private var isMuted = false
+    @State private var isMuteLoading = false
 
     private let socialService = SocialService.shared
 
@@ -31,24 +35,97 @@ struct UserProfileView: View {
                 Divider()
                     .padding(.horizontal)
 
-                // Placeholder for future content (shared songs, etc.)
-                VStack(spacing: 8) {
-                    Image(systemName: "music.note.list")
-                        .font(.system(size: 40))
-                        .foregroundStyle(.tertiary)
-                    Text("Shared songs coming soon")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.top, 40)
+                // Shared songs section
+                sharedSongsSection
             }
             .padding(.top, 20)
         }
         .navigationTitle("@\(user.username)")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if user.uid != AuthManager.shared.user?.uid {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button {
+                            Task { await toggleMute() }
+                        } label: {
+                            if isMuteLoading {
+                                Label("Loading...", systemImage: "hourglass")
+                            } else if isMuted {
+                                Label("Unmute", systemImage: "speaker.wave.2")
+                            } else {
+                                Label("Mute", systemImage: "speaker.slash")
+                            }
+                        }
+                        .disabled(isMuteLoading)
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                }
+            }
+        }
         .task {
             await loadData()
+            await loadSharedSongs()
         }
+    }
+
+    private var sharedSongsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Shared Songs")
+                .font(.headline)
+                .padding(.horizontal)
+
+            if isLoadingShares {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 20)
+            } else if sharedSongs.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "music.note.list")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.tertiary)
+                    Text("No shared songs yet")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 20)
+            } else {
+                LazyVStack(spacing: 0) {
+                    ForEach(sharedSongs) { share in
+                        SongShareCard(share: share) {
+                            navigateToSender(share: share)
+                        }
+                        Divider()
+                    }
+                }
+            }
+        }
+    }
+
+    private func navigateToSender(share: SongShare) {
+        // Don't navigate if tapping on same user's profile
+        guard share.senderId != user.uid else { return }
+
+        let senderProfile = UserProfile(
+            uid: share.senderId,
+            email: "",
+            username: share.senderUsername,
+            displayName: share.senderUsername,
+            profilePictureURL: share.senderProfilePicture
+        )
+        router.navigateToUserProfile(senderProfile)
+    }
+
+    private func loadSharedSongs() async {
+        isLoadingShares = true
+        do {
+            sharedSongs = try await socialService.getUserShares(userId: user.uid, limit: 50)
+        } catch {
+            // Silently fail
+        }
+        isLoadingShares = false
     }
 
     private var profileHeader: some View {
@@ -75,6 +152,17 @@ struct UserProfileView: View {
             Text(user.displayName)
                 .font(.title2)
                 .fontWeight(.bold)
+
+            // Muted indicator
+            if isMuted {
+                Label("Muted", systemImage: "speaker.slash.fill")
+                    .font(.caption)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.secondary)
+                    .clipShape(Capsule())
+            }
 
             // Bio
             if let bio = user.bio, !bio.isEmpty {
@@ -131,10 +219,12 @@ struct UserProfileView: View {
 
     private var followButton: some View {
         Button {
-            if isFollowing {
-                showUnfollowConfirm = true
-            } else {
-                Task { await follow() }
+            Task {
+                if isFollowing {
+                    await unfollow()
+                } else {
+                    await follow()
+                }
             }
         } label: {
             if isFollowLoading {
@@ -153,16 +243,6 @@ struct UserProfileView: View {
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 24)
-        .confirmationDialog(
-            "Unfollow @\(user.username)?",
-            isPresented: $showUnfollowConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("Unfollow", role: .destructive) {
-                Task { await unfollow() }
-            }
-            Button("Cancel", role: .cancel) {}
-        }
     }
 
     private func loadData() async {
@@ -171,11 +251,13 @@ struct UserProfileView: View {
         async let followerTask = socialService.getFollowerCount(for: user.uid)
         async let followingTask = socialService.getFollowingCount(for: user.uid)
         async let isFollowingTask = socialService.isFollowing(userId: user.uid)
+        async let isMutedTask = socialService.isMuted(userId: user.uid)
 
         do {
             followerCount = try await followerTask
             followingCount = try await followingTask
             isFollowing = try await isFollowingTask
+            isMuted = try await isMutedTask
         } catch {
             // Silently fail - show 0 counts
         }
@@ -206,6 +288,22 @@ struct UserProfileView: View {
         }
         isFollowLoading = false
     }
+
+    private func toggleMute() async {
+        isMuteLoading = true
+        do {
+            if isMuted {
+                try await socialService.unmute(userId: user.uid)
+                isMuted = false
+            } else {
+                try await socialService.mute(userId: user.uid)
+                isMuted = true
+            }
+        } catch {
+            print("Mute error: \(error)")
+        }
+        isMuteLoading = false
+    }
 }
 
 #Preview {
@@ -221,4 +319,5 @@ struct UserProfileView: View {
         )
     }
     .environment(AppRouter())
+    .environment(SpotifyRemoteService.shared)
 }

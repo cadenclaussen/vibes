@@ -26,6 +26,7 @@ enum Constants {
         static let messages = "messages"
         static let messageThreads = "messageThreads"
         static let achievements = "achievements"
+        static let mutes = "mutes"
     }
 
     enum Spotify {

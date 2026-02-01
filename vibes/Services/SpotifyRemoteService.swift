@@ -116,7 +116,11 @@ class SpotifyRemoteService: NSObject {
             return
         }
 
-        guard let accessToken = KeychainManager.shared.getSpotifyAccessToken() else {
+        // Get a valid token, refreshing if expired
+        let accessToken: String
+        do {
+            accessToken = try await SpotifyAuthService.shared.getValidAccessToken()
+        } catch {
             throw SpotifyRemoteError.notConnected
         }
 

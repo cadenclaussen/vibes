@@ -209,6 +209,14 @@ struct ConcertDiscoveryView: View {
                 return false
             }
         }
+        if let dataError = error as? SpotifyDataError {
+            switch dataError {
+            case .notAuthenticated, .forbidden:
+                return true
+            default:
+                return false
+            }
+        }
         return false
     }
 

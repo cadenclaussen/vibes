@@ -48,6 +48,8 @@ struct vibesApp: App {
 
 struct RootView: View {
     @Environment(AuthManager.self) private var authManager
+    @Environment(SpotifyRemoteService.self) private var spotifyRemote
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         Group {
@@ -61,6 +63,38 @@ struct RootView: View {
                 }
             } else {
                 AuthView()
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            switch newPhase {
+            case .active:
+                // Refresh Spotify token if expired when app becomes active
+                Task {
+                    await refreshSpotifyTokenIfNeeded()
+                }
+            case .background:
+                spotifyRemote.pause()
+            default:
+                break
+            }
+        }
+        .task {
+            // Refresh token on initial app launch
+            await refreshSpotifyTokenIfNeeded()
+        }
+    }
+
+    private func refreshSpotifyTokenIfNeeded() async {
+        // Only refresh if user has connected Spotify
+        guard KeychainManager.shared.getSpotifyRefreshToken() != nil else { return }
+
+        // Check if token is expired or expiring soon
+        if KeychainManager.shared.isSpotifyTokenExpired() {
+            do {
+                try await SpotifyAuthService.shared.refreshAccessToken()
+            } catch {
+                // Token refresh failed - user will be prompted to reconnect when they try to use Spotify features
+                print("Spotify token refresh failed: \(error)")
             }
         }
     }

@@ -87,10 +87,22 @@ struct ArtistProfileView: View {
 
     private var topSongsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Top Songs")
-                .font(.title2)
-                .fontWeight(.bold)
+            Button {
+                router.navigateToArtistTopSongs(artist: viewModel.artist)
+            } label: {
+                HStack {
+                    Text("Top Songs")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
+                }
                 .padding(.horizontal)
+            }
+            .buttonStyle(.plain)
 
             LazyVStack(spacing: 0) {
                 ForEach(viewModel.topTracks) { track in
@@ -103,29 +115,6 @@ struct ArtistProfileView: View {
                             }
                         }
                     )
-                    .contextMenu {
-                        Button {
-                            router.presentUserPicker(for: track)
-                        } label: {
-                            Label("Send to Friend", systemImage: "paperplane")
-                        }
-
-                        Button {
-                            router.presentPlaylistPicker(for: track)
-                        } label: {
-                            Label("Add to Playlist", systemImage: "plus")
-                        }
-
-                        Divider()
-
-                        Button {
-                            if let uri = track.spotifyUri {
-                                spotifyService.openInSpotify(uri: uri)
-                            }
-                        } label: {
-                            Label("Open in Spotify", systemImage: "arrow.up.forward.app")
-                        }
-                    }
                 }
             }
         }

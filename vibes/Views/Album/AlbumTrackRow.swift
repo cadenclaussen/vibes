@@ -63,6 +63,26 @@ struct AlbumTrackRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .frame(width: 40, alignment: .trailing)
+
+                Menu {
+                    Button {
+                        onSendToFriend()
+                    } label: {
+                        Label("Send", systemImage: "paperplane")
+                    }
+
+                    Button {
+                        onOpenInSpotify()
+                    } label: {
+                        Label("Open in Spotify", systemImage: "arrow.up.forward.app")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
+                }
             }
             .padding(.vertical, 10)
             .padding(.horizontal)
@@ -73,16 +93,8 @@ struct AlbumTrackRow: View {
             Button {
                 onSendToFriend()
             } label: {
-                Label("Send to Friend", systemImage: "paperplane")
+                Label("Send", systemImage: "paperplane")
             }
-
-            Button {
-                onAddToPlaylist()
-            } label: {
-                Label("Add to Playlist", systemImage: "plus")
-            }
-
-            Divider()
 
             Button {
                 onOpenInSpotify()

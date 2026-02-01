@@ -489,6 +489,68 @@ class SpotifyDataService {
         }
     }
 
+    // Get artist's top songs by searching for their tracks sorted by popularity
+    func getAllArtistTracks(artistId: String, limit: Int = 100) async throws -> [UnifiedTrack] {
+        let token = try await SpotifyAuthService.shared.getValidAccessToken()
+
+        // Get artist name first for search
+        let artist = try await getArtist(artistId: artistId)
+
+        var allTracks: [UnifiedTrack] = []
+        var seenTrackIds = Set<String>()
+        var offset = 0
+        let batchSize = 50
+
+        // Search for tracks by this artist (Spotify returns by relevance/popularity)
+        while allTracks.count < limit {
+            guard var components = URLComponents(string: "\(baseURL)/search") else {
+                throw SpotifyDataError.invalidURL
+            }
+
+            components.queryItems = [
+                URLQueryItem(name: "q", value: "artist:\"\(artist.name)\""),
+                URLQueryItem(name: "type", value: "track"),
+                URLQueryItem(name: "limit", value: "\(batchSize)"),
+                URLQueryItem(name: "offset", value: "\(offset)"),
+                URLQueryItem(name: "market", value: "US")
+            ]
+
+            guard let url = components.url else {
+                throw SpotifyDataError.invalidURL
+            }
+
+            var request = URLRequest(url: url)
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                break
+            }
+
+            let decoded = try JSONDecoder().decode(SpotifyFullSearchResponse.self, from: data)
+
+            guard let tracks = decoded.tracks?.items, !tracks.isEmpty else {
+                break
+            }
+
+            for track in tracks {
+                // Only include tracks where this artist is the primary artist
+                let isPrimaryArtist = track.artists.first?.id == artistId
+                if isPrimaryArtist && !seenTrackIds.contains(track.id) {
+                    seenTrackIds.insert(track.id)
+                    allTracks.append(track.toUnifiedTrack())
+                }
+            }
+
+            offset += batchSize
+            if offset >= 1000 { break }  // Spotify search limit
+        }
+
+        // Sort by popularity (highest first) and return up to limit
+        return Array(allTracks.sorted { ($0.popularity ?? 0) > ($1.popularity ?? 0) }.prefix(limit))
+    }
+
     func getAlbumTracks(albumId: String) async throws -> [UnifiedTrack] {
         let token = try await SpotifyAuthService.shared.getValidAccessToken()
 

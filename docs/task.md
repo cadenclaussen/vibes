@@ -290,19 +290,19 @@
   - Build succeeds on iPhone 16e simulator
 
 ### 135. Google Sign-In fails: "No active configuration. Make sure GIDClientID is set in Info.plist"
-- **Status**: IN_PROGRESS
+- **Status**: COMPLETED
 - **Type**: Bug
 - **Location**: Info.plist, vibes/GoogleService-Info.plist
 - **Requested**: Google Sign-In fails with error "No active configuration. Make sure GIDClientID is set in Info.plist"
 - **Context**: The GoogleService-Info.plist is missing the CLIENT_ID key. Info.plist needs the GIDClientID key and the reversed client ID URL scheme for Google Sign-In OAuth flow to work.
 - **Acceptance Criteria**:
-  - [ ] Get OAuth Client ID from Google Cloud Console
-  - [ ] Add GIDClientID to Info.plist
-  - [ ] Add reversed client ID to URL schemes
-  - [ ] Google Sign-In works
+  - [x] Get OAuth Client ID from Google Cloud Console
+  - [x] Add GIDClientID to Info.plist
+  - [x] Add reversed client ID to URL schemes
+  - [x] Google Sign-In works
 - **Failure Count**: 0
 - **Failures**: None
-- **Solution**: Pending
+- **Solution**: Configured OAuth Client ID in Google Cloud Console and added to Info.plist
 
 ### 137. Concert Discovery Feature
 - **Status**: COMPLETED
@@ -634,10 +634,309 @@
 - **Failures**: None
 - **Solution**: Removed previewDuration constant, schedulePreviewStop() method, and all related timers. Updated playerStateDidChange delegate to use actual track duration and playback position from Spotify player state. Songs now play to completion with accurate progress tracking.
 
+### 158. Profile Enhancements - Edit Profile, Bio, Genres
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/Profile/, vibes/Services/ProfileService.swift, vibes/ContentView.swift
+- **Requested**: Implement profile enhancements from .specs/profile-enhancements/: editable display name (50 chars), bio (160 chars), profile picture upload to Firebase Storage, top genres display (5 genres as chips)
+- **Context**: Makes profiles personal and expressive, shows music identity
+- **Acceptance Criteria**:
+  - [x] ProfileService for image upload and profile updates
+  - [x] ProfileViewModel for genres loading
+  - [x] EditProfileView sheet with form fields
+  - [x] UIImage resize extension (400x400 max)
+  - [x] GenreChipsView component
+  - [x] Edit button on own profile
+  - [x] Bio display on profile
+  - [x] Genres display below follower counts
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented full profile enhancements feature:
+  - **New Files**:
+    - `vibes/Extensions/UIImage+Resize.swift` - Image resizing to 400x400 max with JPEG compression
+    - `vibes/Services/ProfileService.swift` - Firebase Storage upload and Firestore profile updates
+    - `vibes/ViewModels/ProfileViewModel.swift` - Genre loading from Spotify top artists
+    - `vibes/Views/Profile/GenreChipsView.swift` - Horizontal scrolling genre chips with shimmer loading
+    - `vibes/Views/Profile/EditProfileView.swift` - Sheet with PhotosPicker, display name (50 char), bio (160 char)
+  - **Modified Files**:
+    - `vibes/ContentView.swift` - Added Edit button, bio display, GenreChipsView integration to ProfileView
+  - Build succeeds and all features verified on iPhone 16e simulator
+
+### 159. Pause playback when leaving the app
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/vibesApp.swift
+- **Requested**: Song continues playing in Spotify when user leaves the app. Should pause when app goes to background.
+- **Context**: Using SpotifyRemoteService to control Spotify playback. When user switches apps or closes Vibes, music keeps playing because Spotify is the actual player.
+- **Acceptance Criteria**:
+  - [x] Detect when app goes to background
+  - [x] Pause Spotify playback on background
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Added `@Environment(\.scenePhase)` observation to RootView. When scenePhase changes to `.background`, calls `spotifyRemote.pause()` to stop Spotify playback.
+
+### 160. User Profile shows shared songs when tapping username
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/Social/UserProfileView.swift, vibes/Views/Social/SongShareCard.swift, vibes/Services/SocialService.swift, vibes/ContentView.swift
+- **Requested**: When clicking someone's name (anywhere it appears), navigate to their profile which shows songs they shared, sorted by most recent first. Song cards should look like the ones shown on the feed.
+- **Context**: Makes user profiles meaningful by showing their sharing activity. All username instances should be tappable.
+- **Acceptance Criteria**:
+  - [x] SongShareCard sender username is tappable and navigates to profile
+  - [x] Add getUserShares(userId:) method to SocialService
+  - [x] UserProfileView shows user's shared songs sorted by most recent
+  - [x] Song cards use same SongShareCard design as feed
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented user profile shared songs feature:
+  - **SocialService.swift**: Added `getUserShares(userId:limit:)` to fetch a user's shared songs sorted by timestamp descending, and `getUserProfile(userId:)` for fetching profiles by ID
+  - **SongShareCard.swift**: Made sender profile picture and username tappable by wrapping in Button with `onSenderTap` callback
+  - **UserProfileView.swift**: Added `sharedSongsSection` that loads and displays user's shared songs using `SongShareCard` components, with loading state and empty state handling
+  - **ContentView.swift (FeedView)**: Added `navigateToSender(share:)` function and passed `onSenderTap` callback to `SongShareCard` in feed to enable profile navigation
+  - Build succeeds on iPhone 16e simulator
+
+### 162. Simplify song sharing to broadcast to all followers
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/Social/ShareSheetView.swift, vibes/ViewModels/ShareViewModel.swift, vibes/Services/SocialService.swift
+- **Requested**: Change song sharing to broadcast to all followers instead of selecting specific recipients. When user clicks share, show a simple pop-up with message field and send button. No recipient selection needed.
+- **Context**: Simplifies UX - sharing is like posting to followers, not DM-style
+- **Acceptance Criteria**:
+  - [x] Remove recipient selection from ShareSheetView
+  - [x] Update ShareViewModel to not require selected users
+  - [x] Update SocialService.shareSong() to set recipientId to nil (broadcast)
+  - [x] Simpler UI: track info + message field + send button
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Simplified song sharing to broadcast model:
+  - **SocialService.swift**: Changed `shareSong(_:to:message:)` to `shareSong(_:message:)`, removed userIds parameter, sets recipientId to nil for broadcast to all followers
+  - **ShareViewModel.swift**: Removed selectedUserIds, following list loading, toggle/selection logic. Simplified canSend to just check !isSending
+  - **ShareSheetView.swift**: Removed recipient selection UI (list, checkboxes, loading/empty states). New UI shows track header with "Sharing with all followers" label, message field, and "Share with Followers" button
+
+### 161. Profile picture upload fails with "does not exist" error
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Services/ProfileService.swift:26-30
+- **Requested**: When uploading a profile picture, Firebase Storage throws "Object users/{uid}/profile.jpg does not exist" error
+- **Context**: The upload appears to complete but downloadURL() fails immediately after. Need to verify upload succeeded before getting URL.
+- **Acceptance Criteria**:
+  - [x] Profile picture upload succeeds without error
+  - [x] URL is correctly returned after upload
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Added retry logic for `downloadURL()` in ProfileService.swift. After `putDataAsync` completes, the download URL fetch now retries up to 3 times with 0.5s delays between attempts to handle Firebase Storage propagation delays.
+
+### 163. Mute users to hide their shares from feed
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Services/SocialService.swift, vibes/Views/Social/UserProfileView.swift, vibes/Utilities/Constants.swift
+- **Requested**: Add mute option on user profiles. When muted, their shared songs don't appear in your feed (only visible on their profile). Unmuting shows new shares going forward. Re-muting keeps existing feed items but hides new ones. No retroactive changes to feed.
+- **Context**: Lets users control their feed without unfollowing. Mute filters feed queries, not stored data.
+- **Acceptance Criteria**:
+  - [x] Add mutes collection to Firestore (muterId, mutedId, createdAt)
+  - [x] Add mute/unmute/isMuted methods to SocialService
+  - [x] Filter muted users from getSharesFromFollowing query
+  - [x] Add mute/unmute button to UserProfileView (for other users only)
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented mute feature:
+  - **Constants.swift**: Added `mutes` collection name to Firestore constants
+  - **SocialService.swift**: Added `mute(userId:)`, `unmute(userId:)`, `isMuted(userId:)`, `getMutedIds()` methods. Updated `getSharesFromFollowing()` to filter out muted users before querying shares.
+  - **UserProfileView.swift**: Added `isMuted` and `isMuteLoading` state. Added toolbar menu with Mute/Unmute option (ellipsis button). Added `toggleMute()` function. Mute status loaded in `loadData()`.
+  - Build succeeds on iPhone 16e simulator
+
+### 164. Remove unfollow confirmation dialog
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/Social/UserProfileView.swift
+- **Requested**: Remove the confirmation dialog when unfollowing someone - should unfollow immediately like mute. Existing shares from unfollowed users should remain in feed (data not deleted), just no new shares appear.
+- **Context**: Simplifies unfollow UX, consistent with mute behavior
+- **Acceptance Criteria**:
+  - [x] Remove confirmation dialog from unfollow button
+  - [x] Unfollow happens immediately on tap
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Removed `showUnfollowConfirm` state and `.confirmationDialog` modifier from UserProfileView. Follow button now calls `unfollow()` directly when tapped while following. Note: SongShare documents are never deleted by unfollow - they remain in Firestore. Feed queries by current following list, so unfollowed users' shares won't appear on next feed refresh (same behavior as mute).
+
+### 165. Missing permissions error doesn't offer reconnect button
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Views/Stats/StatsView.swift, vibes/Views/ConcertDiscovery/ConcertDiscoveryView.swift
+- **Requested**: Stats and Concert Discovery show "Missing Spotify permissions" error but don't offer a way to reconnect Spotify. User needs to reconnect to get new token with updated scopes.
+- **Context**: User connected Spotify before new scopes were added. Token doesn't have required permissions. Error shown but no reconnect button.
+- **Acceptance Criteria**:
+  - [x] StatsView shows "Reconnect Spotify" button on permission errors
+  - [x] ConcertDiscoveryView's isSpotifyAuthError detects SpotifyDataError.forbidden
+  - [x] Both views navigate to Spotify setup on reconnect
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Updated both views to detect `SpotifyDataError.forbidden` as an auth-related error:
+  - **ConcertDiscoveryView.swift**: Added check for `SpotifyDataError.forbidden` and `.notAuthenticated` in `isSpotifyAuthError()` function
+  - **StatsView.swift**: Added `@Environment(AppRouter.self)` and `isSpotifyAuthError()` function. Updated `errorView()` to show "Spotify Disconnected" with "Reconnect Spotify" button for auth/permission errors
+
+### 166. Stats should navigate to in-app profiles and play songs natively
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Views/Stats/, vibes/ViewModels/StatsViewModel.swift
+- **Requested**: Clicking an artist in stats should navigate to their ArtistProfileView in Vibes, not open Spotify. Clicking a song should play it via SpotifyRemoteService the way Vibes plays songs, not open Spotify.
+- **Context**: Stats currently opens Spotify for all taps. Should use in-app navigation and playback.
+- **Acceptance Criteria**:
+  - [x] Tapping artist navigates to ArtistProfileView
+  - [x] Tapping song plays via SpotifyRemoteService
+  - [x] Songs are sharable via context menu
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Updated StatsView.swift to use router.navigateToArtistDetail() for artists and spotifyRemote.play() for songs. Added onShare callbacks to TopSongsSection and RecentlyPlayedSection with context menus for sharing. Changed arrow icons to play icons to indicate playback behavior.
+
+### 167. Artist Top Songs full list view
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/Artist/ArtistProfileView.swift, vibes/Views/Artist/ArtistTopSongsView.swift, vibes/Services/AppRouter.swift
+- **Requested**: On artist profile, clicking "Top Songs" header should navigate to a full list of the artist's top songs sorted by popularity (most popular at top). All songs should be playable, sharable, and openable in Spotify.
+- **Context**: Currently shows top 5 songs inline. User wants to see full list via push navigation.
+- **Acceptance Criteria**:
+  - [x] "Top Songs" header is tappable and navigates to ArtistTopSongsView
+  - [x] ArtistTopSongsView shows all top tracks sorted by popularity
+  - [x] Songs are playable via SpotifyRemoteService
+  - [x] Songs are sharable via context menu
+  - [x] Songs can be opened in Spotify via context menu
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented full artist top songs feature:
+  - **ArtistProfileViewModel.swift**: Changed to store `allTopTracks` sorted by popularity, `topTracks` computed property returns first 5 for preview
+  - **ArtistProfileView.swift**: Made "Top Songs" header tappable with chevron, navigates to full list
+  - **ArtistTopSongsView.swift**: New view with Apple Music-style layout - rank numbers (right-aligned), album art with playing indicator overlay, song title + artist name, duration on right, context menus for Share/Add to Playlist/Open in Spotify
+  - **AppRouter.swift**: Added `ArtistTopSongsDestination` struct and `navigateToArtistTopSongs()` method
+  - **ContentView.swift**: Added navigation destinations for `ArtistTopSongsDestination` in FeedView and ExploreView sections
+
+### 168. Add 3-dot menu to all song rows for discoverability
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/ (SongSearchRow, TopSongsSection, RecentlyPlayedSection, ArtistTopSongsView, AlbumTrackRow, SongDiscoveryCard)
+- **Requested**: On any song in the entire app, there should be a little 3-dot menu near the end which when clicked pops up the send and open in Spotify options. This makes sharing discoverable since users may not know to hold down on a song.
+- **Context**: Currently sharing is only available via long-press context menu. Users need visual affordance to discover the share functionality.
+- **Acceptance Criteria**:
+  - [x] All song row components have visible 3-dot menu button
+  - [x] Tapping 3-dot shows "Send" and "Open in Spotify" options
+  - [x] Consistent styling across all song displays
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Added visible 3-dot ellipsis Menu button to all song row components:
+  - **SongSearchRow.swift**: Added Menu with ellipsis icon after duration, shows "Send" and "Open in Spotify"
+  - **TopSongsSection.swift**: Added onOpenInSpotify callback, SongRow now has Menu button
+  - **RecentlyPlayedSection.swift**: Added onOpenInSpotify callback, RecentTrackRow now has Menu button
+  - **ArtistTopSongsView.swift**: Added onShare/onOpenInSpotify callbacks to SongRow with Menu button
+  - **AlbumTrackRow.swift**: Added Menu button after duration with "Send" and "Open in Spotify"
+  - **SongDiscoveryCard.swift**: Added moreMenu property with ellipsis Menu before dismiss button
+  - **ArtistProfileView.swift**: Removed redundant contextMenu since SongSearchRow now has built-in menu
+  - All menus use consistent styling: ellipsis icon, secondary color, 28-32pt tap target
+
+### 169. StatsPreviewCard shows wrong message on forbidden error
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Views/Stats/StatsPreviewCard.swift
+- **Requested**: Console shows "Stats preview error: forbidden" twice but StatsPreviewCard displays "Listen to some music first" instead of showing a reconnect option
+- **Context**: When Spotify token is missing `user-top-read` scope, API returns 403. StatsPreviewCard only checks if previewArtists is empty, not if there's a permission error.
+- **Acceptance Criteria**:
+  - [x] StatsPreviewCard checks for forbidden/permission errors
+  - [x] Shows "Reconnect Spotify" message with button for auth errors
+  - [x] Shows "Listen to some music first" only for empty results (not errors)
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Added `isSpotifyAuthError` computed property that checks if viewModel.error is SpotifyDataError.forbidden or .notAuthenticated. Added `reconnectContent` view showing "Spotify Disconnected" with orange warning icon and "Tap to reconnect and grant permissions" message. Modified button action to navigate to Spotify setup (router.navigateToSpotifySetup()) when auth error detected, otherwise navigates to stats as before.
+
+### 170. Ensure all songs have 3-dot menu AND long-press context menu
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/ (all song row components)
+- **Requested**: All songs across the entire app should have the three dots AND when you hold the song down it should also bring up the menu with Send and Open in Spotify
+- **Context**: Task 168 added 3-dot menus but some may be missing context menus for long-press consistency
+- **Acceptance Criteria**:
+  - [x] All song components have visible 3-dot menu
+  - [x] All song components have long-press context menu
+  - [x] Both menus have "Send" and "Open in Spotify" options
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Added `.contextMenu` modifiers to all song row components:
+  - **SongSearchRow.swift**: Added context menu with Send and Open in Spotify
+  - **TopSongsSection.swift**: Added context menu to SongRow
+  - **RecentlyPlayedSection.swift**: Added context menu to RecentTrackRow
+  - **ArtistTopSongsView.swift**: Added context menu to SongRow
+  - **AlbumTrackRow.swift**: Added context menu with Send and Open in Spotify
+  - **SongDiscoveryCard.swift**: Applied context menu (was defined but not used)
+  - **SongShareCard.swift**: Added both 3-dot Menu AND context menu (had neither before), plus AppRouter environment and asUnifiedTrack computed property
+
+### 171. Top Songs should support next/previous navigation
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Views/Stats/StatsView.swift
+- **Requested**: In Top Songs, should be able to go to the next song unless it's the 10th song (end of list), same with backwards (can't go back on 1st song)
+- **Context**: Currently `spotifyRemote.play(song)` plays a single song without queue. Should use `playWithQueue` to enable skip forward/backward.
+- **Acceptance Criteria**:
+  - [x] TopSongsSection uses playWithQueue with full song list
+  - [x] RecentlyPlayedSection uses playWithQueue with full track list
+  - [x] Next/previous buttons work within the list
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Changed StatsView.swift to use `spotifyRemote.playWithQueue(song, queue: viewModel.topSongs)` for TopSongsSection and `spotifyRemote.playWithQueue(track, queue: allTracks)` for RecentlyPlayedSection. This sets up the queue so next/previous buttons in MiniPlayer and NowPlayingView work to navigate through the list.
+
+### 172. Add playing indicators to all song rows
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/ (SongSearchRow, TopSongsSection, RecentlyPlayedSection, SongDiscoveryCard)
+- **Requested**: When clicking to play a song, that song should have a visual indication that it is playing (on the song row itself, not just the miniplayer). If the same song appears twice, only the one with matching track ID shows as playing.
+- **Context**: Some song row components lacked visual feedback when their song was currently playing
+- **Acceptance Criteria**:
+  - [x] All song rows show waveform animation on album art when playing
+  - [x] Song title changes to accent color when playing
+  - [x] Rank number (where applicable) changes to accent color when playing
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Added playing indicators to all song row components:
+  - **SongSearchRow.swift**: Changed from play/pause icon to waveform animation overlay, title now uses accent color when playing
+  - **TopSongsSection.swift**: Added SpotifyRemoteService environment, isPlaying computed property, waveform overlay on album art, accent color on rank and title
+  - **RecentlyPlayedSection.swift**: Added SpotifyRemoteService environment, isPlaying computed property, waveform overlay on album art, accent color on title
+  - **SongDiscoveryCard.swift**: Added SpotifyRemoteService environment, isPlaying computed property, waveform overlay on album art, accent color on title
+  - **ArtistTopSongsView.swift**: Already had playing indicators (waveform + accent title)
+  - **AlbumTrackRow.swift**: Already had playing indicators (waveform replaces track number + green title)
+
+### 173. Fix Spotify requiring disconnect/reconnect after app relaunch
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Services/SpotifyRemoteService.swift, vibes/vibesApp.swift
+- **Requested**: Whenever I relaunch the app I have to disconnect and reconnect Spotify for things to work properly
+- **Context**: Access tokens expire after 1 hour. The app was using stale tokens from keychain without checking expiration or refreshing.
+- **Acceptance Criteria**:
+  - [x] SpotifyRemoteService.connect() validates and refreshes token before connecting
+  - [x] App proactively refreshes token on launch and when becoming active
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Two fixes implemented:
+  1. **SpotifyRemoteService.connect()**: Changed from directly accessing keychain token to calling `SpotifyAuthService.shared.getValidAccessToken()` which checks expiration and refreshes if needed
+  2. **vibesApp.swift RootView**: Added `refreshSpotifyTokenIfNeeded()` function that checks `KeychainManager.shared.isSpotifyTokenExpired()` and refreshes token. Called on:
+     - Initial app launch via `.task` modifier
+     - When app becomes active via `.onChange(of: scenePhase)` with `.active` case
+
 ## Task Statistics
-- Total Tasks: 157
-- Completed: 155
-- In Progress: 1
+- Total Tasks: 173
+- Completed: 173
+- In Progress: 0
 - Archived: Tasks 1-123
 
 ---
