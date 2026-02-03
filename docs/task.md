@@ -915,6 +915,41 @@
   - **ArtistTopSongsView.swift**: Already had playing indicators (waveform + accent title)
   - **AlbumTrackRow.swift**: Already had playing indicators (waveform replaces track number + green title)
 
+### 174. Unified Content Feed with Artist Following
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Models/, vibes/Services/, vibes/ViewModels/, vibes/Views/Feed/, vibes/Views/Artist/, vibes/ContentView.swift
+- **Requested**: Transform feed from static navigation widgets to dynamic content stream. Add artist following feature. Feed shows contextual cards (concerts, releases, recommendations) interleaved with social content. Setup card hides when complete. Clicking discovery cards navigates to full feature views.
+- **Context**: Current feed has 5 static widget buttons before content. Convert to content-driven feed like Instagram/Spotify.
+- **Acceptance Criteria**:
+  - [x] FollowedArtist model created
+  - [x] ArtistFollowService for Firestore persistence
+  - [x] ArtistFollowButton on artist profiles
+  - [x] ConcertFeedCard, ReleaseFeedCard, RecommendationFeedCard components
+  - [x] FeedViewModel aggregates all content sources
+  - [x] FeedView renders unified feed stream
+  - [x] Static discovery widgets removed
+  - [x] Setup card hides when all 3 items complete
+  - [x] Cards navigate to respective feature views
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented full Unified Content Feed feature:
+  - **New Models**: FollowedArtist.swift (Firestore model with conversion methods)
+  - **New Services**: ArtistFollowService.swift (follow/unfollow, Firestore persistence with caching)
+  - **New Views**:
+    - ArtistFollowButton.swift (optimistic UI updates)
+    - ConcertFeedCard.swift (purple accent, navigates to ConcertDiscoveryView)
+    - ReleaseFeedCard.swift (green accent, navigates to ReleasesDiscoveryView)
+    - RecommendationFeedCard.swift (orange accent, play button, navigates to DiscoverMusicView)
+  - **Modified**:
+    - ArtistHeaderView.swift (added follow button below genre chips)
+    - FeedViewModel.swift (aggregates song shares, concerts, releases, recommendations in parallel)
+    - ContentView.swift FeedView (renders unified feed stream, Setup card shows only when not all complete, Find People always visible)
+    - Constants.swift (added followedArtists collection)
+  - **Removed**: Static DiscoverMusicCard, ConcertDiscoveryCard, ReleasesDiscoveryCard widgets
+  - Build succeeds on iPhone 16e simulator
+
 ### 173. Fix Spotify requiring disconnect/reconnect after app relaunch
 - **Status**: COMPLETED
 - **Type**: Bug
@@ -934,8 +969,8 @@
      - When app becomes active via `.onChange(of: scenePhase)` with `.active` case
 
 ## Task Statistics
-- Total Tasks: 173
-- Completed: 173
+- Total Tasks: 174
+- Completed: 174
 - In Progress: 0
 - Archived: Tasks 1-123
 

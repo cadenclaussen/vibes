@@ -57,6 +57,9 @@ struct ArtistHeaderView: View {
                         }
                     }
                 }
+
+                ArtistFollowButton(artist: artist)
+                    .padding(.top, 4)
             }
             .padding()
             .padding(.bottom, 8)

@@ -56,10 +56,8 @@ struct ContentView: View {
 struct FeedView: View {
     @Environment(AppRouter.self) private var router
     @Environment(SpotifyRemoteService.self) private var spotifyRemote
-    @State private var songShares: [SongShare] = []
-    @State private var isLoadingShares = false
-
-    private let socialService = SocialService.shared
+    @Environment(SetupManager.self) private var setupManager
+    @State private var viewModel = FeedViewModel()
 
     var body: some View {
         @Bindable var router = router
@@ -68,51 +66,26 @@ struct FeedView: View {
             ZStack(alignment: .bottom) {
                 ScrollView {
                     VStack(spacing: 16) {
-                        SetupCard()
-                            .padding(.horizontal)
+                        // Setup card - only show when not all complete
+                        if !setupManager.isAllComplete {
+                            SetupCard()
+                                .padding(.horizontal)
+                        }
 
-                        // Find People card
+                        // Find People card - always visible
                         FindPeopleCard {
                             router.presentFindUsers()
                         }
                         .padding(.horizontal)
 
-                        ConcertDiscoveryCard {
-                            router.navigateToConcertDiscovery()
-                        }
-                        .padding(.horizontal)
-
-                        ReleasesDiscoveryCard {
-                            router.navigateToReleasesDiscovery()
-                        }
-                        .padding(.horizontal)
-
-                        DiscoverMusicCard {
-                            router.navigateToDiscoverMusic()
-                        }
-                        .padding(.horizontal)
-
-                        // Song shares section
-                        if isLoadingShares {
+                        // Feed content
+                        if viewModel.isLoading {
                             ProgressView()
                                 .padding(.top, 40)
-                        } else if songShares.isEmpty {
-                            ContentUnavailableView(
-                                "No Activity Yet",
-                                systemImage: "music.note.list",
-                                description: Text("Follow friends and share songs to see activity here")
-                            )
-                            .padding(.top, 40)
+                        } else if viewModel.feedItems.isEmpty {
+                            emptyFeedView
                         } else {
-                            LazyVStack(spacing: 0) {
-                                ForEach(songShares) { share in
-                                    SongShareCard(share: share) {
-                                        navigateToSender(share: share)
-                                    }
-                                    Divider()
-                                }
-                            }
-                            .padding(.top, 8)
+                            feedContentView
                         }
 
                         // Bottom padding for mini player
@@ -120,7 +93,7 @@ struct FeedView: View {
                     }
                 }
                 .refreshable {
-                    await loadShares()
+                    await viewModel.refreshFeed()
                 }
 
                 MiniPlayerView()
@@ -178,19 +151,47 @@ struct FeedView: View {
                 ArtistTopSongsView(artist: destination.artist)
             }
             .task {
-                await loadShares()
+                viewModel.setupManager = setupManager
+                await viewModel.loadFeed()
             }
         }
     }
 
-    private func loadShares() async {
-        isLoadingShares = true
-        do {
-            songShares = try await socialService.getSharesFromFollowing(limit: 50)
-        } catch {
-            // Silently fail
+    private var emptyFeedView: some View {
+        ContentUnavailableView(
+            "Your Feed is Empty",
+            systemImage: "music.note.list",
+            description: Text("Follow friends and artists to see activity here")
+        )
+        .padding(.top, 40)
+    }
+
+    private var feedContentView: some View {
+        LazyVStack(spacing: 0) {
+            ForEach(viewModel.feedItems) { item in
+                feedCard(for: item)
+                Divider()
+            }
         }
-        isLoadingShares = false
+        .padding(.top, 8)
+    }
+
+    @ViewBuilder
+    private func feedCard(for item: FeedItem) -> some View {
+        switch item {
+        case .songShare(let share):
+            SongShareCard(share: share) {
+                navigateToSender(share: share)
+            }
+        case .concert(let concert):
+            ConcertFeedCard(concert: concert)
+        case .newRelease(let album):
+            ReleaseFeedCard(album: album)
+        case .aiRecommendation(let track, let reason):
+            RecommendationFeedCard(track: track, reason: reason)
+        case .newFollow:
+            EmptyView()
+        }
     }
 
     private func navigateToSender(share: SongShare) {
@@ -223,114 +224,6 @@ struct FindPeopleCard: View {
                         .font(.headline)
                         .foregroundStyle(.primary)
                     Text("Follow friends and share music")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-            }
-            .padding()
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-struct DiscoverMusicCard: View {
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: "sparkles")
-                    .font(.title2)
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .background(Color.orange.gradient)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Discover Music")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    Text("Find new songs you'll love")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-            }
-            .padding()
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-struct ConcertDiscoveryCard: View {
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: "ticket.fill")
-                    .font(.title2)
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .background(Color.purple.gradient)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Discover Concerts")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    Text("Find shows from your favorite artists")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-            }
-            .padding()
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-struct ReleasesDiscoveryCard: View {
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: "music.note.list")
-                    .font(.title2)
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .background(Color.green.gradient)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("New Releases")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    Text("Discover new music from your artists")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
