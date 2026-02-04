@@ -38,7 +38,7 @@ struct UserSearchView: View {
                 Divider()
 
                 // Results
-                if viewModel.isLoading {
+                if viewModel.isLoading || viewModel.isLoadingAllUsers {
                     Spacer()
                     ProgressView()
                     Spacer()
@@ -49,7 +49,7 @@ struct UserSearchView: View {
                         retryAction: { viewModel.search() }
                     )
                     Spacer()
-                } else if viewModel.results.isEmpty && !viewModel.searchQuery.isEmpty {
+                } else if viewModel.displayedUsers.isEmpty && !viewModel.searchQuery.isEmpty {
                     Spacer()
                     EmptyStateView(
                         title: "No Results",
@@ -57,18 +57,18 @@ struct UserSearchView: View {
                         icon: "person.slash"
                     )
                     Spacer()
-                } else if viewModel.results.isEmpty {
+                } else if viewModel.displayedUsers.isEmpty {
                     Spacer()
                     EmptyStateView(
-                        title: "Find People",
-                        message: "Search for friends by name or username",
+                        title: "No Users Yet",
+                        message: "Be the first to invite friends!",
                         icon: "person.2"
                     )
                     Spacer()
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 0) {
-                            ForEach(viewModel.results) { user in
+                            ForEach(viewModel.displayedUsers) { user in
                                 UserSearchRow(
                                     user: user,
                                     isFollowing: viewModel.isFollowing(user),
@@ -100,6 +100,7 @@ struct UserSearchView: View {
             }
             .task {
                 await viewModel.loadFollowingIds()
+                await viewModel.loadAllUsers()
             }
         }
     }

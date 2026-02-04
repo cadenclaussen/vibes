@@ -13,6 +13,26 @@ final class SocialService {
 
     // MARK: - User Search
 
+    func getAllUsers(limit: Int = 50) async throws -> [UserProfile] {
+        guard let currentUserId = AuthManager.shared.user?.uid else {
+            return []
+        }
+
+        // Get all users ordered by most recently joined
+        let snapshot = try await db.collection(Constants.Firestore.users)
+            .order(by: "createdAt", descending: true)
+            .limit(to: limit)
+            .getDocuments()
+
+        return snapshot.documents.compactMap { doc in
+            if let profile = try? doc.data(as: UserProfile.self),
+               profile.uid != currentUserId {
+                return profile
+            }
+            return nil
+        }
+    }
+
     func searchUsers(query: String) async throws -> [UserProfile] {
         guard !query.isEmpty else { return [] }
 

@@ -55,9 +55,13 @@ struct ContentView: View {
 
 struct FeedView: View {
     @Environment(AppRouter.self) private var router
+    @Environment(AuthManager.self) private var authManager
     @Environment(SpotifyRemoteService.self) private var spotifyRemote
     @Environment(SetupManager.self) private var setupManager
     @State private var viewModel = FeedViewModel()
+    @State private var followingCount = 0
+
+    private let socialService = SocialService.shared
 
     var body: some View {
         @Bindable var router = router
@@ -72,9 +76,17 @@ struct FeedView: View {
                                 .padding(.horizontal)
                         }
 
-                        // Find People card - always visible
-                        FindPeopleCard {
-                            router.presentFindUsers()
+                        // Find People and My Following cards
+                        HStack(spacing: 12) {
+                            FindPeopleCard {
+                                router.presentFindUsers()
+                            }
+
+                            MyFollowingCard(count: followingCount) {
+                                if let userId = authManager.user?.uid {
+                                    router.navigateToFollowing(for: userId)
+                                }
+                            }
                         }
                         .padding(.horizontal)
 
@@ -153,6 +165,7 @@ struct FeedView: View {
             .task {
                 viewModel.setupManager = setupManager
                 await viewModel.loadFeed()
+                await loadFollowingCount()
             }
         }
     }
@@ -204,6 +217,15 @@ struct FeedView: View {
         )
         router.navigateToUserProfile(senderProfile)
     }
+
+    private func loadFollowingCount() async {
+        guard let userId = authManager.user?.uid else { return }
+        do {
+            followingCount = try await socialService.getFollowingCount(for: userId)
+        } catch {
+            // Silently fail
+        }
+    }
 }
 
 struct FindPeopleCard: View {
@@ -211,7 +233,7 @@ struct FindPeopleCard: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 12) {
+            VStack(spacing: 8) {
                 Image(systemName: "person.badge.plus")
                     .font(.title2)
                     .foregroundStyle(.white)
@@ -219,22 +241,41 @@ struct FindPeopleCard: View {
                     .background(Color.blue.gradient)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Find People")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    Text("Follow friends and share music")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
+                Text("Find People")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.primary)
             }
-            .padding()
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct MyFollowingCard: View {
+    let count: Int
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: "person.2.fill")
+                    .font(.title2)
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(Color.purple.gradient)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                Text("Following (\(count))")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.primary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
             .background(Color(.secondarySystemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }

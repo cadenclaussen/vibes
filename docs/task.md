@@ -968,9 +968,71 @@
      - Initial app launch via `.task` modifier
      - When app becomes active via `.onChange(of: scenePhase)` with `.active` case
 
+### 175. Add Email/Password Sign-In Option
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/Auth/AuthView.swift, vibes/Services/AuthManager.swift
+- **Requested**: Add option to sign in with username and password in addition to Google Sign-In. No forgot password yet.
+- **Context**: Users may prefer traditional email/password auth over Google Sign-In
+- **Acceptance Criteria**:
+  - [x] Add signInWithEmail() and signUpWithEmail() to AuthManager
+  - [x] Update AuthView with email/password form fields
+  - [x] Option to toggle between sign-in and sign-up modes
+  - [x] Google Sign-In still available as alternative
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented email/password authentication:
+  - **AuthManager.swift**: Added `signInWithEmail(email:password:)`, `signUpWithEmail(email:password:displayName:)`, and `createUserProfileForEmail()` methods using Firebase Auth
+  - **AuthView.swift**: Redesigned with segmented picker (Sign In / Sign Up), form fields (display name for signup, email, password, confirm password), validation, error mapping for Firebase errors, and Google Sign-In as alternative with "or" divider
+
+### 176. Make it easier to see who you are following
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/ContentView.swift
+- **Requested**: GitHub Issue #5 - Make it easier to see who you are following. Currently following data exists in SocialService but needs better UI visibility.
+- **Context**: Users want quick access to see who they follow without navigating multiple screens
+- **Acceptance Criteria**:
+  - [x] Easy access to following list from profile or feed
+  - [x] Following list shows all followed users
+  - [x] Can navigate to user profiles from list
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Added `MyFollowingCard` component to Feed view alongside FindPeopleCard. Both cards are displayed side-by-side as compact buttons with icons. MyFollowingCard shows the following count and navigates directly to the FollowListView when tapped. FeedView now loads followingCount in its task and passes it to the card.
+
+### 177. List all users before searching in Find People
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/Social/UserSearchView.swift, vibes/ViewModels/UserSearchViewModel.swift, vibes/Services/SocialService.swift
+- **Requested**: GitHub Issue #3 - List everyone currently on the app when finding friends before the user even starts searching
+- **Context**: Currently Find People requires typing to see results. Users should see all/recent users immediately on opening the view.
+- **Acceptance Criteria**:
+  - [x] Find People shows users immediately without typing
+  - [x] Users can still search/filter the list
+  - [x] Performance acceptable with reasonable user count
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Added `getAllUsers(limit:)` method to SocialService that fetches users ordered by createdAt descending (most recent first), excluding current user, limited to 50. Added `allUsers`, `isLoadingAllUsers`, and `displayedUsers` (computed property) to UserSearchViewModel. Updated UserSearchView to load all users on view appear and display them when search query is empty. When user types a search query, results switch to filtered search results.
+
+### 178. Spotify connection on open page not working properly
+- **Status**: COMPLETED
+- **Type**: Bug
+- **Location**: vibes/Views/Auth/TutorialView.swift
+- **Requested**: GitHub Issue #4 - The connect to Spotify on the open page is not working properly
+- **Context**: Need to investigate what's broken in the Spotify OAuth flow on the initial auth/open page
+- **Acceptance Criteria**:
+  - [x] Identify root cause of Spotify connection issue
+  - [x] Fix the connection flow
+  - [x] Build and test successfully
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Root cause was that `TutorialView.connectSpotify()` had a TODO placeholder that simulated loading for 1 second then completed the tutorial without actually connecting to Spotify. Fixed by replacing the placeholder with actual call to `SpotifyAuthService.shared.startAuthorization()` which performs the OAuth 2.0 PKCE flow. Also syncs the Spotify linked state to Firestore via `authManager.updateSpotifyLinked(true)` on success.
+
 ## Task Statistics
-- Total Tasks: 174
-- Completed: 174
+- Total Tasks: 178
+- Completed: 178
 - In Progress: 0
 - Archived: Tasks 1-123
 

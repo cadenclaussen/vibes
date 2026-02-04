@@ -54,9 +54,14 @@ struct TutorialView: View {
 
     private func connectSpotify() {
         isConnectingSpotify = true
-        // TODO: Implement Spotify OAuth flow
-        // For now, just complete tutorial
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+        Task {
+            do {
+                try await SpotifyAuthService.shared.startAuthorization()
+                try? await authManager.updateSpotifyLinked(true)
+            } catch {
+                // User cancelled or auth failed - continue to app anyway
+                print("Spotify auth error: \(error)")
+            }
             isConnectingSpotify = false
             completeTutorial()
         }

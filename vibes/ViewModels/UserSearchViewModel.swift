@@ -5,12 +5,32 @@ import Foundation
 final class UserSearchViewModel {
     var searchQuery = ""
     var results: [UserProfile] = []
+    var allUsers: [UserProfile] = []
     var isLoading = false
+    var isLoadingAllUsers = false
     var error: Error?
 
     private(set) var followingIds: Set<String> = []
     private var searchTask: Task<Void, Never>?
     private let socialService = SocialService.shared
+
+    var displayedUsers: [UserProfile] {
+        // If searching, show search results; otherwise show all users
+        if searchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
+            return allUsers
+        }
+        return results
+    }
+
+    func loadAllUsers() async {
+        isLoadingAllUsers = true
+        do {
+            allUsers = try await socialService.getAllUsers(limit: 50)
+        } catch {
+            // Silently fail - users can still search
+        }
+        isLoadingAllUsers = false
+    }
 
     func search() {
         searchTask?.cancel()
