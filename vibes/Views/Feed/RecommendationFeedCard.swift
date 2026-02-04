@@ -10,11 +10,11 @@ struct RecommendationFeedCard: View {
     private let spotifyService = SpotifyDataService.shared
 
     var body: some View {
-        Button {
-            router.navigateToDiscoverMusic()
-        } label: {
-            VStack(alignment: .leading, spacing: 12) {
-                // Header with type indicator
+        VStack(alignment: .leading, spacing: 12) {
+            // Header - taps to discover music
+            Button {
+                router.navigateToDiscoverMusic()
+            } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "sparkles")
                         .font(.caption)
@@ -34,10 +34,15 @@ struct RecommendationFeedCard: View {
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
+            }
+            .buttonStyle(.plain)
 
-                // Track content
+            // Track content - taps to play
+            Button {
+                playTrack()
+            } label: {
                 HStack(spacing: 12) {
-                    // Album art with play button overlay
+                    // Album art with playing indicator
                     ZStack {
                         AsyncImage(url: URL(string: track.albumArtURL ?? "")) { image in
                             image
@@ -54,7 +59,6 @@ struct RecommendationFeedCard: View {
                         .frame(width: 64, height: 64)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
 
-                        // Playing indicator or play button
                         if isPlaying {
                             PlayingWaveform()
                                 .frame(width: 24, height: 24)
@@ -80,15 +84,10 @@ struct RecommendationFeedCard: View {
 
                     Spacer()
 
-                    // Play button
-                    Button {
-                        playTrack()
-                    } label: {
-                        Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                            .font(.system(size: 36))
-                            .foregroundStyle(Color.orange)
-                    }
-                    .buttonStyle(.plain)
+                    // Play/pause indicator
+                    Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                        .font(.system(size: 36))
+                        .foregroundStyle(Color.orange)
 
                     // More menu
                     Menu {
@@ -114,10 +113,10 @@ struct RecommendationFeedCard: View {
                     }
                 }
             }
-            .padding()
-            .background(Color(.systemBackground))
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
+        .padding()
+        .background(Color(.systemBackground))
         .contextMenu {
             Button {
                 router.presentShareSheet(for: track)
@@ -134,7 +133,7 @@ struct RecommendationFeedCard: View {
             }
         }
         .accessibilityLabel("Recommended song: \(track.name) by \(track.artistName)")
-        .accessibilityHint("Double tap to discover more music")
+        .accessibilityHint("Double tap to play")
     }
 
     private var isPlaying: Bool {

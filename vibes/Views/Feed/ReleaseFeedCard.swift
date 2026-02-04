@@ -6,11 +6,11 @@ struct ReleaseFeedCard: View {
     @Environment(AppRouter.self) private var router
 
     var body: some View {
-        Button {
-            router.navigateToReleasesDiscovery()
-        } label: {
-            VStack(alignment: .leading, spacing: 12) {
-                // Header with type indicator
+        VStack(alignment: .leading, spacing: 12) {
+            // Header - taps to releases discovery
+            Button {
+                router.navigateToReleasesDiscovery()
+            } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "music.note.list")
                         .font(.caption)
@@ -30,8 +30,13 @@ struct ReleaseFeedCard: View {
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
+            }
+            .buttonStyle(.plain)
 
-                // Album content
+            // Album content - taps to album detail
+            Button {
+                router.navigateToAlbumDetail(album)
+            } label: {
                 HStack(spacing: 12) {
                     // Album art
                     AsyncImage(url: URL(string: album.albumArtURL ?? "")) { image in
@@ -81,18 +86,21 @@ struct ReleaseFeedCard: View {
                     }
 
                     Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.body)
+                        .foregroundStyle(.tertiary)
                 }
             }
-            .padding()
-            .background(Color(.systemBackground))
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
+        .padding()
+        .background(Color(.systemBackground))
         .accessibilityLabel("New release: \(album.name) by \(album.artistName)")
-        .accessibilityHint("Double tap to see more new releases")
+        .accessibilityHint("Double tap to view album")
     }
 
     private func formatReleaseDate(_ dateString: String) -> String {
-        // Try parsing YYYY-MM-DD format
         let inputFormatter = DateFormatter()
         inputFormatter.dateFormat = "yyyy-MM-dd"
 
@@ -103,7 +111,6 @@ struct ReleaseFeedCard: View {
             return outputFormatter.string(from: date)
         }
 
-        // Try YYYY format
         inputFormatter.dateFormat = "yyyy"
         if inputFormatter.date(from: dateString) != nil {
             return dateString

@@ -39,15 +39,18 @@ enum FeedItem: Identifiable {
 
     var sortScore: Double {
         // Higher score = shown first
+        // Mix items together with small type variations to interleave content
         let recencyScore = -timestamp.timeIntervalSinceNow / 3600 // Hours ago
-        let typeBoost: Double
+        let typeVariation: Double
         switch self {
-        case .songShare: typeBoost = 100
-        case .concert: typeBoost = 80
-        case .newFollow: typeBoost = 60
-        case .newRelease: typeBoost = 70
-        case .aiRecommendation: typeBoost = 50
+        case .songShare: typeVariation = 3
+        case .concert: typeVariation = 2
+        case .newFollow: typeVariation = 0
+        case .newRelease: typeVariation = 1
+        case .aiRecommendation: typeVariation = 4
         }
-        return typeBoost - min(recencyScore, 168) // Cap at 1 week
+        // Small type variation + position hash creates interleaved order
+        let positionHash = Double(abs(id.hashValue % 10))
+        return 100 - min(recencyScore, 168) + typeVariation + positionHash * 0.1
     }
 }

@@ -47,6 +47,46 @@ final class AuthManager {
         }
     }
 
+    // MARK: - Email/Password Sign In
+
+    func signInWithEmail(email: String, password: String) async throws {
+        let authResult = try await Auth.auth().signIn(withEmail: email, password: password)
+        await loadUserProfile(userId: authResult.user.uid)
+        let hasCompletedTutorial = UserDefaults.standard.bool(
+            forKey: Constants.UserDefaults.hasCompletedTutorial
+        )
+        needsTutorial = !hasCompletedTutorial
+    }
+
+    func signUpWithEmail(email: String, password: String, displayName: String) async throws {
+        let authResult = try await Auth.auth().createUser(withEmail: email, password: password)
+        try await createUserProfileForEmail(for: authResult.user, displayName: displayName)
+        needsTutorial = true
+    }
+
+    private func createUserProfileForEmail(for firebaseUser: FirebaseAuth.User, displayName: String) async throws {
+        let username = generateUsername(from: firebaseUser.email ?? "user")
+
+        let profile = UserProfile(
+            id: firebaseUser.uid,
+            uid: firebaseUser.uid,
+            email: firebaseUser.email ?? "",
+            username: username,
+            displayName: displayName,
+            profilePictureURL: nil,
+            spotifyLinked: false,
+            geminiKeyConfigured: false,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+
+        try await db.collection(Constants.Firestore.users)
+            .document(firebaseUser.uid)
+            .setData(try Firestore.Encoder().encode(profile))
+
+        self.userProfile = profile
+    }
+
     // MARK: - Google Sign In
 
     func signInWithGoogle() async throws {
