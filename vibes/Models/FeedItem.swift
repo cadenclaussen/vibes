@@ -6,6 +6,7 @@ enum FeedItem: Identifiable {
     case newFollow(Friendship, UserProfile)
     case newRelease(UnifiedAlbum)
     case aiRecommendation(UnifiedTrack, String) // track + reason
+    case friendRecommendation(UnifiedTrack, [String]) // track + friend usernames who shared it
 
     var id: String {
         switch self {
@@ -19,6 +20,8 @@ enum FeedItem: Identifiable {
             return "release_\(album.id)"
         case .aiRecommendation(let track, _):
             return "ai_\(track.id)"
+        case .friendRecommendation(let track, _):
+            return "friend_\(track.id)"
         }
     }
 
@@ -34,6 +37,8 @@ enum FeedItem: Identifiable {
             return Date() // Use current date for releases
         case .aiRecommendation:
             return Date() // AI recommendations are always fresh
+        case .friendRecommendation:
+            return Date() // Friend recommendations are always fresh
         }
     }
 
@@ -48,6 +53,7 @@ enum FeedItem: Identifiable {
         case .newFollow: typeVariation = 0
         case .newRelease: typeVariation = 1
         case .aiRecommendation: typeVariation = 4
+        case .friendRecommendation: typeVariation = 5 // High priority - social proof
         }
         // Small type variation + position hash creates interleaved order
         let positionHash = Double(abs(id.hashValue % 10))

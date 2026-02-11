@@ -202,6 +202,9 @@ struct FeedView: View {
             ReleaseFeedCard(album: album)
         case .aiRecommendation(let track, let reason):
             RecommendationFeedCard(track: track, reason: reason)
+        case .friendRecommendation(let track, let friends):
+            FriendRecommendationCard(track: track, friendUsernames: friends)
+                .padding(.horizontal)
         case .newFollow:
             EmptyView()
         }

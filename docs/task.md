@@ -1030,9 +1030,30 @@
 - **Failures**: None
 - **Solution**: Root cause was that `TutorialView.connectSpotify()` had a TODO placeholder that simulated loading for 1 second then completed the tutorial without actually connecting to Spotify. Fixed by replacing the placeholder with actual call to `SpotifyAuthService.shared.startAuthorization()` which performs the OAuth 2.0 PKCE flow. Also syncs the Spotify linked state to Firestore via `authManager.updateSpotifyLinked(true)` on success.
 
+### 179. Friend-based music discovery
+- **Status**: COMPLETED
+- **Type**: Feature
+- **Location**: vibes/Views/Feed/FriendRecommendationCard.swift, vibes/Services/SocialService.swift, vibes/ViewModels/FeedViewModel.swift, vibes/Models/FeedItem.swift
+- **Requested**: Implement friend-based discovery - show songs that friends have shared/like that the user might enjoy. Leverage the existing follow system to surface music recommendations.
+- **Context**: Users want to discover music through their social connections, not just algorithms. "Songs your friends love that you might like."
+- **Acceptance Criteria**:
+  - [x] Fetch songs shared by people the user follows
+  - [x] Filter out songs user has already interacted with
+  - [x] Display as feed card or dedicated view
+  - [x] Songs are playable and shareable
+  - [x] Build succeeds
+- **Failure Count**: 0
+- **Failures**: None
+- **Solution**: Implemented friend-based music discovery:
+  - **FeedItem.swift**: Added `friendRecommendation(UnifiedTrack, [String])` case with high sort priority
+  - **SocialService.swift**: Added `FriendRecommendation` struct and `getPopularSongsAmongFriends()` method that aggregates songs shared by followed users in last 30 days, groups by track ID, collects unique friend usernames, filters out user's own shares, and returns songs sorted by friend count
+  - **FriendRecommendationCard.swift**: New card showing "Friends are loving" header, album art with play overlay, track info, and list of friends who shared (e.g., "@alice and 2 others shared this"). Includes play button, share menu, and context menu
+  - **FeedViewModel.swift**: Added `fetchFriendRecommendations()` that runs in parallel with other feed fetches
+  - **ContentView.swift**: Added case to render FriendRecommendationCard in feed
+
 ## Task Statistics
-- Total Tasks: 178
-- Completed: 178
+- Total Tasks: 179
+- Completed: 179
 - In Progress: 0
 - Archived: Tasks 1-123
 

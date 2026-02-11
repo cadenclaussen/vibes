@@ -298,6 +298,85 @@ final class SocialService {
         return try? doc.data(as: UserProfile.self)
     }
 
+    // MARK: - Friend Recommendations
+
+    struct FriendRecommendation {
+        let trackId: String
+        let trackName: String
+        let artistName: String
+        let albumArtURL: String
+        let friendUsernames: [String]
+    }
+
+    func getPopularSongsAmongFriends(minFriends: Int = 1, limit: Int = 10) async throws -> [FriendRecommendation] {
+        guard let currentUserId = AuthManager.shared.user?.uid else {
+            return []
+        }
+
+        // Get shares from people we follow (last 30 days)
+        let followingIds = try await getFollowingIds()
+        guard !followingIds.isEmpty else { return [] }
+
+        // Get muted users to exclude
+        let mutedIds = Set(try await getMutedIds())
+        let unmutedFollowingIds = followingIds.filter { !mutedIds.contains($0) }
+        guard !unmutedFollowingIds.isEmpty else { return [] }
+
+        // Get user's own shared songs to exclude
+        let userShares = try await getUserShares(userId: currentUserId, limit: 100)
+        let userSharedTrackIds = Set(userShares.map { $0.spotifyTrackId })
+
+        // Fetch all shares from friends (last 30 days)
+        var allShares: [SongShare] = []
+        let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+
+        for chunk in unmutedFollowingIds.chunked(into: 30) {
+            let snapshot = try await db.collection(Constants.Firestore.songShares)
+                .whereField("senderId", in: chunk)
+                .whereField("timestamp", isGreaterThan: Timestamp(date: thirtyDaysAgo))
+                .getDocuments()
+
+            for doc in snapshot.documents {
+                if let share = try? doc.data(as: SongShare.self) {
+                    allShares.append(share)
+                }
+            }
+        }
+
+        // Group by track ID and collect unique friend usernames
+        var trackToFriends: [String: (share: SongShare, friends: Set<String>)] = [:]
+        for share in allShares {
+            // Skip songs user has already shared
+            if userSharedTrackIds.contains(share.spotifyTrackId) {
+                continue
+            }
+
+            if var existing = trackToFriends[share.spotifyTrackId] {
+                existing.friends.insert(share.senderUsername)
+                trackToFriends[share.spotifyTrackId] = existing
+            } else {
+                trackToFriends[share.spotifyTrackId] = (share, [share.senderUsername])
+            }
+        }
+
+        // Filter to songs shared by minimum number of friends, sort by friend count
+        let recommendations = trackToFriends.values
+            .filter { $0.friends.count >= minFriends }
+            .sorted { $0.friends.count > $1.friends.count }
+            .prefix(limit)
+            .map { item in
+                FriendRecommendation(
+                    trackId: item.share.spotifyTrackId,
+                    trackName: item.share.trackName,
+                    artistName: item.share.artistName,
+                    albumArtURL: item.share.albumArtURL,
+                    friendUsernames: Array(item.friends).sorted()
+                )
+            }
+
+        return Array(recommendations)
+    }
+
     // MARK: - Mute Operations
 
     func mute(userId: String) async throws {

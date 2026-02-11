@@ -17,6 +17,7 @@ class FeedViewModel {
     private let maxConcerts = 5
     private let maxReleases = 5
     private let maxRecommendations = 3
+    private let maxFriendRecs = 5
 
     init() {}
 
@@ -34,18 +35,21 @@ class FeedViewModel {
         async let concertsTask = fetchConcerts(artists: rankedArtists)
         async let releasesTask = fetchReleases(artists: rankedArtists)
         async let recommendationsTask = fetchRecommendations()
+        async let friendRecsTask = fetchFriendRecommendations()
 
-        let (shares, concerts, releases, recommendations) = await (
+        let (shares, concerts, releases, recommendations, friendRecs) = await (
             sharesTask,
             concertsTask,
             releasesTask,
-            recommendationsTask
+            recommendationsTask,
+            friendRecsTask
         )
 
         allItems.append(contentsOf: shares)
         allItems.append(contentsOf: concerts)
         allItems.append(contentsOf: releases)
         allItems.append(contentsOf: recommendations)
+        allItems.append(contentsOf: friendRecs)
 
         // Sort by sortScore (higher = shown first)
         allItems.sort { $0.sortScore > $1.sortScore }
@@ -158,6 +162,29 @@ class FeedViewModel {
             return tracks.enumerated().map { index, track in
                 let reason = reasons[index % reasons.count]
                 return FeedItem.aiRecommendation(track, reason)
+            }
+        } catch {
+            return []
+        }
+    }
+
+    private func fetchFriendRecommendations() async -> [FeedItem] {
+        do {
+            let recommendations = try await socialService.getPopularSongsAmongFriends(
+                minFriends: 1,
+                limit: maxFriendRecs
+            )
+
+            return recommendations.map { rec in
+                let track = UnifiedTrack(
+                    id: rec.trackId,
+                    name: rec.trackName,
+                    artistName: rec.artistName,
+                    albumName: "",
+                    albumArtURL: rec.albumArtURL,
+                    spotifyUri: "spotify:track:\(rec.trackId)"
+                )
+                return FeedItem.friendRecommendation(track, rec.friendUsernames)
             }
         } catch {
             return []
